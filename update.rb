@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Install required gems:
 # gem install news-api telegram-bot-ruby httparty sqlite3 dotenv
 
@@ -12,13 +14,14 @@ require 'dotenv'
 Dotenv.load
 
 # Configuration
-NEWS_API_KEY = ENV['NEWS_API_KEY']          # Replace with your NewsAPI key
+NEWS_API_KEY = ENV['NEWS_API_KEY'] # Replace with your NewsAPI key
 TELEGRAM_BOT_TOKEN = ENV['TELEGRAM_BOT_TOKEN'] # Replace with your Telegram bot token
-TELEGRAM_CHANNEL = ENV['TELEGRAM_CHANNEL']    # Replace with your channel (e.g., @MyNewsChannel)
+TELEGRAM_CHANNEL = ENV['TELEGRAM_CHANNEL'] # Replace with your channel (e.g., @MyNewsChannel)
 LIBRETRANSLATE_URL = ENV['LIBRETRANSLATE_URL'] # Public instance; swap if self-hosted
+LIBRETRANSLATE_API_KEY = ENV['LIBRETRANSLATE_API_KEY'] # API key for LibreTranslate
 
 # Validate required environment variables
-required_env_vars = ['NEWS_API_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHANNEL', 'LIBRETRANSLATE_URL']
+required_env_vars = %w[NEWS_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHANNEL LIBRETRANSLATE_URL]
 required_env_vars.each do |var|
   raise "Missing required environment variable: #{var}" if ENV[var].nil? || ENV[var].empty?
 end
@@ -44,7 +47,7 @@ top_headlines = news_api.get_top_headlines(sources: 'bbc-news', language: 'en')
 response = news_api.get_everything(
   sources: 'bbc-news',  # BBC News source ID
   language: 'en',       # English news
-  pageSize: 15           # Fetch 5 articles (note camelCase per gem docs)
+  pageSize: 15 # Fetch 5 articles (note camelCase per gem docs)
 )
 
 # Initialize Telegram bot
@@ -66,10 +69,11 @@ response.each do |article|
   translate_response = HTTParty.post(
     LIBRETRANSLATE_URL,
     body: {
-      q: [article.title, article.description],  # Array to translate both at once
+      q: [article.title, article.description], # Array to translate both at once
       source: 'en',
-      target: 'fa',             # Persian (Farsi)
-      format: 'text'
+      target: 'fa', # Persian (Farsi)
+      format: 'text',
+      api_key: LIBRETRANSLATE_API_KEY
     }.to_json,
     headers: { 'Content-Type' => 'application/json' }
   )
@@ -80,12 +84,13 @@ response.each do |article|
     translated_title = translations[0]
     translated_description = translations[1]
   else
-    puts "Translation failed for '#{title}': #{translate_response.body}"
+    pp translate_response
+    puts "Translation failed for '#{article.title}': #{translate_response.body}"
     next # Skip this article if translation fails
   end
 
   # Construct message
-  message = "📢 *#{translated_title}*\n\n#{translated_description}\n\n#{article.url}\n\n\n*#{title}*\n\n#{description}"
+  message = "📢 *#{translated_title}*\n\n#{translated_description}\n\n#{article.url}\n\n\n*#{article.title}*\n\n#{article.description}"
 
   # Post to Telegram channel with photo if available
   if article.urlToImage
@@ -96,7 +101,7 @@ response.each do |article|
         caption: message,
         parse_mode: 'Markdown' # Enables bold title with *
       )
-    rescue => e
+    rescue StandardError => e
       puts "Failed to send photo: #{e.message}. Sending text-only message."
       bot.api.send_message(
         chat_id: TELEGRAM_CHANNEL,
@@ -114,10 +119,10 @@ response.each do |article|
 
   # Store the article in database after successful sending
   db.execute('INSERT INTO articles (url, title, sent_at) VALUES (?, ?, datetime("now"))',
-    [article.url, article.title])
+             [article.url, article.title])
 
   puts "Posted: #{translated_title}"
   sleep 2 # Avoid Telegram rate limits
 end
 
-puts "Done posting news to Telegram!"
+puts 'Done posting news to Telegram!'
