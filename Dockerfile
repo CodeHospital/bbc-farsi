@@ -17,13 +17,11 @@ RUN touch /app/articles.db /app/cron.log
 
 # Setup cron
 RUN apk add --no-cache dcron && \
-    echo '*/10 * * * * cd /app && ruby update.rb >> /app/cron.log 2>&1' > /etc/crontabs/root
+    echo '10 * * * * cd /app && ruby update.rb >> /app/cron.log 2>&1' > /etc/crontabs/root
 
-# Create a startup script that runs both crond and the initial update
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'ruby /app/update.rb &' >> /app/start.sh && \
-    echo 'crond -f -d 8' >> /app/start.sh && \
-    chmod +x /app/start.sh
+# Copy the startup script
+COPY start.sh /app/start.sh
+RUN chmod +x /app/start.sh
 
 # Set the startup script as the entry point
 ENTRYPOINT ["/app/start.sh"]
