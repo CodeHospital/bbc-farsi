@@ -11,3 +11,5 @@ gem 'telegram-bot-ruby', '~> 2.4'
 group :development do
   gem 'rubocop', '~> 1.28.2'
 end
+
+gem "ruby-openai", "~> 8.1"

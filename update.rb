@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Install required gems:
-# gem install news-api telegram-bot-ruby httparty sqlite3 dotenv
+# gem install news-api telegram-bot-ruby httparty sqlite3 dotenv ruby-openai
 
 require 'news-api'
 require 'telegram/bot'
@@ -9,6 +9,7 @@ require 'httparty'
 require 'json'
 require 'sqlite3'
 require 'dotenv'
+require 'openai'
 
 # Load environment variables from .env file
 Dotenv.load
@@ -17,11 +18,10 @@ Dotenv.load
 NEWS_API_KEY = ENV['NEWS_API_KEY'] # Replace with your NewsAPI key
 TELEGRAM_BOT_TOKEN = ENV['TELEGRAM_BOT_TOKEN'] # Replace with your Telegram bot token
 TELEGRAM_CHANNEL = ENV['TELEGRAM_CHANNEL'] # Replace with your channel (e.g., @MyNewsChannel)
-LIBRETRANSLATE_URL = ENV['LIBRETRANSLATE_URL'] # Public instance; swap if self-hosted
-LIBRETRANSLATE_API_KEY = ENV['LIBRETRANSLATE_API_KEY'] # API key for LibreTranslate
+OPENAI_API_KEY = ENV['OPENAI_API_KEY'] # API key for OpenAI
 
 # Validate required environment variables
-required_env_vars = %w[NEWS_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHANNEL LIBRETRANSLATE_URL]
+required_env_vars = %w[NEWS_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHANNEL OPENAI_API_KEY]
 required_env_vars.each do |var|
   raise "Missing required environment variable: #{var}" if ENV[var].nil? || ENV[var].empty?
 end
@@ -53,6 +53,9 @@ response = news_api.get_everything(
 # Initialize Telegram bot
 bot = Telegram::Bot::Client.new(TELEGRAM_BOT_TOKEN)
 
+# Initialize OpenAI client
+client = OpenAI::Client.new(access_token: OPENAI_API_KEY)
+
 # Process and post each article
 response.each do |article|
   # Skip if article has already been sent
@@ -65,33 +68,32 @@ response.each do |article|
   # Original English text
   next if article.content == article.description
 
-  # Translate to Persian using local LibreTranslate
-  translate_response = HTTParty.post(
-    LIBRETRANSLATE_URL,
-    body: {
-      q: [article.title, article.description], # Array to translate both at once
-      source: 'en',
-      target: 'fa', # Persian (Farsi)
-      format: 'text',
-      api_key: LIBRETRANSLATE_API_KEY
-    }.to_json,
-    headers: { 'Content-Type' => 'application/json' }
-  )
-
-  # Parse translated text
-  if translate_response.success?
-    translations = JSON.parse(translate_response.body)['translatedText']
-    translated_title = translations[0]
-    translated_description = translations[1]
-  else
-    pp translate_response
-    puts "Translation failed for '#{article.title}': #{translate_response.body}"
-    next # Skip this article if translation fails
+  # Translate to Persian using OpenAI
+  begin
+    translate_response = client.chat(
+      parameters: {
+        model: "babbage-002",
+        messages: [{
+          role: "system",
+          content: "You are a professional English to Persian translator. Translate the following texts keeping the meaning and tone intact. Return only the translations separated by ||| without any additional text."
+        }, {
+          role: "user",
+          content: "#{article.title}\n#{article.description}"
+        }]
+      }
+    )
+    
+    translations = translate_response.dig("choices", 0, "message", "content").split('|||')
+    translated_title = translations[0].strip
+    translated_description = translations[1].strip
+  rescue StandardError => e
+    puts "Translation failed for '#{article.title}': #{e.message}"
+    next
   end
 
   # Construct message
   message = "📢 *#{translated_title}*\n\n#{translated_description}\n\n#{article.url}\n\n\n*#{article.title}*\n\n#{article.description}"
-
+pp messages
   # Post to Telegram channel with photo if available
   if article.urlToImage
     begin
