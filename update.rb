@@ -1,27 +1,30 @@
 # frozen_string_literal: true
 
 # Install required gems:
-# gem install news-api telegram-bot-ruby httparty sqlite3 dotenv ruby-openai
+# gem install news-api telegram-bot-ruby httparty sqlite3 dotenv ollama-ai
 
 require 'news-api'
 require 'telegram/bot'
-require 'httparty'
-require 'json'
+# require 'httparty'
+# require 'json'
 require 'sqlite3'
 require 'dotenv'
-require 'openai'
+require 'ollama-ai'
+require 'openssl'
 
 # Load environment variables from .env file
-Dotenv.load
+Dotenv.load('.env')
 
 # Configuration
 NEWS_API_KEY = ENV['NEWS_API_KEY'] # Replace with your NewsAPI key
 TELEGRAM_BOT_TOKEN = ENV['TELEGRAM_BOT_TOKEN'] # Replace with your Telegram bot token
 TELEGRAM_CHANNEL = ENV['TELEGRAM_CHANNEL'] # Replace with your channel (e.g., @MyNewsChannel)
-OPENAI_API_KEY = ENV['OPENAI_API_KEY'] # API key for OpenAI
+OLLAMA_URL = ENV['OLLAMA_URL'] || 'http://localhost:11434' # Ollama server address
+OLLAMA_MODEL = ENV['OLLAMA_MODEL'] || 'mistral-nemo' # Ollama model to use
+puts "OLLAMA_URL: #{OLLAMA_URL}, OLLAMA_MODEL: #{OLLAMA_MODEL}"
 
 # Validate required environment variables
-required_env_vars = %w[NEWS_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHANNEL OPENAI_API_KEY]
+required_env_vars = %w[NEWS_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHANNEL]
 required_env_vars.each do |var|
   raise "Missing required environment variable: #{var}" if ENV[var].nil? || ENV[var].empty?
 end
@@ -34,9 +37,20 @@ db.execute <<-SQL
   CREATE TABLE IF NOT EXISTS articles (
     url TEXT PRIMARY KEY,
     title TEXT,
+    description TEXT,
+    translated_title TEXT,
+    translated_description TEXT,
     sent_at DATETIME
   );
 SQL
+
+# Configure OpenSSL to handle SSL certificates properly
+# This resolves "unable to get certificate CRL" errors on macOS
+cert_store = OpenSSL::X509::Store.new
+cert_store.set_default_paths
+# Don't check CRL (Certificate Revocation List) to avoid SSL errors
+cert_store.flags = 0
+OpenSSL::SSL::SSLContext::DEFAULT_CERT_STORE = cert_store
 
 # Initialize NewsAPI with olegmikhnovich's gem
 news_api = News.new(NEWS_API_KEY)
@@ -47,53 +61,82 @@ top_headlines = news_api.get_top_headlines(sources: 'bbc-news', language: 'en')
 response = news_api.get_everything(
   sources: 'bbc-news',  # BBC News source ID
   language: 'en',       # English news
-  pageSize: 15 # Fetch 5 articles (note camelCase per gem docs)
+  pageSize: 35 # Fetch 25 articles (note camelCase per gem docs)
 )
 
 # Initialize Telegram bot
 bot = Telegram::Bot::Client.new(TELEGRAM_BOT_TOKEN)
 
-# Initialize OpenAI client
-client = OpenAI::Client.new(access_token: OPENAI_API_KEY)
+# Initialize Ollama client
+@client = Ollama.new(
+  credentials: { address: OLLAMA_URL },
+  options: { server_sent_events: true }
+)
+
+def translate(text)
+  prompt = File.read('prompt')
+  translate_response = @client.chat(
+    {
+      model: OLLAMA_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content: prompt
+        },
+        {
+          role: 'user',
+          content: text
+        }
+      ],
+      stream: false
+    }
+  )
+  pp "translate_response: #{translate_response}"
+  # Ollama returns an array of responses, get the last complete message
+  translate_response.last.dig('message', 'content')
+end
 
 # Process and post each article
 response.each do |article|
+  # Original English text
+  if article.content == article.description
+    # puts "Skipping article with same content and description: #{article.title}"
+    next
+  end
+
+  ignore_list = ['Watch:', 'Assignment:', 'Speak:', 'Podcast:', 'Newsletter:', 'Trending:']
+  if ignore_list.any? { |word| article.title.include?(word) }
+    puts "Skipping article with ignore list word: #{article.title}"
+    next
+  end
+  if ['iplayer', 'programmes', 'sounds'].any? { |word| article.url.include?(word) }
+    puts "Skipping article with ignore list word: #{article.title}"
+    next
+  end
   # Skip if article has already been sent
   exists = db.get_first_value('SELECT 1 FROM articles WHERE url = ?', article.url)
   if exists
     puts "Skipping already sent article: #{article.title}"
     next
   end
-
-  # Original English text
-  next if article.content == article.description
-
-  # Translate to Persian using OpenAI
+  
+  # Translate to Persian using Ollama
   begin
-    translate_response = client.chat(
-      parameters: {
-        model: "babbage-002",
-        messages: [{
-          role: "system",
-          content: "You are a professional English to Persian translator. Translate the following texts keeping the meaning and tone intact. Return only the translations separated by ||| without any additional text."
-        }, {
-          role: "user",
-          content: "#{article.title}\n#{article.description}"
-        }]
-      }
-    )
-    
-    translations = translate_response.dig("choices", 0, "message", "content").split('|||')
-    translated_title = translations[0].strip
-    translated_description = translations[1].strip
+    translated_title = translate(article.title)
+    translated_description = translate(article.description + "\n\n" + article.content)
+    if translated_title.nil? || translated_title.empty? || translated_description.nil? || translated_description.empty?
+      puts "Error: Empty translation response for '#{article.title}'"
+      next
+    end
   rescue StandardError => e
     puts "Translation failed for '#{article.title}': #{e.message}"
+    pp e.backtrace
     next
   end
 
   # Construct message
-  message = "📢 *#{translated_title}*\n\n#{translated_description}\n\n#{article.url}\n\n\n*#{article.title}*\n\n#{article.description}"
-pp messages
+  message = "📢 *#{translated_title}*\n\n#{translated_description}\n\n\n#{article.url}\nfollow @realbbcfarsi for more\n\n\n*#{article.title}*\n\n#{article.description}"
+
   # Post to Telegram channel with photo if available
   if article.urlToImage
     begin
@@ -120,8 +163,15 @@ pp messages
   end
 
   # Store the article in database after successful sending
-  db.execute('INSERT INTO articles (url, title, sent_at) VALUES (?, ?, datetime("now"))',
-             [article.url, article.title])
+  begin
+    db.execute(
+      'INSERT INTO articles (url, title, description, translated_title, translated_description, sent_at) VALUES (?, ?, ?, ?, ?, datetime("now"))', [
+        article.url, article.title, article.description, translated_title, translated_description
+      ]
+    )
+  rescue StandardError
+    nil
+  end
 
   puts "Posted: #{translated_title}"
   sleep 2 # Avoid Telegram rate limits

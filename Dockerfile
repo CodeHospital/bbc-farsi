@@ -10,7 +10,7 @@ COPY update.rb .
 COPY .env* ./
 
 # Install required gems
-RUN gem install news-api telegram-bot-ruby httparty sqlite3 dotenv
+RUN gem install news-api telegram-bot-ruby sqlite3 dotenv ollama-ai
 
 # Create empty database file and log file
 RUN touch /app/articles.db /app/cron.log
