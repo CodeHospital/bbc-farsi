@@ -3,8 +3,8 @@
 source 'https://rubygems.org'
 
 gem 'dotenv', '~> 2.8'
-# gem 'httparty', '~> 0.22.0'
-gem 'news-api', '~> 0.2.0'
+gem 'feedjira', '~> 4.0'
+gem 'httparty', '~> 0.24.0'
 gem 'sqlite3', '~> 1.7'
 gem 'telegram-bot-ruby', '~> 2.4'
 

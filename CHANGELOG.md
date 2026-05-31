@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Replaced `news-api` gem with `feedjira` + `httparty` for fetching BBC news directly from RSS feeds
+- Added all seven BBC RSS feeds: top, world, uk, business, technology, science, health
+- Extracted article fetching into `fetch_bbc_articles` method with per-feed error handling
+- Removed `NEWS_API_KEY` requirement — no API key needed, feeds are public
+- Articles are now deduplicated by URL across all feeds before processing
+- Dropped image posting (BBC RSS feeds do not reliably include `urlToImage`); all messages sent as text
+- Removed the `content == description` skip check (RSS entries have only `summary`)
+
+
+
+### Changed
 - Replaced OpenAI API with Ollama AI for local LLM inference
 - Updated `update.rb` to use `ollama-ai` gem instead of `ruby-openai`
 - Changed environment variable from `OPENAI_API_KEY` to `OLLAMA_URL` and `OLLAMA_MODEL`
