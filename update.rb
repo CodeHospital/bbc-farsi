@@ -19,9 +19,8 @@ Dotenv.load('.env')
 NEWS_API_KEY = ENV['NEWS_API_KEY'] # Replace with your NewsAPI key
 TELEGRAM_BOT_TOKEN = ENV['TELEGRAM_BOT_TOKEN'] # Replace with your Telegram bot token
 TELEGRAM_CHANNEL = ENV['TELEGRAM_CHANNEL'] # Replace with your channel (e.g., @MyNewsChannel)
-OLLAMA_URL = ENV['OLLAMA_URL'] || 'http://localhost:11434' # Ollama server address
-OLLAMA_MODEL = ENV['OLLAMA_MODEL'] || 'mistral-nemo' # Ollama model to use
-puts "OLLAMA_URL: #{OLLAMA_URL}, OLLAMA_MODEL: #{OLLAMA_MODEL}"
+OLLAMA_URL = ENV['OLLAMA_URL'] || 'http://192.168.1.12:11434' # Ollama server address
+OLLAMA_MODELS = ['aya-expanse:32b'].freeze # , 'gemma3:27b', 'qwen3:14b', 'aya:8b'].freeze # , 'mistral-nemo', 'llama3.2'
 
 # Validate required environment variables
 required_env_vars = %w[NEWS_API_KEY TELEGRAM_BOT_TOKEN TELEGRAM_CHANNEL]
@@ -72,12 +71,12 @@ bot = Telegram::Bot::Client.new(TELEGRAM_BOT_TOKEN)
   credentials: { address: OLLAMA_URL },
   options: { server_sent_events: true }
 )
+prompts = [File.read('prompt')] # , File.read('prompt2')]
 
-def translate(text)
-  prompt = File.read('prompt')
+def translate_with(text, prompt, model)
   translate_response = @client.chat(
     {
-      model: OLLAMA_MODEL,
+      model:,
       messages: [
         {
           role: 'system',
@@ -96,6 +95,7 @@ def translate(text)
   translate_response.last.dig('message', 'content')
 end
 
+puts "Fetched #{response.size} articles from BBC News. Processing and posting to Telegram channel #{TELEGRAM_CHANNEL}..."
 # Process and post each article
 response.each do |article|
   # Original English text
@@ -109,7 +109,7 @@ response.each do |article|
     puts "Skipping article with ignore list word: #{article.title}"
     next
   end
-  if ['iplayer', 'programmes', 'sounds'].any? { |word| article.url.include?(word) }
+  if %w[iplayer programmes sounds].any? { |word| article.url.include?(word) }
     puts "Skipping article with ignore list word: #{article.title}"
     next
   end
@@ -119,61 +119,68 @@ response.each do |article|
     puts "Skipping already sent article: #{article.title}"
     next
   end
-  
-  # Translate to Persian using Ollama
-  begin
-    translated_title = translate(article.title)
-    translated_description = translate(article.description + "\n\n" + article.content)
-    if translated_title.nil? || translated_title.empty? || translated_description.nil? || translated_description.empty?
-      puts "Error: Empty translation response for '#{article.title}'"
-      next
+
+  prompts.each_with_index do |prompt, prompt_index|
+    OLLAMA_MODELS.each do |model|
+      # Translate to Persian using Ollama
+      begin
+        translated_title = translate_with(article.title, prompt, model)
+        translated_description = translate_with("#{article.description}\n\n#{article.content}", prompt, model)
+        if translated_title.nil? || translated_title.empty? || translated_description.nil? || translated_description.empty?
+          puts "Error: Empty translation response for '#{article.title}'"
+          next
+        end
+      rescue StandardError => e
+        puts "Translation failed for '#{article.title}': #{e.message}"
+        pp e.backtrace
+        next
+      end
+
+      # Construct message
+      message = "📢 *#{translated_title}*\n\n#{translated_description}\n\n\n#{article.url}\n\nfollow @realbbcfarsi for more\n\n*#{article.title}*"
+      if OLLAMA_MODELS.size > 1 || prompts.size > 1
+        message += "\n\n_Translation prompt: #{prompt_index + 1}, Model: #{model}_"
+      end
+
+      # Post to Telegram channel with photo if available
+      if article.urlToImage
+        begin
+          bot.api.send_photo(
+            chat_id: TELEGRAM_CHANNEL,
+            photo: article.urlToImage,
+            caption: message,
+            parse_mode: 'Markdown' # Enables bold title with *
+          )
+        rescue StandardError => e
+          puts "Failed to send photo: #{e.message}. Sending text-only message."
+          bot.api.send_message(
+            chat_id: TELEGRAM_CHANNEL,
+            text: message,
+            parse_mode: 'Markdown'
+          )
+        end
+      else
+        bot.api.send_message(
+          chat_id: TELEGRAM_CHANNEL,
+          text: message,
+          parse_mode: 'Markdown'
+        )
+      end
+
+      # Store the article in database after successful sending
+      begin
+        db.execute(
+          'INSERT INTO articles (url, title, description, translated_title, translated_description, sent_at) VALUES (?, ?, ?, ?, ?, datetime("now"))', [
+            article.url, article.title, article.description, translated_title, translated_description
+          ]
+        )
+      rescue StandardError
+        nil
+      end
+
+      puts "Posted: #{translated_title}"
     end
-  rescue StandardError => e
-    puts "Translation failed for '#{article.title}': #{e.message}"
-    pp e.backtrace
-    next
   end
-
-  # Construct message
-  message = "📢 *#{translated_title}*\n\n#{translated_description}\n\n\n#{article.url}\nfollow @realbbcfarsi for more\n\n\n*#{article.title}*\n\n#{article.description}"
-
-  # Post to Telegram channel with photo if available
-  if article.urlToImage
-    begin
-      bot.api.send_photo(
-        chat_id: TELEGRAM_CHANNEL,
-        photo: article.urlToImage,
-        caption: message,
-        parse_mode: 'Markdown' # Enables bold title with *
-      )
-    rescue StandardError => e
-      puts "Failed to send photo: #{e.message}. Sending text-only message."
-      bot.api.send_message(
-        chat_id: TELEGRAM_CHANNEL,
-        text: message,
-        parse_mode: 'Markdown'
-      )
-    end
-  else
-    bot.api.send_message(
-      chat_id: TELEGRAM_CHANNEL,
-      text: message,
-      parse_mode: 'Markdown'
-    )
-  end
-
-  # Store the article in database after successful sending
-  begin
-    db.execute(
-      'INSERT INTO articles (url, title, description, translated_title, translated_description, sent_at) VALUES (?, ?, ?, ?, ?, datetime("now"))', [
-        article.url, article.title, article.description, translated_title, translated_description
-      ]
-    )
-  rescue StandardError
-    nil
-  end
-
-  puts "Posted: #{translated_title}"
   sleep 2 # Avoid Telegram rate limits
 end
 
