@@ -1,0 +1,22 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Edit Translation</h2>
+  <%= link_to "← Back", admin_translation_path(@translation), class: "btn btn-outline-secondary btn-sm" %>
+</div>
+<div class="card mb-3 bg-light">
+  <div class="card-body">
+    <strong>Rewritten source:</strong> <%= @translation.rewrite&.content&.truncate(300) %>
+  </div>
+</div>
+<%= form_with model: [:admin, @translation] do |f| %>
+  <div class="mb-3">
+    <%= f.label :translated_title, class: "form-label" %>
+    <%= f.text_field :translated_title, class: "form-control", dir: "rtl", lang: "fa" %>
+  </div>
+  <div class="mb-3">
+    <%= f.label :translated_body, class: "form-label" %>
+    <%= f.text_area :translated_body, class: "form-control", rows: 12, dir: "rtl", lang: "fa" %>
+  </div>
+  <%= f.submit "Save", class: "btn btn-primary" %>
+  <%= button_to "↺ Re-translate", rerun_admin_translation_path(@translation), method: :post,
+        class: "btn btn-outline-warning ms-2" %>
+<% end %>

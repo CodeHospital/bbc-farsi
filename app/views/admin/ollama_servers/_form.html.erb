@@ -1,0 +1,51 @@
+<%= form_with model: [:admin, ollama_server], class: "needs-validation" do |f| %>
+  <% if ollama_server.errors.any? %>
+    <div class="alert alert-danger">
+      <ul class="mb-0">
+        <% ollama_server.errors.full_messages.each do |msg| %>
+          <li><%= msg %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mb-3">
+    <%= f.label :name, class: "form-label fw-semibold" %>
+    <%= f.text_field :name, class: "form-control", placeholder: "e.g. GPU Server 1" %>
+  </div>
+
+  <div class="mb-3">
+    <%= f.label :url, "Ollama URL", class: "form-label fw-semibold" %>
+    <%= f.url_field :url, class: "form-control", placeholder: "http://192.168.1.50:11434" %>
+    <div class="form-text">Full base URL of the Ollama server (no trailing slash).</div>
+  </div>
+
+  <div class="row mb-3">
+    <div class="col-md-4">
+      <%= f.label :rewrite_models, "Rewrite models", class: "form-label fw-semibold" %>
+      <%= f.text_area :rewrite_models, class: "form-control font-monospace", rows: 4,
+            placeholder: "qwen3:14b\ngemma3:27b" %>
+      <div class="form-text">One model per line (or comma-separated).</div>
+    </div>
+    <div class="col-md-4">
+      <%= f.label :translate_models, "Translate models", class: "form-label fw-semibold" %>
+      <%= f.text_area :translate_models, class: "form-control font-monospace", rows: 4,
+            placeholder: "aya-expanse:32b" %>
+    </div>
+    <div class="col-md-4">
+      <%= f.label :refine_models, "Refine models", class: "form-label fw-semibold" %>
+      <%= f.text_area :refine_models, class: "form-control font-monospace", rows: 4,
+            placeholder: "aya-expanse:32b\nqwen3:14b" %>
+    </div>
+  </div>
+
+  <div class="mb-4">
+    <div class="form-check">
+      <%= f.check_box :enabled, class: "form-check-input" %>
+      <%= f.label :enabled, "Enabled (available for job targeting)", class: "form-check-label" %>
+    </div>
+  </div>
+
+  <%= f.submit class: "btn btn-primary" %>
+  <%= link_to "Cancel", admin_ollama_servers_path, class: "btn btn-outline-secondary ms-2" %>
+<% end %>

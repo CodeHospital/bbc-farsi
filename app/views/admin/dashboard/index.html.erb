@@ -1,0 +1,81 @@
+<h2 class="mb-4">Dashboard</h2>
+
+<div class="row g-3 mb-4">
+  <% [
+    ["Feeds",        @counts[:feeds],            admin_feeds_path,            "rss",           "primary"],
+    ["Articles",     @counts[:articles],          admin_articles_path,         "newspaper",     "secondary"],
+    ["Rewrites",     @counts[:rewrites],          admin_rewrites_path,         "pencil-square", "info"],
+    ["Translations", @counts[:translations],      admin_translations_path,     "translate",     "success"],
+    ["Channels",     @counts[:telegram_channels], admin_telegram_channels_path,"telegram",      "warning"],
+    ["Posts sent",   @counts[:telegram_posts],    admin_telegram_posts_path,   "send-check",    "dark"]
+  ].each do |label, count, path, icon, color| %>
+    <div class="col-md-2">
+      <%= link_to path, class: "text-decoration-none" do %>
+        <div class="card text-center border-<%= color %>">
+          <div class="card-body">
+            <i class="bi bi-<%= icon %> fs-3 text-<%= color %>"></i>
+            <div class="fs-1 fw-bold"><%= count %></div>
+            <div class="text-muted small"><%= label %></div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <div class="fs-2 fw-bold text-warning"><%= @pending_articles %></div>
+        <div class="text-muted small">In pipeline</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-danger">
+      <div class="card-body text-center">
+        <div class="fs-2 fw-bold text-danger"><%= @error_articles %></div>
+        <div class="text-muted small">Errors</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <%= button_to "▶ Fetch Feeds Now", admin_articles_path, method: :get,
+          params: { trigger_fetch: 1 }, class: "btn btn-outline-primary w-100 h-100" %>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Recent Articles</div>
+      <div class="list-group list-group-flush">
+        <% @recent_articles.each do |article| %>
+          <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+            <span class="text-truncate me-2" style="max-width:320px">
+              <%= link_to article.title, admin_article_path(article) %>
+            </span>
+            <%= render "admin/shared/status_badge", status: article.status %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Recent Posts</div>
+      <div class="list-group list-group-flush">
+        <% @recent_posts.each do |post| %>
+          <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+            <span class="text-truncate me-2" style="max-width:260px">
+              <%= post.translation&.article&.title %>
+            </span>
+            <span class="badge bg-secondary"><%= post.telegram_channel&.name %></span>
+            <%= render "admin/shared/status_badge", status: post.status %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,3 +1,47 @@
-db
-*.db
+# Secrets & credentials
 .env
+.env.local
+.env.*.local
+/config/master.key
+/config/credentials/*.key
+/.kamal/secrets
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Rails storage (Active Storage, Solid Queue/Cache DBs)
+/storage/*
+!/storage/.keep
+
+# Logs
+/log/*
+!/log/.keep
+
+# Temp files
+/tmp/*
+!/tmp/.keep
+!/tmp/pids/
+/tmp/pids/*
+!/tmp/pids/.keep
+
+# Build artifacts
+/public/assets
+/public/packs
+/public/packs-test
+
+# Bundler
+/.bundle
+/vendor/bundle
+
+# System files
+.DS_Store
+.DS_Store?
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+db/sessions/*

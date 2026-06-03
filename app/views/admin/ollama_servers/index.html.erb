@@ -1,0 +1,60 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Ollama Servers</h2>
+  <%= link_to "＋ Add Server", new_admin_ollama_server_path, class: "btn btn-primary btn-sm" %>
+</div>
+
+<% if @ollama_servers.empty? %>
+  <div class="alert alert-info">
+    No servers configured yet. Add a server to enable multi-target rewrite, translate, and refine jobs.
+  </div>
+<% else %>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Name</th>
+          <th>URL</th>
+          <th>Rewrite models</th>
+          <th>Translate models</th>
+          <th>Refine models</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @ollama_servers.each do |server| %>
+          <tr>
+            <td class="fw-semibold"><%= server.name %></td>
+            <td><code><%= server.url %></code></td>
+            <td>
+              <% server.rewrite_model_list.each do |m| %>
+                <span class="badge bg-secondary font-monospace me-1"><%= m %></span>
+              <% end %>
+            </td>
+            <td>
+              <% server.translate_model_list.each do |m| %>
+                <span class="badge bg-secondary font-monospace me-1"><%= m %></span>
+              <% end %>
+            </td>
+            <td>
+              <% server.refine_model_list.each do |m| %>
+                <span class="badge bg-secondary font-monospace me-1"><%= m %></span>
+              <% end %>
+            </td>
+            <td>
+              <%= patch_toggle = server.enabled? ? "Disable" : "Enable" %>
+              <%= button_to patch_toggle, toggle_admin_ollama_server_path(server), method: :patch,
+                    class: "btn btn-sm #{server.enabled? ? 'btn-success' : 'btn-outline-secondary'}" %>
+            </td>
+            <td class="text-end">
+              <%= link_to "Edit", edit_admin_ollama_server_path(server), class: "btn btn-sm btn-outline-primary me-1" %>
+              <%= button_to "Delete", admin_ollama_server_path(server), method: :delete,
+                    class: "btn btn-sm btn-outline-danger",
+                    data: { turbo_confirm: "Delete server \"#{server.name}\"? This cannot be undone." } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>

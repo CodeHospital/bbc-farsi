@@ -1,27 +1,73 @@
-FROM ruby:3.2-alpine
+# syntax=docker/dockerfile:1
+# check=error=true
 
-WORKDIR /app
+# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
+# docker build -t bbcfarsi .
+# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name bbcfarsi bbcfarsi
 
-# Install dependencies
-RUN apk add --no-cache build-base sqlite-dev
+# For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
-# Copy application files
-COPY update.rb .
-COPY .env* ./
+# Make sure RUBY_VERSION matches the Ruby version in .ruby-version
+ARG RUBY_VERSION=3.3.8
+FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 
-# Install required gems
-RUN gem install news-api telegram-bot-ruby sqlite3 dotenv ollama-ai
+# Rails app lives here
+WORKDIR /rails
 
-# Create empty database file and log file
-RUN touch /app/articles.db /app/cron.log
+# Install base packages
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 sqlite3 && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Setup cron
-RUN apk add --no-cache dcron && \
-    echo '10 * * * * cd /app && ruby update.rb >> /app/cron.log 2>&1' > /etc/crontabs/root
+# Set production environment
+ENV RAILS_ENV="production" \
+    BUNDLE_DEPLOYMENT="1" \
+    BUNDLE_PATH="/usr/local/bundle" \
+    BUNDLE_WITHOUT="development"
 
-# Copy the startup script
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
+# Throw-away build stage to reduce size of final image
+FROM base AS build
 
-# Set the startup script as the entry point
-ENTRYPOINT ["/app/start.sh"]
+# Install packages needed to build gems
+RUN apt-get update -qq && \
+    apt-get install --no-install-recommends -y build-essential git libyaml-dev pkg-config && \
+    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+
+# Install application gems
+COPY vendor/* ./vendor/
+COPY Gemfile Gemfile.lock ./
+RUN bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
+    bundle exec bootsnap precompile --gemfile
+
+# Copy application code
+COPY . .
+
+# Precompile bootsnap code for faster boot times
+RUN bundle exec bootsnap precompile app/ lib/
+
+# Precompiling assets for production without requiring secret RAILS_MASTER_KEY
+RUN SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
+
+
+
+
+# Final stage for app image
+FROM base
+
+# Copy built artifacts: gems, application
+COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
+COPY --from=build /rails /rails
+
+# Run and own only the runtime files as a non-root user for security
+RUN groupadd --system --gid 1000 rails && \
+    useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
+    chown -R rails:rails db log storage tmp
+USER 1000:1000
+
+# Entrypoint prepares the database.
+ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+
+# Start server via Thruster by default, this can be overwritten at runtime
+EXPOSE 80
+CMD ["./bin/thrust", "./bin/rails", "server"]

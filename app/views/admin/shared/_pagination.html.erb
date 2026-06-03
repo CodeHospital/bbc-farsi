@@ -1,0 +1,17 @@
+<% if pagy.pages > 1 %>
+  <nav class="mt-3">
+    <ul class="pagination pagination-sm">
+      <% if pagy.prev %>
+        <li class="page-item">
+          <%= link_to "«", url_for(page: pagy.prev), class: "page-link" %>
+        </li>
+      <% end %>
+      <li class="page-item disabled"><span class="page-link">Page <%= pagy.page %> / <%= pagy.pages %></span></li>
+      <% if pagy.next %>
+        <li class="page-item">
+          <%= link_to "»", url_for(page: pagy.next), class: "page-link" %>
+        </li>
+      <% end %>
+    </ul>
+  </nav>
+<% end %>

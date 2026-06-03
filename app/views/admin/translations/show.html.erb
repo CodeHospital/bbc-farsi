@@ -1,0 +1,79 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Translation</h2>
+  <%= link_to "← Translations", admin_translations_path, class: "btn btn-outline-secondary btn-sm" %>
+</div>
+
+<% if @translation.status == "error" && @translation.error_message.present? %>
+  <div class="alert alert-danger">
+    <strong><i class="bi bi-exclamation-triangle-fill"></i> Job failed</strong>
+    <pre class="mb-0 mt-2 small" style="white-space:pre-wrap"><%= @translation.error_message %></pre>
+  </div>
+<% end %>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between">
+    <span>Persian output</span>
+    <span><%= render "admin/shared/status_badge", status: @translation.status %></span>
+  </div>
+  <% if @translation.translated_title.present? || @translation.translated_body.present? %>
+    <div class="card-body" dir="rtl" lang="fa">
+      <h5><%= @translation.translated_title %></h5>
+      <p><%= @translation.translated_body %></p>
+    </div>
+  <% elsif @translation.status == "running" %>
+    <div class="card-body text-muted"><i class="bi bi-hourglass-split"></i> Translation in progress…</div>
+  <% elsif @translation.status == "pending" %>
+    <div class="card-body text-muted">Waiting to start.</div>
+  <% end %>
+  <div class="card-footer">
+    <small class="text-muted">
+      Model: <%= @translation.llm_model %> &bull;
+      Prompt: <%= @translation.prompt_name %> &bull;
+      <%= @translation.created_at.strftime("%b %d, %Y %H:%M") %>
+    </small>
+  </div>
+</div>
+
+<div class="d-flex gap-2 mb-3">
+  <%= link_to "Edit", edit_admin_translation_path(@translation), class: "btn btn-outline-primary" %>
+  <%= button_to "↺ Re-translate", rerun_admin_translation_path(@translation), method: :post,
+        class: "btn btn-outline-warning" %>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-terminal"></i> curl commands</div>
+  <div class="card-body">
+    <% if @translation.prompt_name == "refine" %>
+      <p class="text-muted small mb-2">These commands refine the current Persian text.</p>
+      <%= render "admin/shared/curl_block",
+            label:   "refine title",
+            command: TranslationRefiner.debug_curl_title(@translation) %>
+      <%= render "admin/shared/curl_block",
+            label:   "refine body",
+            command: TranslationRefiner.debug_curl_body(@translation) %>
+    <% else %>
+      <p class="text-muted small mb-2">These are the exact calls used to produce this translation.</p>
+      <%= render "admin/shared/curl_block",
+            label:   "translate title",
+            command: ArticleTranslator.debug_curl_title(@translation.rewrite) %>
+      <%= render "admin/shared/curl_block",
+            label:   "translate body",
+            command: ArticleTranslator.debug_curl_body(@translation.rewrite) %>
+    <% end %>
+  </div>
+</div>
+
+<h5>Post to Telegram channel</h5>
+<div class="row g-2">
+  <% @telegram_channels.each do |channel| %>
+    <div class="col-auto">
+      <% already_posted = @posted_channel_ids.include?(channel.id) %>
+      <%= button_to already_posted ? "✓ #{channel.name}" : "📤 #{channel.name}",
+            post_to_channel_admin_translation_path(@translation),
+            method: :post,
+            params: { telegram_channel_id: channel.id },
+            class: "btn #{already_posted ? 'btn-success' : 'btn-outline-success'}",
+            disabled: already_posted %>
+    </div>
+  <% end %>
+</div>

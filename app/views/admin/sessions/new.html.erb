@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BBC Farsi Admin — Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+</head>
+<body class="bg-dark d-flex align-items-center justify-content-center" style="min-height:100vh">
+  <div class="card shadow" style="width:360px">
+    <div class="card-body p-4">
+      <h4 class="card-title text-center mb-4">📡 BBC Farsi Admin</h4>
+
+      <% flash.each do |type, message| %>
+        <div class="alert alert-<%= type == 'alert' ? 'danger' : 'success' %>"><%= message %></div>
+      <% end %>
+
+      <%= form_with url: admin_login_path, method: :post do |f| %>
+        <div class="mb-3">
+          <%= f.label :username, class: "form-label" %>
+          <%= f.text_field :username, class: "form-control", autofocus: true, autocomplete: "username" %>
+        </div>
+        <div class="mb-3">
+          <%= f.label :password, class: "form-label" %>
+          <%= f.password_field :password, class: "form-control", autocomplete: "current-password" %>
+        </div>
+        <%= f.submit "Log in", class: "btn btn-primary w-100" %>
+      <% end %>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Edit Rewrite</h2>
+  <%= link_to "← Back", admin_rewrite_path(@rewrite), class: "btn btn-outline-secondary btn-sm" %>
+</div>
+<div class="card mb-3 bg-light">
+  <div class="card-body">
+    <strong>Original:</strong> <%= @rewrite.article&.description %>
+  </div>
+</div>
+<%= form_with model: [:admin, @rewrite] do |f| %>
+  <div class="mb-3">
+    <%= f.label :content, "Rewritten content", class: "form-label" %>
+    <%= f.text_area :content, class: "form-control font-monospace", rows: 10 %>
+  </div>
+  <%= f.submit "Save", class: "btn btn-primary" %>
+  <%= button_to "Rerun with AI", rerun_admin_rewrite_path(@rewrite), method: :post,
+        class: "btn btn-outline-warning ms-2" %>
+<% end %>

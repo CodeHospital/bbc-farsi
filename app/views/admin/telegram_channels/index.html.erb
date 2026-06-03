@@ -1,0 +1,35 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Telegram Channels</h2>
+  <%= link_to "New Channel", new_admin_telegram_channel_path, class: "btn btn-primary" %>
+</div>
+
+<table class="table table-hover">
+  <thead><tr><th>Name</th><th>Channel ID</th><th>Enabled</th><th>Autopost</th><th>Posts</th><th></th></tr></thead>
+  <tbody>
+    <% @channels.each do |channel| %>
+      <tr>
+        <td><%= channel.name %></td>
+        <td><code><%= channel.channel_id %></code></td>
+        <td>
+          <%= button_to channel.enabled? ? "✓ On" : "Off",
+                toggle_admin_telegram_channel_path(channel), method: :patch,
+                class: "btn btn-sm #{channel.enabled? ? 'btn-success' : 'btn-outline-secondary'}" %>
+        </td>
+        <td>
+          <% if channel.autopost? %>
+            <span class="badge bg-success">Autopost on</span>
+          <% else %>
+            <span class="badge bg-secondary">Manual</span>
+          <% end %>
+        </td>
+        <td><%= channel.telegram_posts.posted.count %></td>
+        <td>
+          <%= link_to "Edit", edit_admin_telegram_channel_path(channel), class: "btn btn-sm btn-outline-primary me-1" %>
+          <%= button_to "Delete", admin_telegram_channel_path(channel), method: :delete,
+                class: "btn btn-sm btn-outline-danger",
+                data: { turbo_confirm: "Delete this channel?" } %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

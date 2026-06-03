@@ -1,0 +1,326 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Article</h2>
+  <%= link_to "← Articles", admin_articles_path, class: "btn btn-outline-secondary btn-sm" %>
+</div>
+
+<%# ── Original BBC article ─────────────────────────────────────────────── %>
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><strong>Original</strong> — <%= @article.feed&.name %></span>
+    <div class="d-flex align-items-center gap-2">
+      <small class="text-muted"><%= @article.published_at&.strftime("%b %d, %Y %H:%M") %></small>
+      <%= render "admin/shared/status_badge", status: @article.status %>
+    </div>
+  </div>
+  <div class="card-body">
+    <h6><%= @article.title %></h6>
+    <p class="text-muted"><%= @article.description %></p>
+    <div class="d-flex gap-2">
+      <a href="<%= @article.url %>" target="_blank" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-box-arrow-up-right"></i> Source
+      </a>
+      <%= button_to "＋ New Rewrite (default)", rewrite_admin_article_path(@article), method: :post,
+            class: "btn btn-sm btn-outline-info" %>
+      <% if @article.archived? %>
+        <%= button_to "↩ Unarchive", unarchive_admin_article_path(@article), method: :post,
+              class: "btn btn-sm btn-outline-secondary" %>
+      <% else %>
+        <%= button_to "🗄 Archive article", archive_admin_article_path(@article), method: :post,
+              class: "btn btn-sm btn-outline-secondary",
+              data: { turbo_confirm: "Archive this article? It will be hidden from the main list." } %>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<%# ── Multi-target rewrite panel ──────────────────────────────────────── %>
+<% if @ollama_servers.any? %>
+  <div class="mb-3">
+    <button class="btn btn-sm btn-outline-primary" type="button"
+            data-bs-toggle="collapse" data-bs-target="#rewriteTargets">
+      <i class="bi bi-cpu"></i> Run Rewrites on Targets…
+    </button>
+  </div>
+  <div class="collapse mb-4" id="rewriteTargets">
+    <div class="card border-primary">
+      <div class="card-header bg-primary bg-opacity-10 fw-semibold">
+        Select rewrite targets — one job will be queued per selection
+      </div>
+      <div class="card-body">
+        <%= form_with url: multi_rewrite_admin_article_path(@article), method: :post do |f| %>
+          <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-3">
+            <% @ollama_servers.each do |server| %>
+              <% if server.rewrite_model_list.any? %>
+                <div class="col">
+                  <div class="card h-100">
+                    <div class="card-header py-1 d-flex align-items-center gap-2">
+                      <i class="bi bi-hdd-rack text-primary"></i>
+                      <strong><%= server.name %></strong>
+                      <small class="text-muted font-monospace"><%= server.url %></small>
+                    </div>
+                    <div class="card-body py-2">
+                      <% server.rewrite_model_list.each do |model| %>
+                        <div class="form-check">
+                          <%= check_box_tag "targets[]", "#{server.id}|#{model}", false,
+                                id: "rw_#{server.id}_#{model.parameterize}",
+                                class: "form-check-input" %>
+                          <label class="form-check-label font-monospace small"
+                                 for="rw_<%= server.id %>_<%= model.parameterize %>">
+                            <%= model %>
+                          </label>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
+          <%= f.submit "Queue Selected Rewrites", class: "btn btn-primary btn-sm" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<%# ── Rewrites ─────────────────────────────────────────────────────────── %>
+<h5 class="mb-2">Rewrites
+  <small class="text-muted fs-6">(<%= @rewrites.count %> versions)</small>
+</h5>
+
+<% @rewrites.each do |rewrite| %>
+  <div class="card mb-2 <%= rewrite.active? ? 'border-success' : '' %>">
+    <div class="card-header d-flex justify-content-between align-items-center py-1">
+      <div class="d-flex align-items-center gap-2">
+        <% if rewrite.active? %>
+          <span class="badge bg-success">✓ Active</span>
+        <% end %>
+        <small class="text-muted">
+          #<%= rewrite.id %> &bull;
+          <% if rewrite.ollama_server %>
+            <span class="badge bg-light text-dark border me-1">
+              <i class="bi bi-hdd-rack"></i> <%= rewrite.ollama_server.name %>
+            </span>
+          <% end %>
+          <code><%= rewrite.llm_model %></code> &bull;
+          <%= rewrite.created_at.strftime("%b %d %H:%M") %>
+        </small>
+        <%= render "admin/shared/status_badge", status: rewrite.status %>
+      </div>
+      <div class="d-flex gap-1">
+        <% unless rewrite.active? %>
+          <%= button_to "✓ Activate", activate_admin_rewrite_path(rewrite), method: :post,
+                class: "btn btn-xs btn-success" %>
+        <% end %>
+        <%= button_to "↺ Rerun", rerun_admin_rewrite_path(rewrite), method: :post,
+              class: "btn btn-xs btn-outline-warning" %>
+        <%= link_to "Edit", edit_admin_rewrite_path(rewrite), class: "btn btn-xs btn-outline-primary" %>
+        <% if rewrite.status == "error" %>
+          <%= button_to "🗄", archive_admin_rewrite_path(rewrite), method: :post,
+                class: "btn btn-xs btn-outline-secondary", title: "Archive this error" %>
+        <% end %>
+      </div>
+    </div>
+    <% if rewrite.content.present? %>
+      <div class="card-body py-2">
+        <p class="mb-0 text-body small"><%= rewrite.content %></p>
+        <%= render "admin/shared/curl_block",
+              label:   "rewrite (title + description → English body)",
+              command: ArticleRewriter.debug_curl(rewrite.article,
+                         server: rewrite.ollama_server,
+                         model:  rewrite.llm_model) %>
+      </div>
+    <% elsif rewrite.error_message.present? %>
+      <div class="card-body py-2">
+        <div class="alert alert-danger py-2 mb-2">
+          <strong>Error</strong>
+          <pre class="mb-0 mt-1 small" style="white-space:pre-wrap"><%= rewrite.error_message %></pre>
+        </div>
+        <%= render "admin/shared/curl_block",
+              label:   "rewrite (title + description → English body)",
+              command: ArticleRewriter.debug_curl(rewrite.article,
+                         server: rewrite.ollama_server,
+                         model:  rewrite.llm_model) %>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<% if @rewrites.empty? %>
+  <p class="text-muted">No rewrites yet.</p>
+<% end %>
+
+<%# ── Multi-target translate panel ────────────────────────────────────── %>
+<% completed_rewrites = @rewrites.select { |r| r.status == "completed" } %>
+<% if @ollama_servers.any? && completed_rewrites.any? %>
+  <div class="mt-4 mb-3">
+    <button class="btn btn-sm btn-outline-success" type="button"
+            data-bs-toggle="collapse" data-bs-target="#translateTargets">
+      <i class="bi bi-translate"></i> Run Translations on Targets…
+    </button>
+  </div>
+  <div class="collapse mb-4" id="translateTargets">
+    <div class="card border-success">
+      <div class="card-header bg-success bg-opacity-10 fw-semibold">
+        Select translation targets — one job will be queued per selection
+      </div>
+      <div class="card-body">
+        <%= form_with url: multi_translate_admin_article_path(@article), method: :post do |f| %>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Use rewrite</label>
+            <select name="rewrite_id" class="form-select form-select-sm w-auto">
+              <% completed_rewrites.each do |rw| %>
+                <option value="<%= rw.id %>" <%= "selected" if rw.active? %>>
+                  #<%= rw.id %> — <%= rw.llm_model %>
+                  <%= "(#{rw.ollama_server.name})" if rw.ollama_server %>
+                  <%= "✓ active" if rw.active? %>
+                </option>
+              <% end %>
+            </select>
+          </div>
+
+          <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3 mb-3">
+            <% @ollama_servers.each do |server| %>
+              <% if server.translate_model_list.any? %>
+                <div class="col">
+                  <div class="card h-100">
+                    <div class="card-header py-1 d-flex align-items-center gap-2">
+                      <i class="bi bi-hdd-rack text-success"></i>
+                      <strong><%= server.name %></strong>
+                      <small class="text-muted font-monospace"><%= server.url %></small>
+                    </div>
+                    <div class="card-body py-2">
+                      <% server.translate_model_list.each do |model| %>
+                        <div class="form-check">
+                          <%= check_box_tag "targets[]", "#{server.id}|#{model}", false,
+                                id: "tr_#{server.id}_#{model.parameterize}",
+                                class: "form-check-input" %>
+                          <label class="form-check-label font-monospace small"
+                                 for="tr_<%= server.id %>_<%= model.parameterize %>">
+                            <%= model %>
+                          </label>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            <% end %>
+          </div>
+          <%= f.submit "Queue Selected Translations", class: "btn btn-success btn-sm" %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+<%# ── Translations ──────────────────────────────────────────────────────── %>
+<h5 class="mt-4 mb-2">Translations
+  <small class="text-muted fs-6">(<%= @translations.count %> versions)</small>
+</h5>
+
+<% @translations.each do |translation| %>
+  <div class="card mb-2 <%= translation.active? ? 'border-success' : '' %>">
+    <div class="card-header d-flex justify-content-between align-items-center py-1">
+      <div class="d-flex align-items-center gap-2">
+        <% if translation.active? %>
+          <span class="badge bg-success">✓ Active</span>
+        <% end %>
+        <small class="text-muted">
+          #<%= translation.id %> &bull;
+          <% if translation.ollama_server %>
+            <span class="badge bg-light text-dark border me-1">
+              <i class="bi bi-hdd-rack"></i> <%= translation.ollama_server.name %>
+            </span>
+          <% end %>
+          <code><%= translation.llm_model %></code> &bull;
+          prompt: <%= translation.prompt_name %> &bull;
+          <%= translation.created_at.strftime("%b %d %H:%M") %>
+        </small>
+        <%= render "admin/shared/status_badge", status: translation.status %>
+      </div>
+      <div class="d-flex gap-1">
+        <% unless translation.active? %>
+          <%= button_to "✓ Activate", activate_admin_translation_path(translation), method: :post,
+                class: "btn btn-xs btn-success" %>
+        <% end %>
+        <%= button_to "✦ Refine Persian", refine_admin_translation_path(translation), method: :post,
+              class: "btn btn-xs btn-outline-info",
+              title: "Run AI rewrite on the Persian text to improve it" %>
+        <%= button_to "↺ Retranslate", rerun_admin_translation_path(translation), method: :post,
+              class: "btn btn-xs btn-outline-warning" %>
+        <%= link_to "Edit / Post", admin_translation_path(translation),
+              class: "btn btn-xs btn-outline-primary" %>
+        <% if translation.status == "error" %>
+          <%= button_to "🗄", archive_admin_translation_path(translation), method: :post,
+                class: "btn btn-xs btn-outline-secondary", title: "Archive this error" %>
+        <% end %>
+      </div>
+    </div>
+    <% if translation.translated_title.present? %>
+      <div class="card-body py-2">
+        <div dir="rtl" lang="fa">
+          <strong><%= translation.translated_title %></strong>
+          <p class="mb-0 small mt-1"><%= translation.translated_body&.truncate(300) %></p>
+        </div>
+        <% if translation.prompt_name == "refine" %>
+          <%= render "admin/shared/curl_block",
+                label:   "refine title (Persian → refined Persian)",
+                command: TranslationRefiner.debug_curl_title(translation,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+          <%= render "admin/shared/curl_block",
+                label:   "refine body (Persian → refined Persian)",
+                command: TranslationRefiner.debug_curl_body(translation,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+        <% else %>
+          <%= render "admin/shared/curl_block",
+                label:   "translate title (English → Persian)",
+                command: ArticleTranslator.debug_curl_title(translation.rewrite,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+          <%= render "admin/shared/curl_block",
+                label:   "translate body (rewritten English → Persian)",
+                command: ArticleTranslator.debug_curl_body(translation.rewrite,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+        <% end %>
+      </div>
+    <% elsif translation.error_message.present? %>
+      <div class="card-body py-2">
+        <div class="alert alert-danger py-2 mb-2">
+          <strong>Error</strong>
+          <pre class="mb-0 mt-1 small" style="white-space:pre-wrap"><%= translation.error_message %></pre>
+        </div>
+        <% if translation.prompt_name == "refine" %>
+          <%= render "admin/shared/curl_block",
+                label:   "refine title",
+                command: TranslationRefiner.debug_curl_title(translation,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+          <%= render "admin/shared/curl_block",
+                label:   "refine body",
+                command: TranslationRefiner.debug_curl_body(translation,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+        <% else %>
+          <%= render "admin/shared/curl_block",
+                label:   "translate title",
+                command: ArticleTranslator.debug_curl_title(translation.rewrite,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+          <%= render "admin/shared/curl_block",
+                label:   "translate body",
+                command: ArticleTranslator.debug_curl_body(translation.rewrite,
+                           server: translation.ollama_server,
+                           model:  translation.llm_model) %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>
+
+<% if @translations.empty? %>
+  <p class="text-muted">No translations yet.</p>
+<% end %>

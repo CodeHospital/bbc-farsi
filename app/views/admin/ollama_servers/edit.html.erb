@@ -1,0 +1,10 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Edit — <%= @ollama_server.name %></h2>
+  <%= link_to "← Servers", admin_ollama_servers_path, class: "btn btn-outline-secondary btn-sm" %>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <%= render "form", ollama_server: @ollama_server %>
+  </div>
+</div>

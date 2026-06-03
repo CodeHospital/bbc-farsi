@@ -1,0 +1,18 @@
+<%# locals: (label:, command:) %>
+<details class="mt-2">
+  <summary class="text-muted small" style="cursor:pointer">
+    <i class="bi bi-terminal"></i> curl — <%= label %>
+  </summary>
+  <div class="position-relative mt-1 curl-block">
+    <pre class="bg-dark text-success rounded p-2 small mb-0" style="white-space:pre-wrap;word-break:break-all"><%= command %></pre>
+    <button type="button"
+            class="btn btn-xs btn-outline-secondary position-absolute top-0 end-0 m-1 copy-btn"
+            onclick="
+              var pre = this.closest('.curl-block').querySelector('pre');
+              navigator.clipboard.writeText(pre.textContent).then(() => {
+                this.textContent = '✓ Copied';
+                setTimeout(() => this.textContent = 'Copy', 1500);
+              });
+            ">Copy</button>
+  </div>
+</details>

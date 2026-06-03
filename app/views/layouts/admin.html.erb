@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BBC Farsi Admin</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet"
+        integrity="sha384-CK2SzKma4jA5H/MXDUU7i1TqZlCFaD4T01vtyDFvPlD97JQyS+IsSh1nI2EFbpyk" crossorigin="anonymous">
+  <style>
+    body { background: #f8f9fa; }
+    .sidebar { min-height: 100vh; background: #212529; }
+    .sidebar .nav-link { color: #adb5bd; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; }
+    .sidebar .nav-link i { width: 20px; }
+    .badge-status-pending { background: #6c757d; }
+    .badge-status-rewriting, .badge-status-translating, .badge-status-running { background: #0d6efd; }
+    .badge-status-rewritten { background: #6610f2; }
+    .badge-status-translated { background: #198754; }
+    .badge-status-posted { background: #20c997; }
+    .badge-status-error { background: #dc3545; }
+    .badge-status-completed { background: #198754; }
+  </style>
+</head>
+<body>
+<div class="container-fluid">
+  <div class="row">
+    <nav class="col-md-2 sidebar p-3">
+      <div class="text-white fw-bold fs-5 mb-4">📡 BBC Farsi</div>
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <%= link_to admin_root_path, class: "nav-link #{'active' if controller_name == 'dashboard'}" do %>
+            <i class="bi bi-speedometer2"></i> Dashboard
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_feeds_path, class: "nav-link #{'active' if controller_name == 'feeds'}" do %>
+            <i class="bi bi-rss"></i> Feeds
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_articles_path, class: "nav-link #{'active' if controller_name == 'articles'}" do %>
+            <i class="bi bi-newspaper"></i> Articles
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_rewrites_path, class: "nav-link #{'active' if controller_name == 'rewrites'}" do %>
+            <i class="bi bi-pencil-square"></i> Rewrites
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_translations_path, class: "nav-link #{'active' if controller_name == 'translations'}" do %>
+            <i class="bi bi-translate"></i> Translations
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_telegram_channels_path, class: "nav-link #{'active' if controller_name == 'telegram_channels'}" do %>
+            <i class="bi bi-telegram"></i> Channels
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_telegram_posts_path, class: "nav-link #{'active' if controller_name == 'telegram_posts'}" do %>
+            <i class="bi bi-send-check"></i> Posts
+          <% end %>
+        </li>
+        <li class="nav-item mt-2">
+          <div class="text-secondary small px-2 mb-1" style="font-size:.7rem;letter-spacing:.05em;text-transform:uppercase">Infrastructure</div>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_ollama_servers_path, class: "nav-link #{'active' if controller_name == 'ollama_servers'}" do %>
+            <i class="bi bi-hdd-rack"></i> Ollama Servers
+          <% end %>
+        </li>
+      </ul>
+      <div class="mt-auto pt-3 border-top border-secondary">
+        <%= button_to admin_logout_path, method: :delete, class: "btn btn-sm btn-outline-danger w-100" do %>
+          <i class="bi bi-box-arrow-left"></i> Log out
+        <% end %>
+      </div>
+    </nav>
+
+    <main class="col-md-10 py-3 px-4">
+      <% flash.each do |type, message| %>
+        <div class="alert alert-<%= type == 'notice' ? 'success' : 'danger' %> alert-dismissible">
+          <%= message %>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      <% end %>
+      <%= yield %>
+    </main>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+<script>
+  // Disable every submit button the moment its form is submitted.
+  // Uses cloneNode/appendChild — no innerHTML — to avoid XSS surface.
+  // Re-enables on Turbo error (e.g. validation failure staying on the same page).
+  function makeSpinner() {
+    const s = document.createElement('span');
+    s.className = 'spinner-border spinner-border-sm me-1';
+    s.setAttribute('role', 'status');
+    return s;
+  }
+
+  document.addEventListener('turbo:submit-start', ({ target: form }) => {
+    form.querySelectorAll('[type=submit]').forEach(btn => {
+      btn.disabled = true;
+      btn._savedNodes = [...btn.childNodes].map(n => n.cloneNode(true));
+      btn.textContent = '';
+      btn.appendChild(makeSpinner());
+    });
+  });
+
+  document.addEventListener('turbo:submit-end', ({ target: form, detail }) => {
+    if (!detail.success) {
+      form.querySelectorAll('[type=submit]').forEach(btn => {
+        btn.disabled = false;
+        if (btn._savedNodes) {
+          btn.textContent = '';
+          btn._savedNodes.forEach(n => btn.appendChild(n));
+          delete btn._savedNodes;
+        }
+      });
+    }
+  });
+</script>
+</body>
+</html>

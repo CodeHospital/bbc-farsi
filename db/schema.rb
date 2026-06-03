@@ -1,0 +1,111 @@
+# This file is auto-generated from the current state of the database. Instead
+# of editing this file, please use the migrations feature of Active Record to
+# incrementally modify your database, and then regenerate this schema definition.
+#
+# This file is the source Rails uses to define your schema when running `bin/rails
+# db:schema:load`. When creating a new database, `bin/rails db:schema:load` tends to
+# be faster and is potentially less error prone than running all of your
+# migrations from scratch. Old migrations may fail to apply correctly if those
+# migrations use external dependencies or application code.
+#
+# It's strongly recommended that you check this file into your version control system.
+
+ActiveRecord::Schema[8.0].define(version: 2026_06_02_000002) do
+  create_table "articles", force: :cascade do |t|
+    t.integer "feed_id", null: false
+    t.string "title"
+    t.string "url"
+    t.text "description"
+    t.datetime "published_at"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "archived", default: false, null: false
+    t.index ["feed_id"], name: "index_articles_on_feed_id"
+    t.index ["url"], name: "index_articles_on_url", unique: true
+  end
+
+  create_table "feeds", force: :cascade do |t|
+    t.string "name"
+    t.string "url"
+    t.string "category"
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["url"], name: "index_feeds_on_url", unique: true
+  end
+
+  create_table "ollama_servers", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "url", null: false
+    t.boolean "enabled", default: true, null: false
+    t.text "rewrite_models"
+    t.text "translate_models"
+    t.text "refine_models"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "rewrites", force: :cascade do |t|
+    t.integer "article_id", null: false
+    t.text "content"
+    t.string "llm_model"
+    t.string "status", default: "pending", null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "active", default: false, null: false
+    t.boolean "archived", default: false, null: false
+    t.integer "ollama_server_id"
+    t.index ["article_id"], name: "index_rewrites_on_article_id"
+    t.index ["ollama_server_id"], name: "index_rewrites_on_ollama_server_id"
+  end
+
+  create_table "telegram_channels", force: :cascade do |t|
+    t.string "name"
+    t.string "token"
+    t.string "channel_id"
+    t.boolean "enabled", default: true, null: false
+    t.boolean "autopost", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "telegram_posts", force: :cascade do |t|
+    t.integer "translation_id", null: false
+    t.integer "telegram_channel_id", null: false
+    t.datetime "posted_at"
+    t.string "status"
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["telegram_channel_id"], name: "index_telegram_posts_on_telegram_channel_id"
+    t.index ["translation_id"], name: "index_telegram_posts_on_translation_id"
+  end
+
+  create_table "translations", force: :cascade do |t|
+    t.integer "article_id", null: false
+    t.integer "rewrite_id", null: false
+    t.string "translated_title"
+    t.text "translated_body"
+    t.string "llm_model"
+    t.string "prompt_name"
+    t.string "status", default: "pending", null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "active", default: false, null: false
+    t.boolean "archived", default: false, null: false
+    t.integer "ollama_server_id"
+    t.index ["article_id"], name: "index_translations_on_article_id"
+    t.index ["ollama_server_id"], name: "index_translations_on_ollama_server_id"
+    t.index ["rewrite_id"], name: "index_translations_on_rewrite_id"
+  end
+
+  add_foreign_key "articles", "feeds"
+  add_foreign_key "rewrites", "articles"
+  add_foreign_key "telegram_posts", "telegram_channels"
+  add_foreign_key "telegram_posts", "translations"
+  add_foreign_key "translations", "articles"
+  add_foreign_key "translations", "rewrites"
+end

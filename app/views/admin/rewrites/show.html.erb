@@ -1,0 +1,27 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Rewrite</h2>
+  <%= link_to "← Rewrites", admin_rewrites_path, class: "btn btn-outline-secondary btn-sm" %>
+</div>
+
+<% if @rewrite.status == "error" && @rewrite.error_message.present? %>
+  <div class="alert alert-danger">
+    <strong><i class="bi bi-exclamation-triangle-fill"></i> Job failed</strong>
+    <pre class="mb-0 mt-2 small" style="white-space:pre-wrap"><%= @rewrite.error_message %></pre>
+  </div>
+<% end %>
+
+<div class="card">
+  <div class="card-body">
+    <h6><%= link_to @rewrite.article&.title, admin_article_path(@rewrite.article), class: "text-decoration-none text-dark" if @rewrite.article %></h6>
+    <p class="text-muted small mb-2">
+      <%= @rewrite.llm_model %> &bull;
+      <%= @rewrite.created_at.strftime("%b %d, %Y %H:%M") %> &bull;
+      <%= render "admin/shared/status_badge", status: @rewrite.status %>
+    </p>
+    <% if @rewrite.content.present? %>
+      <p><%= @rewrite.content %></p>
+    <% end %>
+    <%= link_to "Edit", edit_admin_rewrite_path(@rewrite), class: "btn btn-outline-primary me-2" %>
+    <%= button_to "↺ Rerun", rerun_admin_rewrite_path(@rewrite), method: :post, class: "btn btn-outline-warning" %>
+  </div>
+</div>
