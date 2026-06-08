@@ -4,7 +4,178 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Unified Task-style filters across Articles, Rewrites, Translations
+- The Articles, Rewrites, and Translations index filters now match the Task
+  Queue: **toggle filter buttons with live count badges** (click the active one
+  to clear it) plus a **search box**, replacing the old dropdown/checkbox filter
+  forms.
+- Three reusable partials drive every filtered index:
+  `admin/shared/_filter_group` (multi-value toggle buttons with optional
+  `filtered/total` cross-counts and per-value badge colors),
+  `admin/shared/_filter_toggle` (single on/off filter, e.g. "Show archived",
+  "Active only"), and `admin/shared/_filter_search` (search box that preserves
+  every other active filter/sort as hidden fields). Links are built with
+  `url_for(request.query_parameters …)` so they compose, preserve sort/search,
+  and reset pagination automatically. The Task Queue was refactored onto these
+  same partials.
+- **Articles**: status + feed toggle groups (with counts), "Show archived"
+  toggle, title/description search. **Rewrites**: status toggle group, "Show
+  archived" toggle, article-title/content search (now `eager_load(:article)`).
+  **Translations**: status + model toggle groups, "Active only"/"Show archived"
+  toggles, search — sortable columns unchanged. Controllers compute the
+  per-dimension count hashes.
+- Added `Admin::ArticlesControllerTest` and `Admin::RewritesControllerTest`
+  (filter, search, archived-toggle, toggle-off coverage).
+
+### Added — Request a rewrite from the translation page
+- The translation detail page (`/admin/translations/:id`) now has a **"Rewrite
+  article"** button that enqueues a fresh rewrite task for the translation's
+  article (reusing the existing article `rewrite` action / `OllamaServer.pick`).
+  Shown only when the translation has an article.
+
+### Added — Translations index is filterable and sortable
+- **Filters** on `/admin/translations`: free-text search (article title +
+  Persian translated title), status, model (dropdown of distinct models), an
+  "Active only" toggle, and the existing "Show archived" toggle. A "Clear" link
+  appears when any filter is active.
+- **Sortable columns.** Article, Persian Title, Model, Active, Status, and
+  Created headers are clickable; each click toggles asc/desc and shows a ▲/▼
+  indicator. Sorting is whitelisted to known columns (`SORT_COLUMNS`) and wrapped
+  in `Arel.sql`; created-desc is the default and the stable tiebreaker.
+- Sort links preserve active filters/search (and reset pagination); the filter
+  form preserves the active sort via hidden fields. Article-column filtering and
+  sorting use `eager_load(:article)` (single LEFT JOIN, no N+1). New
+  `Admin::TranslationsHelper#translation_sort_link`.
+
+### Changed — Task Queue status/kind filters are now toggles
+- Clicking the **active** status or kind button clears that filter (returns to
+  "all"); clicking an inactive one sets it. The redundant per-row "All" buttons
+  were removed — toggling the active button off is the way to clear. Active
+  buttons carry `aria-pressed="true"`. Filters still compose with each other and
+  preserve the search query.
+
+### Added — Task search, bulk priority, and stale-task reclaim
+- **Search the queue by article text.** The Task Queue (`/admin/tasks`) has a
+  free-text search that matches the target article's title/description. Because a
+  task's `target` is polymorphic (Rewrite or Translation), the controller
+  resolves matching article ids, then the rewrite/translation ids that point at
+  them. Search composes with the status/kind filters and is preserved across
+  filter links and pagination.
+- **Bulk priority changes.** Row checkboxes + a select-all header let the admin
+  pick many tasks and **Raise**/**Lower** their priority or **set an exact
+  value** in one action (`PATCH /admin/tasks/bulk_prioritize`). Checkboxes are
+  associated with the bulk form via the HTML `form=` attribute (no nested forms),
+  and a small inline script drives select-all and the live selected-count.
+- **Stale claimed tasks return to the queue.** A claimed task whose worker
+  hasn't reported back within `Task::STALE_AFTER` (1 hour) is presumed dead and
+  requeued to `pending`. `Task.claim_next!` reclaims stale tasks on every worker
+  poll (self-healing), and `bin/rails bbc:reclaim_stale` (new rake task) covers
+  the case where no worker is polling. Added a `(status, claimed_at)`-friendly
+  `stale` scope and `reclaim_stale!`.
+- Confirmed: **higher-priority tasks are claimed first** — `claim_next!` orders
+  by `priority DESC, created_at ASC`.
+
+### Added — Task priority
+- **Admin can prioritize tasks.** New `priority` integer column on `tasks`
+  (default `0`). The Task Queue (`/admin/tasks`) and the task detail page show a
+  priority value with ▲/▼ steppers; raising a task's priority makes the worker
+  claim it sooner. Steppers appear only while a task can still be claimed
+  (pending or failed).
+- **Worker claims by priority.** `Task.claim_next!` now orders by
+  `priority DESC, created_at ASC` (new `by_priority` scope) instead of plain
+  FIFO, so higher-priority tasks jump the queue while ties stay first-in-first-out.
+  The queue list is ordered highest-priority-first, newest-first within a tier.
+- New `PATCH /admin/tasks/:id/prioritize?direction=up|down` action backed by
+  `Task#reprioritize!`; `priority` is validated as an integer.
+- Migration `20260608000001_add_priority_to_tasks` adds the column plus a
+  `(status, priority, created_at)` index for the claim lookup. **Run
+  `bin/rails db:migrate` to apply it to your dev/prod databases.**
+- Tests: claim-by-priority ordering, `reprioritize!` stepping, the `prioritize`
+  controller action, and the index priority controls.
+
+### Added — Task Queue kind filter + numbered pagination
+- **Task Queue (`/admin/tasks`) is now filterable by kind** (rewrite / translate /
+  refine) alongside the existing status filter. The two filters compose — picking
+  a kind keeps the active status and vice versa — and the active button is
+  highlighted. Each kind button shows a live count (`@kind_counts`).
+- **Cross-filtered counts.** When a kind is selected, each status badge shows
+  `filtered/total` (matching tasks of that kind / all tasks with that status);
+  symmetrically, when a status is selected the kind badges show `filtered/total`.
+  With no cross filter active, badges show the plain total.
+- **Numbered pagination.** The shared pagination partial
+  (`app/views/admin/shared/_pagination.html.erb`) now renders the page numbers
+  between « and » (via `pagy.series`, with `…` gaps) instead of just a
+  "Page X / Y" label.
+- **Pagination preserves active filters.** Page links now carry the current query
+  parameters (`status`, `kind`, search, etc.) forward, so paging through a
+  filtered list no longer resets the filter. Fixes a latent issue affecting all
+  paginated admin index pages (articles, rewrites, translations, telegram posts).
+- Added `Admin::TasksControllerTest` covering kind filtering, combined
+  kind+status filtering, and filter-preserving pagination.
+
+### Added — Worker `.env` loading
+- `worker/worker.rb` now loads configuration from a `.env` file sitting next to
+  the script before reading its environment variables. Implemented with a small
+  stdlib-only parser (`load_dotenv`) — no `dotenv` gem, keeping the worker
+  dependency-free. Supports `#` comments, blank lines, an optional `export`
+  prefix, and quoted values. Real environment variables take precedence over
+  file values. Documented in `worker/README.md`.
+
+### Changed — Replace the background job queue with a pull-based task queue + external worker
+- **Removed the entire in-app job queue.** Deleted Solid Queue, Mission Control
+  (`/admin/jobs`), and all five Active Job classes (`FetchFeedsJob`,
+  `RewriteArticleJob`, `TranslateArticleJob`, `RefineTranslationJob`,
+  `AutopostJob`). Removed the `solid_queue` and `mission_control-jobs` gems, the
+  `queue` database (dev + prod), `config/recurring.yml`, `config/queue.yml`,
+  `bin/jobs`, the `solid_queue` Puma plugin, and the `SOLID_QUEUE_IN_PUMA`
+  wiring. The Rails app no longer depends on the `ollama-ai` gem and never calls
+  Ollama directly.
+- **New `Task` model** — a database-backed queue of LLM work
+  (`kind`: rewrite/translate/refine). Each task drives an already-created target
+  record (Rewrite or Translation) through `pending → claimed → completed/failed`.
+  Tasks carry the model, the selected server's Ollama URL, and a list of chat
+  `requests` (`{ key, messages }`); prompt logic stays in the Rails services.
+- **Separate worker client** (`worker/worker.rb`, stdlib-only Ruby) — runs where
+  Ollama lives, claims tasks over a protected API, calls Ollama, and posts
+  results back. See `worker/README.md`.
+- **Protected task API** (bearer token `WORKER_API_TOKEN`):
+  `GET /api/tasks/next`, `POST /api/tasks/:id/complete`, `POST /api/tasks/:id/fail`.
+  Constant-time token check; `401` without a valid token.
+- **Admin Tasks UI** (`/admin/tasks`) replaces the old Jobs dashboard — filter by
+  status/kind, inspect a task's requests/responses, and retry failed tasks.
+- Services refactored into request-builders + result-processors:
+  `ArticleRewriter`, `ArticleTranslator`, `TranslationRefiner` now expose
+  `.requests(...)` and `.process(responses)` (no Ollama calls). `<think>` block
+  stripping moved into `.process`.
+- **Non-LLM periodic work moved out of the queue:** new `FeedIngestor` and
+  `Autoposter` services. Feed fetching runs synchronously from the admin
+  "Fetch now" button; both are exposed as `bin/rails bbc:fetch` and
+  `bin/rails bbc:autopost` rake tasks for an external scheduler (system cron).
+  A completed translate task still auto-posts inline (chaining preserved).
+- Admin controllers now create `Task` records instead of enqueuing jobs; rerun /
+  refine / multi-target actions create tasks.
+- Tests: replaced the Active Job test with `FeedIngestorTest`; rewrote
+  `ArticleRewriterTest` for the new interface; added `TaskTest` and
+  `Api::TasksControllerTest`.
+
+### Added
+- Translate articles directly without a rewrite: new "Translate original (no rewrite)" action on the article page and an "Original article (no rewrite)" option in the multi-translate source dropdown. Implemented via `Article#original_rewrite!`, a pass-through rewrite holding the article's own text (`llm_model: "original"`), so the `translations.rewrite_id` NOT NULL constraint is satisfied with no schema change. The single-target "Translate" action also falls back to the original when no completed rewrite exists. Pass-through rewrites are hidden from the Rewrites list.
+
 ### Fixed
+- Translation show page (`/admin/translations/:id`): added a link back to the source article
+- Jobs page (`/admin/jobs`) now shows queued jobs in development: development now uses Solid Queue (`config.active_job.queue_adapter = :solid_queue` + `solid_queue.connects_to` a dedicated `queue` database, mirroring production), previously defaulted to in-memory `:async` which MissionControl cannot query
+- Jobs page now uses the same admin sidebar layout as all other admin pages via a MissionControl layout override at `app/views/layouts/mission_control/jobs/application.html.erb`
+
+### Changed — Development background jobs
+- `config/database.yml` development is now multi-database (`primary` + `queue`), matching production; the queue store lives in `storage/development_queue.sqlite3` (loaded from `db/queue_schema.rb`)
+- `bin/dev` sets `SOLID_QUEUE_IN_PUMA=true` so the Solid Queue supervisor/dispatcher/worker run inside Puma in development — jobs are both visible in `/admin/jobs` and processed without a separate `bin/jobs` process
+
+### Added
+- Job monitoring via Mission Control (`/admin/jobs`) — protected by existing admin session auth; linked in sidebar
+- Articles index: free-text search field filters by title and description (persisted across filter resubmits)
+
+### Fixed
+- Translation show page: pass `server:` and `model:` to `ArticleTranslator.debug_curl_*` to fix 500 error; eager-load `ollama_server` in `set_translation`
 - Rewrite show page: article title is now a clickable link to the article's admin page
 
 ### Changed — Remove hardcoded model constants

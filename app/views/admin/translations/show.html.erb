@@ -3,6 +3,14 @@
   <%= link_to "← Translations", admin_translations_path, class: "btn btn-outline-secondary btn-sm" %>
 </div>
 
+<% if @translation.article %>
+  <p class="mb-3">
+    <i class="bi bi-newspaper text-muted"></i>
+    <%= link_to @translation.article.title, admin_article_path(@translation.article),
+          class: "text-decoration-none" %>
+  </p>
+<% end %>
+
 <% if @translation.status == "error" && @translation.error_message.present? %>
   <div class="alert alert-danger">
     <strong><i class="bi bi-exclamation-triangle-fill"></i> Job failed</strong>
@@ -38,6 +46,12 @@
   <%= link_to "Edit", edit_admin_translation_path(@translation), class: "btn btn-outline-primary" %>
   <%= button_to "↺ Re-translate", rerun_admin_translation_path(@translation), method: :post,
         class: "btn btn-outline-warning" %>
+  <% if @translation.article %>
+    <%= button_to rewrite_admin_article_path(@translation.article), method: :post,
+          class: "btn btn-outline-info" do %>
+      <i class="bi bi-pencil-square"></i> Rewrite article
+    <% end %>
+  <% end %>
 </div>
 
 <div class="card mb-4">
@@ -55,10 +69,14 @@
       <p class="text-muted small mb-2">These are the exact calls used to produce this translation.</p>
       <%= render "admin/shared/curl_block",
             label:   "translate title",
-            command: ArticleTranslator.debug_curl_title(@translation.rewrite) %>
+            command: ArticleTranslator.debug_curl_title(@translation.rewrite,
+                       server: @translation.ollama_server,
+                       model:  @translation.llm_model) %>
       <%= render "admin/shared/curl_block",
             label:   "translate body",
-            command: ArticleTranslator.debug_curl_body(@translation.rewrite) %>
+            command: ArticleTranslator.debug_curl_body(@translation.rewrite,
+                       server: @translation.ollama_server,
+                       model:  @translation.llm_model) %>
     <% end %>
   </div>
 </div>

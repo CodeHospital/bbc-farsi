@@ -1,0 +1,32 @@
+<%#
+  Toggle-button filter group (the Task Queue filter style).
+  Clicking the active value clears it; otherwise it is set. Other query params
+  (sort, search, the other filters) are preserved; pagination/trigger are reset.
+
+  Locals:
+    label        - text shown before the buttons, e.g. "Status"
+    param        - query-param name (symbol), e.g. :status
+    options      - array of [value, text] pairs
+    counts       - { value => total_count }
+    cross_counts - optional { value => filtered_count }; renders "filtered/total"
+    badge_class  - optional String or ->(value){ css }; default "bg-secondary"
+%>
+<% cross_counts = local_assigns.fetch(:cross_counts, nil) %>
+<% badge_class  = local_assigns.fetch(:badge_class, "bg-secondary") %>
+<% current      = params[param].to_s %>
+<% base_params  = request.query_parameters.except("page", "trigger_fetch") %>
+<div class="mb-2">
+  <span class="text-muted small me-1"><%= label %>:</span>
+  <% options.each do |value, text| %>
+    <% active = current == value.to_s %>
+    <% badge  = badge_class.respond_to?(:call) ? badge_class.call(value) : badge_class %>
+    <%= link_to url_for(base_params.merge(param.to_s => (active ? nil : value))),
+          "aria-pressed": active,
+          class: "btn btn-sm me-1 #{active ? 'btn-secondary' : 'btn-outline-secondary'}" do %>
+      <%= text %>
+      <span class="badge <%= badge %>">
+        <%= cross_counts ? "#{cross_counts[value].to_i}/#{counts[value].to_i}" : counts[value].to_i %>
+      </span>
+    <% end %>
+  <% end %>
+</div>

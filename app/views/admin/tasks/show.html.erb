@@ -1,0 +1,38 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">Task #<%= @task.id %> <span class="badge bg-secondary"><%= @task.kind %></span></h2>
+  <%= link_to "← Back to queue", admin_tasks_path, class: "btn btn-sm btn-outline-secondary" %>
+</div>
+
+<table class="table table-sm">
+  <tr><th style="width:180px">Status</th><td><%= render "admin/shared/status_badge", status: @task.status %></td></tr>
+  <tr><th>Priority</th><td><%= render "admin/tasks/priority_controls", task: @task %></td></tr>
+  <tr><th>Server / Model</th><td><%= @task.ollama_server&.name || "—" %> / <code><%= @task.model %></code></td></tr>
+  <tr>
+    <th>Target</th>
+    <td>
+      <%= @task.target_type %> #<%= @task.target_id %>
+      <% if (article = @task.target&.article) %>
+        — <%= link_to article.title, admin_article_path(article) %>
+      <% end %>
+    </td>
+  </tr>
+  <tr><th>Attempts</th><td><%= @task.attempts %></td></tr>
+  <tr><th>Created</th><td><%= @task.created_at.strftime("%Y-%m-%d %H:%M:%S") %></td></tr>
+  <tr><th>Claimed</th><td><%= @task.claimed_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %></td></tr>
+  <tr><th>Completed</th><td><%= @task.completed_at&.strftime("%Y-%m-%d %H:%M:%S") || "—" %></td></tr>
+  <% if @task.error_message.present? %>
+    <tr><th>Error</th><td class="text-danger"><%= @task.error_message %></td></tr>
+  <% end %>
+</table>
+
+<% if @task.status == "failed" %>
+  <%= button_to "Retry task", retry_admin_task_path(@task), method: :post, class: "btn btn-sm btn-warning mb-3" %>
+<% end %>
+
+<h5 class="mt-4">Requests (sent to worker)</h5>
+<pre class="bg-light border rounded p-3" style="white-space:pre-wrap"><%= JSON.pretty_generate(@task.requests) %></pre>
+
+<% if @task.responses.present? %>
+  <h5 class="mt-4">Responses (from worker)</h5>
+  <pre class="bg-light border rounded p-3" style="white-space:pre-wrap"><%= JSON.pretty_generate(@task.responses) %></pre>
+<% end %>

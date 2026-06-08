@@ -1,3 +1,6 @@
+# Builds a copy-pasteable `curl` command for the admin "debug" panels so an
+# operator can reproduce an LLM call by hand. The Rails app no longer talks to
+# Ollama itself — the separate worker client does (see worker/worker.rb).
 class OllamaClient
   DEFAULT_URL = "http://localhost:11434"
 
@@ -18,27 +21,5 @@ class OllamaClient
       #{payload}
       PAYLOAD
     SHELL
-  end
-
-  def initialize(url: nil)
-    resolved_url = url || ENV.fetch("OLLAMA_URL", DEFAULT_URL)
-    @client = Ollama.new(
-      credentials: { address: resolved_url },
-      options: { server_sent_events: true }
-    )
-  end
-
-  def chat(model:, system_prompt:, user_text:)
-    response = @client.chat(
-      {
-        model:,
-        messages: [
-          { role: "system", content: system_prompt },
-          { role: "user",   content: user_text }
-        ],
-        stream: false
-      }
-    )
-    response.last.dig("message", "content").to_s
   end
 end

@@ -21,9 +21,6 @@ gem "jbuilder"
 gem "feedjira", "~> 4.0"
 gem "httparty", "~> 0.24.0"
 
-# Ollama LLM client
-gem "ollama-ai", "~> 1.3"
-
 # Telegram bot
 gem "telegram-bot-ruby", "~> 2.4"
 
@@ -39,9 +36,9 @@ gem "pagy", "~> 9.0"
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
-# Use the database-backed adapters for Rails.cache and Active Job
+# Database-backed cache store (Rails.cache). Background work is handled by an
+# external worker client over the task API, not an in-app job queue.
 gem "solid_cache"
-gem "solid_queue"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

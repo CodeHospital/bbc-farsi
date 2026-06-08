@@ -2,12 +2,19 @@
 
 A Rails 8 admin web app that fetches BBC Persian RSS feeds, rewrites articles using a local LLM (Ollama), translates them to Persian, and autoposts to Telegram channels.
 
+LLM work is **not** done inside the web app. The app enqueues **tasks** in a
+database-backed queue; a separate [worker client](worker/README.md) — which has
+access to Ollama — claims tasks over a protected API, runs them, and posts the
+results back. This decouples the web app from Ollama entirely (the worker can run
+on a different, GPU-equipped machine).
+
 ## Tech Stack
 
 - **Ruby** 3.3.8 / **Rails** 8
 - **SQLite3** — database
-- **Solid Queue** — background jobs + recurring cron
-- **Ollama** — local LLM inference (rewriting + translation)
+- **DB-backed task queue** + standalone worker client — LLM work
+- **Solid Cache** — `Rails.cache` store
+- **Ollama** — local LLM inference, called by the worker (not the app)
 - **feedjira + httparty** — RSS fetching
 - **telegram-bot-ruby** — Telegram posting
 - **Bootstrap 5** — admin UI
@@ -42,11 +49,12 @@ cp .env.example .env
 
 | Variable | Description |
 |---|---|
-| `OLLAMA_URL` | Ollama API base URL (default: `http://localhost:11434`) |
+| `WORKER_API_TOKEN` | Shared bearer token for the worker API (`/api/tasks`). Must match the worker's env. |
 | `TELEGRAM_BOT_TOKEN` | Your Telegram bot token |
 | `TELEGRAM_CHANNEL` | Default Telegram channel (e.g. `@YourChannel`) |
-| `ADMIN_USERNAME` | HTTP Basic Auth username for `/admin` |
-| `ADMIN_PASSWORD` | HTTP Basic Auth password for `/admin` |
+| `ADMIN_USERNAME` | Admin login username for `/admin` |
+| `ADMIN_PASSWORD` | Admin login password for `/admin` |
+| `OLLAMA_URL` | Only used for the admin "debug curl" panels now — the app itself never calls Ollama (default `http://localhost:11434`) |
 
 ### 3. Set up the database
 
@@ -57,7 +65,15 @@ bin/rails db:prepare
 ### 4. Start the server
 
 ```bash
-bin/rails server
+bin/dev
+```
+
+`bin/dev` just boots Puma (`bin/rails server` is equivalent). The web app only
+enqueues tasks — to actually process them you also need to run the
+[worker client](worker/README.md) somewhere with access to Ollama:
+
+```bash
+WORKER_API_TOKEN=your-shared-secret ruby worker/worker.rb
 ```
 
 Visit `http://localhost:3000/admin` and log in with your `ADMIN_USERNAME` / `ADMIN_PASSWORD`.
@@ -126,20 +142,58 @@ You should see a JSON list of your locally available models.
 
 ---
 
-## Background Jobs
+## Task Queue & Worker
 
-Jobs run via Solid Queue. Start the worker alongside the Rails server:
+The web app never calls Ollama. When you trigger a rewrite, translation, or
+refine, it creates a **task** in the `tasks` table. A separate **worker client**
+claims tasks over a protected API, runs them against Ollama, and posts the
+results back.
 
-```bash
-bin/jobs
+```
+ Rails app (task queue)  <──/api/tasks──>  worker  <──/api/chat──>  Ollama
 ```
 
-Recurring tasks (configured in `config/recurring.yml`):
+Task API (all require `Authorization: Bearer $WORKER_API_TOKEN`):
 
-| Schedule | Job |
+| Endpoint | Purpose |
 |---|---|
-| Every 30 min | `FetchFeedsJob` — pulls all enabled RSS feeds |
-| Every 5 min | `AutopostJob` — posts completed translations to autopost channels |
+| `GET  /api/tasks/next` | Claim the next pending task (`204` when idle) |
+| `POST /api/tasks/:id/complete` | Submit `{ "responses": { "<key>": "<text>" } }` |
+| `POST /api/tasks/:id/fail` | Report failure `{ "error": "..." }` |
+
+Run the worker wherever Ollama is reachable (it uses only the Ruby stdlib):
+
+```bash
+export WORKER_API_TOKEN=your-shared-secret   # must match the Rails app
+export APP_URL=http://localhost:3000
+export OLLAMA_URL=http://localhost:11434
+ruby worker/worker.rb
+```
+
+See [worker/README.md](worker/README.md) for full configuration.
+
+Browse the queue at **`/admin/tasks`** — filter by status/kind, inspect a task's
+requests/responses, and retry failed tasks.
+
+### Periodic work (RSS fetch + autopost)
+
+These need no Ollama access, so they stay in the app. There is no built-in
+scheduler anymore — drive them from the admin UI or an external cron:
+
+| Command | Purpose |
+|---|---|
+| `bin/rails bbc:fetch` | Fetch enabled RSS feeds, create a rewrite task per new article |
+| `bin/rails bbc:autopost` | Post active completed translations to autopost channels |
+
+Example crontab:
+
+```cron
+*/30 * * * *  cd /path/to/app && bin/rails bbc:fetch    >> log/cron.log 2>&1
+*/5  * * * *  cd /path/to/app && bin/rails bbc:autopost >> log/cron.log 2>&1
+```
+
+(The admin **Fetch now** button runs `bbc:fetch` synchronously; a completed
+translation task also auto-posts inline.)
 
 ---
 
@@ -156,10 +210,11 @@ All admin routes are under `/admin` and protected by HTTP Basic Auth.
 | `/admin/translations` | View/edit translations, post to Telegram |
 | `/admin/telegram_channels` | Manage Telegram channels and autopost settings |
 | `/admin/ollama_servers` | Manage Ollama servers and their model lists |
+| `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |
 
 ### Multi-server comparison
 
-Each article's show page has two collapsible panels — **Run Rewrites on Targets** and **Run Translations on Targets** — that display every enabled server and its configured models as checkboxes. Selecting multiple server/model combos and clicking submit queues one job per selection. All results appear on the same page so you can compare outputs and activate the best version for posting.
+Each article's show page has two collapsible panels — **Run Rewrites on Targets** and **Run Translations on Targets** — that display every enabled server and its configured models as checkboxes. Selecting multiple server/model combos and clicking submit creates one task per selection. All results appear on the same page so you can compare outputs and activate the best version for posting.
 
 ---
 
@@ -173,13 +228,16 @@ docker run -d -p 80:80 \
   -e RAILS_MASTER_KEY=$(cat config/master.key) \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD=secret \
-  -e OLLAMA_URL=http://host.docker.internal:11434 \
+  -e WORKER_API_TOKEN=your-shared-secret \
   --name bbcfarsi bbcfarsi
 ```
 
-> When running the app in Docker, set `OLLAMA_URL=http://host.docker.internal:11434` so the container can reach Ollama on the host machine.
+> The web container does **not** need to reach Ollama. Run the
+> [worker client](worker/README.md) separately (e.g. on the GPU host) with the
+> same `WORKER_API_TOKEN` and `APP_URL` pointed at this app.
 
-For Kamal deployments, see `.kamal/`.
+For Kamal deployments, see `.kamal/`. `WORKER_API_TOKEN` is wired in as a secret
+in `config/deploy.yml` / `.kamal/secrets`.
 
 ---
 

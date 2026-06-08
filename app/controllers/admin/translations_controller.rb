@@ -3,10 +3,32 @@ class Admin::TranslationsController < Admin::BaseController
 
   before_action :set_translation, only: %i[show edit update rerun activate refine post_to_channel archive]
 
+  # Whitelisted sort keys -> SQL column expressions (guards against injection).
+  SORT_COLUMNS = {
+    "article" => "articles.title",
+    "title"   => "translations.translated_title",
+    "model"   => "translations.llm_model",
+    "active"  => "translations.active",
+    "status"  => "translations.status",
+    "created" => "translations.created_at"
+  }.freeze
+
   def index
-    translations = Translation.includes(:article, :rewrite).order(created_at: :desc)
-    translations = params[:archived] == "1" ? translations.where(archived: true) : translations.not_archived
-    @pagy, @translations = pagy(translations)
+    base = Translation.where(archived: params[:archived] == "1")
+    @status_counts = base.group(:status).count
+    @model_counts  = base.group(:llm_model).count
+    @models        = @model_counts.keys.compact.sort
+
+    translations = base.eager_load(:article) # LEFT JOIN: filter/sort on article columns
+    translations = translations.where(status: params[:status])   if params[:status].present?
+    translations = translations.where(llm_model: params[:model]) if params[:model].present?
+    translations = translations.where(active: true)              if params[:active] == "1"
+    if params[:q].present?
+      like = "%#{params[:q]}%"
+      translations = translations.where("articles.title LIKE :q OR translations.translated_title LIKE :q", q: like)
+    end
+
+    @pagy, @translations = pagy(translations.order(sort_clause))
   end
 
   def show
@@ -25,12 +47,12 @@ class Admin::TranslationsController < Admin::BaseController
   end
 
   def rerun
-    TranslateArticleJob.perform_later(
-      @translation.rewrite_id,
-      server_id: @translation.ollama_server_id,
-      model:     @translation.llm_model
+    Task.enqueue_translate(
+      @translation.rewrite,
+      server: @translation.ollama_server,
+      model:  @translation.llm_model
     )
-    redirect_to admin_article_path(@translation.article), notice: "Translation re-queued (#{@translation.llm_model})."
+    redirect_to admin_article_path(@translation.article), notice: "Translation task re-created (#{@translation.llm_model})."
   end
 
   def activate
@@ -48,9 +70,9 @@ class Admin::TranslationsController < Admin::BaseController
     return redirect_to(admin_article_path(@translation.article),
       alert: "No Ollama servers with refine models configured.") unless server
 
-    RefineTranslationJob.perform_later(@translation.id, server_id: server.id, model:)
+    Task.enqueue_refine(@translation, server:, model:)
     redirect_to admin_article_path(@translation.article),
-      notice: "Refine job queued (#{server.name} / #{model})."
+      notice: "Refine task created (#{server.name} / #{model})."
   end
 
   def post_to_channel
@@ -69,6 +91,15 @@ class Admin::TranslationsController < Admin::BaseController
 
   private
 
-  def set_translation = @translation = Translation.includes(:article, :rewrite).find(params[:id])
+  def set_translation = @translation = Translation.includes(:article, :rewrite, :ollama_server).find(params[:id])
   def translation_params = params.require(:translation).permit(:translated_title, :translated_body)
+
+  # ORDER BY clause from whitelisted params, newest-first as a stable tiebreaker.
+  def sort_clause
+    column    = SORT_COLUMNS[params[:sort]] || SORT_COLUMNS["created"]
+    direction = params[:dir] == "asc" ? "asc" : "desc"
+    order     = "#{column} #{direction}"
+    order += ", translations.created_at desc" unless column == SORT_COLUMNS["created"]
+    Arel.sql(order)
+  end
 end

@@ -1,0 +1,135 @@
+<h2 class="mb-3">Task Queue</h2>
+
+<%= render "admin/shared/filter_group",
+      label: "Status", param: :status,
+      options: Task::STATUSES.map { |s| [s, s.capitalize] },
+      counts: @counts, cross_counts: @status_counts_in_kind,
+      badge_class: ->(value) { "badge-status-#{value}" } %>
+<%= render "admin/shared/filter_group",
+      label: "Kind", param: :kind,
+      options: Task::KINDS.map { |k| [k, k.capitalize] },
+      counts: @kind_counts, cross_counts: @kind_counts_in_status %>
+<%= render "admin/shared/filter_search", placeholder: "Search article title / description…" %>
+
+<p class="text-muted small">
+  Tasks are claimed and processed by an external worker client over the protected
+  task API. Nothing is processed here in the web app.
+</p>
+
+<%= form_with url: bulk_prioritize_admin_tasks_path, method: :patch, id: "bulk_priority_form",
+      class: "card card-body py-2 mb-3" do %>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="text-muted small">
+      Bulk priority for <strong><span id="selected_count">0</span></strong> selected:
+    </span>
+    <button type="submit" name="direction" value="up" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-up"></i> Raise
+    </button>
+    <button type="submit" name="direction" value="down" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-down"></i> Lower
+    </button>
+    <span class="vr d-none d-sm-block"></span>
+    <div class="input-group input-group-sm" style="width:auto">
+      <input type="number" name="priority" class="form-control form-control-sm" style="max-width:90px" placeholder="Set to…">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Apply</button>
+    </div>
+  </div>
+<% end %>
+
+<table class="table table-hover table-sm align-middle">
+  <thead>
+    <tr>
+      <th><input type="checkbox" id="select_all_tasks" class="form-check-input" title="Select all"></th>
+      <th>#</th><th>Priority</th><th>Kind</th><th>Article</th><th>Server / Model</th><th>Status</th><th>Attempts</th><th>Created</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @tasks.each do |task| %>
+      <tr>
+        <td>
+          <%= check_box_tag "task_ids[]", task.id, false,
+                id: "task_select_#{task.id}", form: "bulk_priority_form",
+                class: "form-check-input task-select" %>
+        </td>
+        <td><%= link_to "##{task.id}", admin_task_path(task) %></td>
+        <td class="text-nowrap">
+          <%= render "admin/tasks/priority_controls", task: task %>
+        </td>
+        <td><span class="badge bg-secondary"><%= task.kind %></span></td>
+        <td>
+          <% article = task.target&.article %>
+          <% if article %>
+            <%= link_to article.title.to_s.truncate(60), admin_article_path(article) %>
+          <% else %>
+            <span class="text-muted">—</span>
+          <% end %>
+        </td>
+        <td>
+          <small class="text-muted">
+            <%= task.ollama_server&.name || "—" %> / <%= task.model %>
+          </small>
+        </td>
+        <td><%= render "admin/shared/status_badge", status: task.status %></td>
+        <td>
+          <%= task.attempts %>
+          <br />
+          <%= begin
+                duration = (task.updated_at - task.created_at).to_i
+                hours = duration / 3600
+                minutes = (duration % 3600) / 60
+                seconds = duration % 60
+                if hours.positive?
+                  "#{hours}h #{minutes}m"
+                else
+                  "#{minutes}m #{seconds}s"
+                end
+              end %>
+        </td>
+        <td>
+          <small><%= task.created_at.strftime("%b %d %H:%M") %></small>
+          <br />
+          <small><%= task.updated_at.strftime("%b %d %H:%M") %></small>
+        </td>
+        <td>
+          <% if task.status == "failed" %>
+            <%= button_to "Retry", retry_admin_task_path(task), method: :post, class: "btn btn-xs btn-outline-warning" %>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+<%= render "admin/shared/pagination", pagy: @pagy %>
+
+<script>
+  // Select-all + selected-count for bulk priority actions. Re-init on Turbo
+  // navigations; guarded so listeners are bound only once per element.
+  function initTaskBulkSelect() {
+    const selectAll = document.getElementById('select_all_tasks');
+    if (!selectAll || selectAll.dataset.bound) return;
+    selectAll.dataset.bound = '1';
+
+    const boxes   = () => Array.from(document.querySelectorAll('.task-select'));
+    const counter = document.getElementById('selected_count');
+
+    const refresh = () => {
+      const all     = boxes();
+      const checked = all.filter(b => b.checked).length;
+      if (counter) counter.textContent = checked;
+      selectAll.checked       = checked > 0 && checked === all.length;
+      selectAll.indeterminate = checked > 0 && checked < all.length;
+    };
+
+    selectAll.addEventListener('change', () => {
+      boxes().forEach(b => { b.checked = selectAll.checked; });
+      refresh();
+    });
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('task-select')) refresh();
+    });
+    refresh();
+  }
+
+  document.addEventListener('turbo:load', initTaskBulkSelect);
+  initTaskBulkSelect();
+</script>

@@ -24,6 +24,18 @@ class Article < ApplicationRecord
   def archive! = update!(archived: true)
   def unarchive! = update!(archived: false)
 
+  # A pass-through "rewrite" holding the article's own text, used to translate
+  # the original article directly without first running an AI rewrite.
+  # Satisfies the NOT NULL rewrite_id on translations without a schema change.
+  ORIGINAL_REWRITE_MODEL = "original".freeze
+
+  def original_rewrite!
+    rewrites.find_or_create_by!(llm_model: ORIGINAL_REWRITE_MODEL) do |original|
+      original.content = description.presence || title
+      original.status  = "completed"
+    end
+  end
+
   def latest_rewrite
     rewrites.order(created_at: :desc).first
   end

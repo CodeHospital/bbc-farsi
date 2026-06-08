@@ -1,0 +1,27 @@
+<%#
+  Search box that preserves every other active filter/sort as hidden fields, so
+  searching composes with the toggle filters. Locals: placeholder (optional).
+%>
+<% placeholder = local_assigns.fetch(:placeholder, "Search…") %>
+<form class="row g-2 mb-3 align-items-center">
+  <% request.query_parameters.except("q", "page", "trigger_fetch").each do |key, value| %>
+    <% if value.is_a?(Array) %>
+      <% value.each do |item| %><%= hidden_field_tag "#{key}[]", item %><% end %>
+    <% elsif !value.is_a?(Hash) %>
+      <%= hidden_field_tag key, value %>
+    <% end %>
+  <% end %>
+  <div class="col-auto">
+    <input type="text" name="q" value="<%= params[:q] %>" placeholder="<%= placeholder %>"
+           class="form-control form-control-sm" style="min-width:260px">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-sm btn-outline-secondary">Search</button>
+  </div>
+  <% if params[:q].present? %>
+    <div class="col-auto">
+      <%= link_to "Clear search", url_for(request.query_parameters.except("q", "page", "trigger_fetch")),
+            class: "btn btn-sm btn-outline-dark" %>
+    </div>
+  <% end %>
+</form>

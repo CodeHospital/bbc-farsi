@@ -1,0 +1,20 @@
+<%# Up/down priority stepper for a task. Editable only while the task can still
+    be claimed (pending or failed); otherwise the number is shown read-only. %>
+<% editable = task.status.in?(%w[pending failed]) %>
+<span class="d-inline-flex align-items-center gap-1">
+  <% if editable %>
+    <%= button_to prioritize_admin_task_path(task), method: :patch,
+          params: { direction: "up" }, form_class: "d-inline",
+          class: "btn btn-xs btn-outline-secondary", title: "Raise priority" do %>
+      <i class="bi bi-arrow-up"></i>
+    <% end %>
+  <% end %>
+  <span class="fw-bold" title="Priority"><%= task.priority %></span>
+  <% if editable %>
+    <%= button_to prioritize_admin_task_path(task), method: :patch,
+          params: { direction: "down" }, form_class: "d-inline",
+          class: "btn btn-xs btn-outline-secondary", title: "Lower priority" do %>
+      <i class="bi bi-arrow-down"></i>
+    <% end %>
+  <% end %>
+</span>

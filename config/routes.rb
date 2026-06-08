@@ -18,6 +18,7 @@ Rails.application.routes.draw do
         post :rewrite
         post :multi_rewrite
         post :translate
+        post :translate_original
         post :multi_translate
         post :archive
         post :unarchive
@@ -51,6 +52,23 @@ Rails.application.routes.draw do
     resources :ollama_servers, only: %i[index new create edit update destroy] do
       member { patch :toggle }
     end
+
+    resources :tasks, only: %i[index show] do
+      member do
+        post  :retry
+        patch :prioritize
+      end
+      collection do
+        patch :bulk_prioritize
+      end
+    end
+  end
+
+  # Worker-facing task queue API (bearer-token protected).
+  namespace :api do
+    get  "tasks/next",         to: "tasks#claim"
+    post "tasks/:id/complete", to: "tasks#complete"
+    post "tasks/:id/fail",     to: "tasks#mark_failed"
   end
 
   root to: redirect("/admin")

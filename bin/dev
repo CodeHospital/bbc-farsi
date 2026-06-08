@@ -1,2 +1,4 @@
 #!/usr/bin/env ruby
+# Background LLM work is handled by a separate worker client (see worker/), so
+# the web server no longer needs to run any in-process job supervisor.
 exec "./bin/rails", "server", *ARGV

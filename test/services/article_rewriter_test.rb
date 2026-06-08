@@ -5,42 +5,37 @@ class ArticleRewriterTest < ActiveSupport::TestCase
     @article = Article.new(title: "UK floods worsen", description: "Heavy rain causes flooding.")
   end
 
-  test "returns rewritten content from Ollama" do
-    fake_ollama = fake_client_returning("Rewritten body text.")
-    OllamaClient.stub(:new, fake_ollama) do
-      assert_equal "Rewritten body text.", ArticleRewriter.new.rewrite(@article)
-    end
+  test "builds a single content request with system + user messages" do
+    requests = ArticleRewriter.requests(@article)
+
+    assert_equal 1, requests.size
+    request = requests.first
+    assert_equal "content", request[:key]
+    assert_equal "system", request[:messages][0][:role]
+    assert_includes request[:messages][0][:content], "news editor"
+    assert_equal "user", request[:messages][1][:role]
+    assert_includes request[:messages][1][:content], "UK floods worsen"
+    assert_includes request[:messages][1][:content], "Heavy rain causes flooding."
   end
 
-  test "strips Qwen3 <think> reasoning block from output" do
+  test "process returns the content response verbatim when clean" do
+    assert_equal "Rewritten body text.", ArticleRewriter.process("content" => "Rewritten body text.")
+  end
+
+  test "process strips a Qwen3 <think> reasoning block" do
     raw = "<think>some internal reasoning\nthat spans lines</think>The actual rewrite."
-    OllamaClient.stub(:new, fake_client_returning(raw)) do
-      result = ArticleRewriter.new.rewrite(@article)
-      assert_equal "The actual rewrite.", result
-      assert_not_includes result, "<think>"
-    end
+    result = ArticleRewriter.process("content" => raw)
+    assert_equal "The actual rewrite.", result
+    assert_not_includes result, "<think>"
   end
 
-  test "strips multiple <think> blocks" do
+  test "process strips multiple <think> blocks" do
     raw = "<think>block1</think>First part.<think>block2</think>Second part."
-    OllamaClient.stub(:new, fake_client_returning(raw)) do
-      assert_equal "First part.Second part.", ArticleRewriter.new.rewrite(@article)
-    end
+    assert_equal "First part.Second part.", ArticleRewriter.process("content" => raw)
   end
 
-  test "strips <think> block with trailing whitespace" do
+  test "process strips <think> block with surrounding whitespace" do
     raw = "<think>reasoning</think>   Clean output.   "
-    OllamaClient.stub(:new, fake_client_returning(raw)) do
-      assert_equal "Clean output.", ArticleRewriter.new.rewrite(@article)
-    end
-  end
-
-  private
-
-  # Returns a fake OllamaClient instance whose #chat always returns `response`
-  def fake_client_returning(response)
-    client = Object.new
-    client.define_singleton_method(:chat) { |**_kwargs| response }
-    client
+    assert_equal "Clean output.", ArticleRewriter.process("content" => raw)
   end
 end

@@ -15,12 +15,13 @@
     .sidebar .nav-link:hover, .sidebar .nav-link.active { color: #fff; }
     .sidebar .nav-link i { width: 20px; }
     .badge-status-pending { background: #6c757d; }
-    .badge-status-rewriting, .badge-status-translating, .badge-status-running { background: #0d6efd; }
+    .badge-status-rewriting, .badge-status-translating, .badge-status-running, .badge-status-claimed { background: #0d6efd; }
     .badge-status-rewritten { background: #6610f2; }
     .badge-status-translated { background: #198754; }
     .badge-status-posted { background: #20c997; }
-    .badge-status-error { background: #dc3545; }
+    .badge-status-error, .badge-status-failed { background: #dc3545; }
     .badge-status-completed { background: #198754; }
+    .btn-xs { padding: .1rem .4rem; font-size: .75rem; }
   </style>
 </head>
 <body>
@@ -70,6 +71,11 @@
         <li class="nav-item">
           <%= link_to admin_ollama_servers_path, class: "nav-link #{'active' if controller_name == 'ollama_servers'}" do %>
             <i class="bi bi-hdd-rack"></i> Ollama Servers
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_tasks_path, class: "nav-link #{'active' if controller_name == 'tasks'}" do %>
+            <i class="bi bi-list-task"></i> Tasks
           <% end %>
         </li>
       </ul>

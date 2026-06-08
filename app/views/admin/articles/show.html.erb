@@ -21,6 +21,9 @@
       </a>
       <%= button_to "＋ New Rewrite (default)", rewrite_admin_article_path(@article), method: :post,
             class: "btn btn-sm btn-outline-info" %>
+      <%= button_to "🌐 Translate original (no rewrite)", translate_original_admin_article_path(@article), method: :post,
+            class: "btn btn-sm btn-outline-success",
+            title: "Translate the original BBC text directly, skipping the AI rewrite step" %>
       <% if @article.archived? %>
         <%= button_to "↩ Unarchive", unarchive_admin_article_path(@article), method: :post,
               class: "btn btn-sm btn-outline-secondary" %>
@@ -44,7 +47,7 @@
   <div class="collapse mb-4" id="rewriteTargets">
     <div class="card border-primary">
       <div class="card-header bg-primary bg-opacity-10 fw-semibold">
-        Select rewrite targets — one job will be queued per selection
+        Select rewrite targets — one task will be created per selection
       </div>
       <div class="card-body">
         <%= form_with url: multi_rewrite_admin_article_path(@article), method: :post do |f| %>
@@ -151,8 +154,8 @@
 <% end %>
 
 <%# ── Multi-target translate panel ────────────────────────────────────── %>
-<% completed_rewrites = @rewrites.select { |r| r.status == "completed" } %>
-<% if @ollama_servers.any? && completed_rewrites.any? %>
+<% completed_rewrites = @rewrites.select { |r| r.status == "completed" && r.llm_model != Article::ORIGINAL_REWRITE_MODEL } %>
+<% if @ollama_servers.any? %>
   <div class="mt-4 mb-3">
     <button class="btn btn-sm btn-outline-success" type="button"
             data-bs-toggle="collapse" data-bs-target="#translateTargets">
@@ -162,13 +165,16 @@
   <div class="collapse mb-4" id="translateTargets">
     <div class="card border-success">
       <div class="card-header bg-success bg-opacity-10 fw-semibold">
-        Select translation targets — one job will be queued per selection
+        Select translation targets — one task will be created per selection
       </div>
       <div class="card-body">
         <%= form_with url: multi_translate_admin_article_path(@article), method: :post do |f| %>
           <div class="mb-3">
-            <label class="form-label fw-semibold">Use rewrite</label>
+            <label class="form-label fw-semibold">Translation source</label>
             <select name="rewrite_id" class="form-select form-select-sm w-auto">
+              <option value="original" <%= "selected" if completed_rewrites.empty? %>>
+                🌐 Original article (no rewrite)
+              </option>
               <% completed_rewrites.each do |rw| %>
                 <option value="<%= rw.id %>" <%= "selected" if rw.active? %>>
                   #<%= rw.id %> — <%= rw.llm_model %>

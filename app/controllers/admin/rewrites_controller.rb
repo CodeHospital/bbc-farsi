@@ -4,9 +4,17 @@ class Admin::RewritesController < Admin::BaseController
   before_action :set_rewrite, only: %i[show edit update rerun activate archive]
 
   def index
-    rewrites = Rewrite.includes(:article).order(created_at: :desc)
-    rewrites = params[:archived] == "1" ? rewrites.where(archived: true) : rewrites.not_archived
-    @pagy, @rewrites = pagy(rewrites)
+    base = Rewrite.where(archived: params[:archived] == "1")
+    @status_counts = base.group(:status).count
+
+    rewrites = base.eager_load(:article) # LEFT JOIN: search/show article without N+1
+    rewrites = rewrites.where(status: params[:status]) if params[:status].present?
+    if params[:q].present?
+      like = "%#{params[:q]}%"
+      rewrites = rewrites.where("articles.title LIKE :q OR rewrites.content LIKE :q", q: like)
+    end
+
+    @pagy, @rewrites = pagy(rewrites.order(created_at: :desc))
   end
 
   def show; end
@@ -22,12 +30,12 @@ class Admin::RewritesController < Admin::BaseController
   end
 
   def rerun
-    RewriteArticleJob.perform_later(
-      @rewrite.article_id,
-      server_id: @rewrite.ollama_server_id,
-      model:     @rewrite.llm_model
+    Task.enqueue_rewrite(
+      @rewrite.article,
+      server: @rewrite.ollama_server,
+      model:  @rewrite.llm_model
     )
-    redirect_to admin_article_path(@rewrite.article), notice: "Rewrite re-queued (#{@rewrite.llm_model})."
+    redirect_to admin_article_path(@rewrite.article), notice: "Rewrite task re-created (#{@rewrite.llm_model})."
   end
 
   def activate

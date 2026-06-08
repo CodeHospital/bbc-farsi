@@ -1,0 +1,76 @@
+class Admin::TasksController < Admin::BaseController
+  include Pagy::Backend
+
+  before_action :set_task, only: %i[show retry prioritize]
+
+  def index
+    # Highest priority first; newest first within the same priority.
+    tasks = Task.includes(:target, :ollama_server).order(priority: :desc, created_at: :desc)
+    tasks = tasks.where(status: params[:status]) if params[:status].present?
+    tasks = tasks.where(kind: params[:kind])     if params[:kind].present?
+    tasks = filter_by_article_text(tasks, params[:q]) if params[:q].present?
+
+    @counts = Task.group(:status).count
+    @kind_counts = Task.group(:kind).count
+    # Cross-filtered counts: status counts within the selected kind, and kind
+    # counts within the selected status. Nil when that filter isn't active, so
+    # the badges fall back to plain totals.
+    @status_counts_in_kind = Task.where(kind: params[:kind]).group(:status).count if params[:kind].present?
+    @kind_counts_in_status = Task.where(status: params[:status]).group(:kind).count if params[:status].present?
+
+    @pagy, @tasks = pagy(tasks)
+  end
+
+  def show; end
+
+  def retry
+    @task.requeue!
+    redirect_to admin_tasks_path, notice: "Task ##{@task.id} re-queued."
+  end
+
+  def prioritize
+    @task.reprioritize!(params[:direction])
+    redirect_back fallback_location: admin_tasks_path,
+                  notice: "Task ##{@task.id} priority is now #{@task.priority}."
+  end
+
+  # Change priority for many tasks at once. Either step every selected task
+  # up/down (`direction`) or set them all to an exact value (`priority`).
+  def bulk_prioritize
+    task_ids = Array(params[:task_ids]).reject(&:blank?)
+    return redirect_back(fallback_location: admin_tasks_path, alert: "Select at least one task.") if task_ids.empty?
+
+    scope = Task.where(id: task_ids)
+    if params[:direction].present?
+      step = params[:direction] == "down" ? -1 : 1
+      scope.update_all("priority = priority + #{step}")
+      notice = "#{step.positive? ? 'Raised' : 'Lowered'} priority of #{task_ids.size} task(s)."
+    elsif params[:priority].present?
+      scope.update_all(priority: params[:priority].to_i)
+      notice = "Set priority of #{task_ids.size} task(s) to #{params[:priority].to_i}."
+    else
+      return redirect_back(fallback_location: admin_tasks_path, alert: "Choose a bulk priority action.")
+    end
+
+    redirect_back fallback_location: admin_tasks_path, notice:
+  end
+
+  private
+
+  def set_task = @task = Task.includes(:target, :ollama_server).find(params[:id])
+
+  # Filter tasks whose target's article matches the free-text query. `target` is
+  # polymorphic (Rewrite or Translation), so resolve matching article ids first,
+  # then the rewrite/translation ids that point at them.
+  def filter_by_article_text(tasks, query)
+    article_ids     = Article.where("title LIKE :q OR description LIKE :q", q: "%#{query}%").pluck(:id)
+    rewrite_ids     = Rewrite.where(article_id: article_ids).pluck(:id)
+    translation_ids = Translation.where(article_id: article_ids).pluck(:id)
+
+    tasks.where(
+      "(tasks.target_type = 'Rewrite'     AND tasks.target_id IN (:rewrites)) OR " \
+      "(tasks.target_type = 'Translation' AND tasks.target_id IN (:translations))",
+      rewrites: rewrite_ids, translations: translation_ids
+    )
+  end
+end

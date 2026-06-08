@@ -1,0 +1,15 @@
+<%#
+  Single on/off toggle filter button (e.g. "Active only", "Show archived").
+  Locals:
+    param    - query-param name (symbol)
+    label    - button text
+    on_value - value when enabled (default "1")
+%>
+<% on_value   = local_assigns.fetch(:on_value, "1").to_s %>
+<% on         = params[param].to_s == on_value %>
+<% base_params = request.query_parameters.except("page", "trigger_fetch") %>
+<%= link_to url_for(base_params.merge(param.to_s => (on ? nil : on_value))),
+      "aria-pressed": on,
+      class: "btn btn-sm me-1 #{on ? 'btn-secondary' : 'btn-outline-secondary'}" do %>
+  <%= label %>
+<% end %>

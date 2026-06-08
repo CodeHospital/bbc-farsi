@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_02_000002) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_08_000001) do
   create_table "articles", force: :cascade do |t|
     t.integer "feed_id", null: false
     t.string "title"
@@ -59,6 +59,30 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_02_000002) do
     t.integer "ollama_server_id"
     t.index ["article_id"], name: "index_rewrites_on_article_id"
     t.index ["ollama_server_id"], name: "index_rewrites_on_ollama_server_id"
+  end
+
+  create_table "tasks", force: :cascade do |t|
+    t.string "kind", null: false
+    t.string "status", default: "pending", null: false
+    t.string "target_type", null: false
+    t.integer "target_id", null: false
+    t.integer "ollama_server_id"
+    t.string "model"
+    t.json "requests"
+    t.json "responses"
+    t.boolean "chain_translate", default: true, null: false
+    t.boolean "chain_autopost", default: true, null: false
+    t.text "error_message"
+    t.integer "attempts", default: 0, null: false
+    t.datetime "claimed_at"
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "priority", default: 0, null: false
+    t.index ["ollama_server_id"], name: "index_tasks_on_ollama_server_id"
+    t.index ["status", "created_at"], name: "index_tasks_on_status_and_created_at"
+    t.index ["status", "priority", "created_at"], name: "index_tasks_on_status_and_priority_and_created_at"
+    t.index ["target_type", "target_id"], name: "index_tasks_on_target_type_and_target_id"
   end
 
   create_table "telegram_channels", force: :cascade do |t|

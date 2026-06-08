@@ -17,8 +17,8 @@ class TelegramPoster
     article = translation.article
     "📢 *#{translation.translated_title}*\n\n" \
       "#{translation.translated_body}\n\n\n" \
-      "#{article.url}\n\n" \
-      "follow @realbbcfarsi for more\n\n" \
-      "*#{article.title}*"
+      "#{article.url.split('?').first}\n\n" \
+      "follow @realbbcfarsi for more"
+    # "*#{article.title}*"
   end
 end
