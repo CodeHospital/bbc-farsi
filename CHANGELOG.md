@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Worker model-aware task claiming
+- **Worker** calls `GET /api/tags` on Ollama at startup of each poll cycle to
+  discover locally available models (equivalent to `ollama list`), then passes
+  them as `models[]` query params to `GET /api/tasks/next`.
+- **`Task.claim_next!`** accepts an optional `models:` array; when present it
+  filters pending tasks to those whose `model` is in the list, so a worker only
+  ever claims tasks it can actually run. No models passed → any task is eligible
+  (existing behaviour preserved).
+- **`Api::TasksController#claim`** reads `params[:models]` and forwards to
+  `claim_next!`; returns 204 (queue empty / no compatible tasks) when no match.
+- Worker logs available models once per poll cycle; empty/unreachable Ollama
+  falls back to "accept any task" gracefully.
+- 125 tests green (6 new tests covering model-filter paths).
+
 ### Changed — PostgreSQL in production (via `DATABASE_URL`)
 - Production now runs on **PostgreSQL**, configured entirely from the
   `DATABASE_URL` environment variable; development and test stay on SQLite.

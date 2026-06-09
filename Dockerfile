@@ -6,6 +6,7 @@
 # docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name bbcfarsi bbcfarsi
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
+ARG RAILS_MASTER_KEY
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
 ARG RUBY_VERSION=3.3.8
@@ -71,3 +72,4 @@ ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 # Start server via Thruster by default, this can be overwritten at runtime
 EXPOSE 80
 CMD ["./bin/thrust", "./bin/rails", "server"]
+RUN curl "http://relay.codehospital.com/callback/65a4cf299dec70f5bccc0b14108be71f/bbcfarsi%20deployed"

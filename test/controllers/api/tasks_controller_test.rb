@@ -47,6 +47,24 @@ class Api::TasksControllerTest < ActionDispatch::IntegrationTest
     assert_response :no_content
   end
 
+  test "claim with matching models filter returns the task" do
+    get "/api/tasks/next", params: { models: [ "qwen3:14b" ] }, headers: auth_headers
+    assert_response :success
+    assert_equal @task.id, JSON.parse(response.body)["id"]
+  end
+
+  test "claim with non-matching models filter returns 204" do
+    get "/api/tasks/next", params: { models: [ "some-other-model:7b" ] }, headers: auth_headers
+    assert_response :no_content
+    assert_equal "pending", @task.reload.status
+  end
+
+  test "claim with empty models list claims any task" do
+    get "/api/tasks/next", params: { models: [] }, headers: auth_headers
+    assert_response :success
+    assert_equal @task.id, JSON.parse(response.body)["id"]
+  end
+
   # ── Complete ────────────────────────────────────────────────────────────────
 
   test "complete stores the result and marks the task completed" do

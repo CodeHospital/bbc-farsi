@@ -150,6 +150,33 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal task, Task.claim_next!
   end
 
+  test "claim_next! with models list only claims a matching task" do
+    task_a = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    task_b = Task.enqueue_rewrite(create_article, server: @server, model: "aya-expanse:32b")
+
+    claimed = Task.claim_next!(models: [ "qwen3:14b" ])
+
+    assert_equal task_a, claimed
+    assert_equal "claimed", task_a.reload.status
+    assert_equal "pending", task_b.reload.status
+  end
+
+  test "claim_next! with models list returns nil when no matching task exists" do
+    Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+
+    claimed = Task.claim_next!(models: [ "some-other-model:7b" ])
+
+    assert_nil claimed
+  end
+
+  test "claim_next! with empty models list claims any task" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+
+    claimed = Task.claim_next!(models: [])
+
+    assert_equal task, claimed
+  end
+
   test "model is required" do
     rewrite = create_rewrite(article: @article)
     invalid = Task.new(kind: "rewrite", target: rewrite, status: "pending")

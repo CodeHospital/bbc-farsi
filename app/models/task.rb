@@ -67,10 +67,14 @@ class Task < ApplicationRecord
 
   # ── Worker: claim the next pending task atomically ────────────────────────
 
-  def self.claim_next!
+  # Pass `models:` with a non-empty array to restrict to tasks whose model
+  # is in the list (exact match). Omit or pass nil/[] to accept any model.
+  def self.claim_next!(models: nil)
     transaction do
       reclaim_stale!
-      task = pending.by_priority.lock.first
+      scope = pending.by_priority
+      scope = scope.where(model: models) if models.present?
+      task  = scope.lock.first
       task&.mark_claimed!
       task
     end
@@ -147,7 +151,7 @@ class Task < ApplicationRecord
 
   def pick_translate_target
     if ollama_server&.translate_model_list&.any?
-      [ollama_server, ollama_server.translate_model_list.first]
+      [ ollama_server, ollama_server.translate_model_list.first ]
     else
       OllamaServer.pick(:translate)
     end

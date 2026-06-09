@@ -61,6 +61,23 @@ DEFAULT_OLLAMA   = ENV.fetch("OLLAMA_URL", "http://localhost:11434").chomp("/")
 POLL_INTERVAL    = Integer(ENV.fetch("POLL_INTERVAL", "5"))
 OLLAMA_TIMEOUT   = Integer(ENV.fetch("OLLAMA_TIMEOUT", "600"))
 
+# ── Ollama model discovery ───────────────────────────────────────────────────
+
+# Query the local Ollama instance for available model names via GET /api/tags.
+# Returns an array like ["qwen3:14b", "aya-expanse:32b"], or [] on any error.
+def ollama_models(base_url)
+  uri = URI("#{base_url}/api/tags")
+  req = Net::HTTP::Get.new(uri)
+  res = http_for(uri).request(req)
+  return [] unless res.code.to_i == 200
+
+  data = JSON.parse(res.body)
+  Array(data["models"]).map { |m| m["name"].to_s }.reject(&:empty?)
+rescue StandardError => e
+  log("Could not query Ollama models: #{e.message}")
+  []
+end
+
 def log(message)
   puts "[#{Time.now.strftime('%H:%M:%S')}] #{message}"
 end
@@ -120,11 +137,20 @@ def process(task)
 end
 
 def claim_and_run
-  res = api_get("/api/tasks/next")
+  available_models = ollama_models(DEFAULT_OLLAMA)
+  log("Available models: #{available_models.any? ? available_models.join(', ') : '(none found — accepting any task)'}") if available_models.any?
+
+  path = "/api/tasks/next"
+  if available_models.any?
+    query = available_models.map { |m| "models[]=#{URI.encode_www_form_component(m)}" }.join("&")
+    path  = "#{path}?#{query}"
+  end
+
+  res = api_get(path)
 
   case res.code.to_i
   when 204
-    return false # queue empty
+    return false # queue empty (or no compatible tasks)
   when 200
     task = JSON.parse(res.body)
   when 401
@@ -134,7 +160,7 @@ def claim_and_run
     return false
   end
 
-  log("Claimed task ##{task['id']} (#{task['kind']})")
+  log("Claimed task ##{task['id']} (#{task['kind']}, model=#{task['model']})")
 
   begin
     responses = process(task)
