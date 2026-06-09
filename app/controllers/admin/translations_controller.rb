@@ -1,5 +1,5 @@
 class Admin::TranslationsController < Admin::BaseController
-  include Pagy::Backend
+  include Pagy::Method
 
   before_action :set_translation, only: %i[show edit update rerun activate refine post_to_channel archive]
 

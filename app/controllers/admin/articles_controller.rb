@@ -1,5 +1,5 @@
 class Admin::ArticlesController < Admin::BaseController
-  include Pagy::Backend
+  include Pagy::Method
 
   before_action :set_article, only: %i[show rewrite multi_rewrite translate translate_original multi_translate archive unarchive]
 

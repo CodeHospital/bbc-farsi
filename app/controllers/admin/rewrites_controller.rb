@@ -1,5 +1,5 @@
 class Admin::RewritesController < Admin::BaseController
-  include Pagy::Backend
+  include Pagy::Method
 
   before_action :set_rewrite, only: %i[show edit update rerun activate archive]
 

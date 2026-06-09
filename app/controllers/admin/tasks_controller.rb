@@ -1,5 +1,5 @@
 class Admin::TasksController < Admin::BaseController
-  include Pagy::Backend
+  include Pagy::Method
 
   before_action :set_task, only: %i[show retry prioritize]
 

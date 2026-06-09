@@ -3,15 +3,15 @@
      page_url = ->(page) { url_for(request.query_parameters.merge(page: page)) } %>
   <nav class="mt-3">
     <ul class="pagination pagination-sm">
-      <% if pagy.prev %>
+      <% if pagy.previous %>
         <li class="page-item">
-          <%= link_to "«", page_url.call(pagy.prev), class: "page-link" %>
+          <%= link_to "«", page_url.call(pagy.previous), class: "page-link" %>
         </li>
       <% else %>
         <li class="page-item disabled"><span class="page-link">«</span></li>
       <% end %>
 
-      <% pagy.series.each do |item| %>
+      <% pagy.send(:series).each do |item| %>
         <% case item %>
         <% when Integer %>
           <li class="page-item">

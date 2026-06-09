@@ -1,5 +1,5 @@
 class Admin::TelegramPostsController < Admin::BaseController
-  include Pagy::Backend
+  include Pagy::Method
 
   def index
     @pagy, @posts = pagy(
