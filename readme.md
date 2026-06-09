@@ -11,7 +11,7 @@ on a different, GPU-equipped machine).
 ## Tech Stack
 
 - **Ruby** 3.3.8 / **Rails** 8
-- **SQLite3** — database
+- **SQLite3** (development/test) / **PostgreSQL** (production, via `DATABASE_URL`) — database
 - **DB-backed task queue** + standalone worker client — LLM work
 - **Solid Cache** — `Rails.cache` store
 - **Ollama** — local LLM inference, called by the worker (not the app)
@@ -220,12 +220,18 @@ Each article's show page has two collapsible panels — **Run Rewrites on Target
 
 ## Docker / Kamal Deployment
 
+Production runs on **PostgreSQL**. The connection comes entirely from the
+`DATABASE_URL` environment variable (Solid Cache shares the same database — no
+separate cache database). On boot the entrypoint runs `bin/rails db:prepare`,
+which creates the schema (app tables + `solid_cache_entries`) on first deploy.
+
 Build and run with Docker:
 
 ```bash
 docker build -t bbcfarsi .
 docker run -d -p 80:80 \
   -e RAILS_MASTER_KEY=$(cat config/master.key) \
+  -e DATABASE_URL=postgres://user:password@db-host:5432/bbcfarsi_production \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD=secret \
   -e WORKER_API_TOKEN=your-shared-secret \
@@ -236,8 +242,11 @@ docker run -d -p 80:80 \
 > [worker client](worker/README.md) separately (e.g. on the GPU host) with the
 > same `WORKER_API_TOKEN` and `APP_URL` pointed at this app.
 
-For Kamal deployments, see `.kamal/`. `WORKER_API_TOKEN` is wired in as a secret
-in `config/deploy.yml` / `.kamal/secrets`.
+For Kamal deployments, see `.kamal/`. `WORKER_API_TOKEN` and `DATABASE_URL` are
+wired in as secrets in `config/deploy.yml` / `.kamal/secrets` (set `DATABASE_URL`
+in your shell/password manager before `kamal deploy`). A managed Postgres just
+needs `DATABASE_URL`; to self-host Postgres on a server, see the commented
+`accessories: db:` block in `config/deploy.yml`.
 
 ---
 

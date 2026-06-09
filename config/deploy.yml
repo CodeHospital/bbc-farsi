@@ -36,6 +36,9 @@ env:
     - RAILS_MASTER_KEY
     # Shared bearer token the worker client uses to authenticate to /api/tasks.
     - WORKER_API_TOKEN
+    # Full PostgreSQL connection string for the production database, e.g.
+    # postgres://user:password@host:5432/bbcfarsi_production
+    - DATABASE_URL
   clear:
     # Set number of cores available to the application on each server (default: 1).
     # WEB_CONCURRENCY: 2
@@ -56,8 +59,8 @@ aliases:
   dbc: app exec --interactive --reuse "bin/rails dbconsole"
 
 
-# Use a persistent storage volume for sqlite database files and local Active Storage files.
-# Recommended to change this to a mounted volume path that is backed up off server.
+# Persistent storage volume for local files (e.g. Active Storage). The database
+# is PostgreSQL (DATABASE_URL), so no database files live here anymore.
 volumes:
   - "bbcfarsi_storage:/rails/storage"
 
@@ -86,25 +89,20 @@ builder:
 #   user: app
 
 # Use accessory services (secrets come from .kamal/secrets).
+# Only needed if you self-host PostgreSQL on a server; managed Postgres just
+# needs DATABASE_URL set in .kamal/secrets. Point DATABASE_URL at this host
+# (e.g. postgres://postgres:PASSWORD@bbcfarsi-db:5432/bbcfarsi_production).
 # accessories:
 #   db:
-#     image: mysql:8.0
+#     image: postgres:16
 #     host: 192.168.0.2
-#     # Change to 3306 to expose port to the world instead of just local network.
-#     port: "127.0.0.1:3306:3306"
+#     # Change to 5432 to expose port to the world instead of just local network.
+#     port: "127.0.0.1:5432:5432"
 #     env:
 #       clear:
-#         MYSQL_ROOT_HOST: '%'
+#         POSTGRES_USER: postgres
+#         POSTGRES_DB: bbcfarsi_production
 #       secret:
-#         - MYSQL_ROOT_PASSWORD
-#     files:
-#       - config/mysql/production.cnf:/etc/mysql/my.cnf
-#       - db/production.sql:/docker-entrypoint-initdb.d/setup.sql
+#         - POSTGRES_PASSWORD
 #     directories:
-#       - data:/var/lib/mysql
-#   redis:
-#     image: redis:7.0
-#     host: 192.168.0.2
-#     port: 6379
-#     directories:
-#       - data:/data
+#       - data:/var/lib/postgresql/data

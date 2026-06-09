@@ -12,5 +12,6 @@ test:
   <<: *default
 
 production:
-  database: cache
+  # Solid Cache lives in the primary PostgreSQL database (no separate cache db),
+  # so there is no `database:` key — it uses the default Active Record connection.
   <<: *default

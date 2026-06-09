@@ -1,8 +1,7 @@
-# SQLite. Versions 3.8.0 and up are supported.
-#   gem install sqlite3
+# Development and test use SQLite; production uses PostgreSQL via DATABASE_URL.
 #
-#   Ensure the SQLite 3 gem is defined in your Gemfile
-#   gem "sqlite3"
+#   Local:      gem "sqlite3"  (group :development, :test)
+#   Production: gem "pg"        (group :production) + ENV["DATABASE_URL"]
 #
 default: &default
   adapter: sqlite3
@@ -22,13 +21,12 @@ test:
   database: storage/test.sqlite3
 
 
-# Store production database in the storage/ directory, which by default
-# is mounted as a persistent Docker volume in config/deploy.yml.
+# PostgreSQL in production. The connection is taken entirely from the
+# DATABASE_URL environment variable (host, user, password, database). Solid
+# Cache shares this same database (see config/cache.yml).
 production:
   primary:
-    <<: *default
-    database: storage/production.sqlite3
-  cache:
-    <<: *default
-    database: storage/production_cache.sqlite3
-    migrations_paths: db/cache_migrate
+    adapter: postgresql
+    encoding: unicode
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+    url: <%= ENV["DATABASE_URL"] %>

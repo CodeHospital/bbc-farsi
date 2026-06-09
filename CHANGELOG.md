@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — PostgreSQL in production (via `DATABASE_URL`)
+- Production now runs on **PostgreSQL**, configured entirely from the
+  `DATABASE_URL` environment variable; development and test stay on SQLite.
+- Gemfile: `pg` moved into a new `:production` group, `sqlite3` into
+  `:development, :test`. Lockfile updated (pg 1.6.3).
+- `config/database.yml`: production `primary` uses `adapter: postgresql` +
+  `url: <%= ENV["DATABASE_URL"] %>`. The separate sqlite `cache` database was
+  removed — **Solid Cache now lives in the primary database** (`config/cache.yml`
+  production no longer sets `database:`).
+- Solid Cache schema moved into the primary DB: new migration
+  `20260609000001_create_solid_cache_entries` (+ `solid_cache_entries` in
+  `db/schema.rb`); deleted the now-unused `db/cache_schema.rb`. **Run
+  `bin/rails db:migrate`** on existing databases (the Docker entrypoint's
+  `db:prepare` handles fresh production deploys).
+- `Dockerfile`: install `postgresql-client` + `libpq-dev` (drop `sqlite3`),
+  `BUNDLE_WITHOUT="development test"` so production installs `pg`, not `sqlite3`.
+- `config/deploy.yml` + `.kamal/secrets`: `DATABASE_URL` wired as a Kamal secret;
+  storage-volume comment updated; commented accessory example switched from MySQL
+  to PostgreSQL. Documented in README and `.env.example`.
+
 ### Changed — Unified Task-style filters across Articles, Rewrites, Translations
 - The Articles, Rewrites, and Translations index filters now match the Task
   Queue: **toggle filter buttons with live count badges** (click the active one
