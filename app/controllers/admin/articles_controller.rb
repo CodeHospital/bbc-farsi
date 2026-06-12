@@ -34,6 +34,12 @@ class Admin::ArticlesController < Admin::BaseController
                                         .includes(:ollama_server).order(created_at: :desc)
     @translations   = @article.translations.includes(:ollama_server).order(created_at: :desc)
     @ollama_servers = OllamaServer.enabled.order(:name)
+    @telegram_channels = TelegramChannel.enabled.order(:name)
+
+    posted_rows = TelegramPost.where(translation: @translations, status: "posted")
+                               .pluck(:translation_id, :telegram_channel_id)
+    @posted_channel_ids_by_translation = posted_rows.group_by(&:first)
+                                                     .transform_values { |rows| rows.map(&:last) }
   end
 
   def rewrite

@@ -84,10 +84,12 @@ class Admin::TranslationsController < Admin::BaseController
     post.update!(status: "posted", posted_at: Time.current)
     @translation.article.update!(status: "posted")
 
-    redirect_to admin_translation_path(@translation), notice: "Posted to #{channel.name}."
+    redirect_back fallback_location: admin_translation_path(@translation),
+                  notice: "Posted to #{channel.name}."
   rescue StandardError => e
     post&.update!(status: "error", error_message: e.message)
-    redirect_to admin_translation_path(@translation), alert: "Posting failed: #{e.message}"
+    redirect_back fallback_location: admin_translation_path(@translation),
+                  alert: "Posting failed: #{e.message}"
   end
 
   private

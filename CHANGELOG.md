@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Post to Telegram dropdown on article show page
+- Each completed translation card on `/admin/articles/:id` now has a card footer
+  with a channel `<select>` dropdown and a "📤 Post" button, so an operator can
+  post directly from the article page without navigating to the translation page.
+- Channels already posted to show a "✓" prefix in the dropdown.
+- `TranslationsController#post_to_channel` redirects use `redirect_back` (fallback:
+  translation show page), so the action works from any originating page.
+- `ArticlesController#show` now loads `@telegram_channels` and
+  `@posted_channel_ids_by_translation` (single SQL batch query) for the card footer.
+- 139 tests green.
+
 ### Added — Posted-article strikethrough + "Hide posted" filter on all content listings
 - Article titles in every content listing show a strikethrough with dimmed opacity
   (`posted-title` CSS class) when the article's status is `"posted"` (i.e. it has

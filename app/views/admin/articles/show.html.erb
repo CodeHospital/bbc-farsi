@@ -263,6 +263,7 @@
         <% end %>
       </div>
     </div>
+    <% posted_channel_ids = @posted_channel_ids_by_translation[translation.id] || [] %>
     <% if translation.translated_title.present? %>
       <div class="card-body py-2">
         <div dir="rtl" lang="fa">
@@ -322,6 +323,23 @@
                            server: translation.ollama_server,
                            model:  translation.llm_model) %>
         <% end %>
+      </div>
+    <% end %>
+    <% if translation.status == "completed" && translation.translated_title.present? && @telegram_channels.any? %>
+      <div class="card-footer py-2 bg-transparent">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <small class="text-muted text-nowrap"><i class="bi bi-telegram"></i> Post to:</small>
+          <%= form_with url: post_to_channel_admin_translation_path(translation), method: :post,
+                class: "d-flex align-items-center gap-2" do |f| %>
+            <%= f.select :telegram_channel_id,
+                  @telegram_channels.map { |ch|
+                    label = posted_channel_ids.include?(ch.id) ? "✓ #{ch.name}" : ch.name
+                    [label, ch.id]
+                  },
+                  {}, class: "form-select form-select-sm", style: "width:auto; min-width:160px" %>
+            <%= f.submit "📤 Post", class: "btn btn-sm btn-success text-nowrap" %>
+          <% end %>
+        </div>
       </div>
     <% end %>
   </div>
