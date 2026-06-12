@@ -8,7 +8,16 @@
 </div>
 
 <table class="table table-hover">
-  <thead><tr><th>Name</th><th>Category</th><th>URL</th><th>Articles</th><th>Status</th><th></th></tr></thead>
+  <thead>
+    <tr>
+      <th><%= sort_link "name", "Name" %></th>
+      <th><%= sort_link "category", "Category" %></th>
+      <th>URL</th>
+      <th>Articles</th>
+      <th><%= sort_link "enabled", "Status" %></th>
+      <th></th>
+    </tr>
+  </thead>
   <tbody>
     <% @feeds.each do |feed| %>
       <tr>

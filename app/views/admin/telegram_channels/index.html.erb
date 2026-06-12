@@ -4,7 +4,16 @@
 </div>
 
 <table class="table table-hover">
-  <thead><tr><th>Name</th><th>Channel ID</th><th>Enabled</th><th>Autopost</th><th>Posts</th><th></th></tr></thead>
+  <thead>
+    <tr>
+      <th><%= sort_link "name", "Name" %></th>
+      <th>Channel ID</th>
+      <th><%= sort_link "enabled", "Enabled" %></th>
+      <th><%= sort_link "autopost", "Autopost" %></th>
+      <th>Posts</th>
+      <th></th>
+    </tr>
+  </thead>
   <tbody>
     <% @channels.each do |channel| %>
       <tr>

@@ -54,6 +54,46 @@ class Admin::RewritesControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", admin_rewrite_path(archived)
   end
 
+  test "sorts by article title ascending and descending" do
+    article_z = create_article(attrs: { title: "Zeta article" })
+    article_a = create_article(attrs: { title: "Alpha article" })
+    create_rewrite(article: article_z)
+    create_rewrite(article: article_a)
+
+    get admin_rewrites_path(sort: "article", dir: "asc")
+    assert_response :success
+    assert_operator response.body.index("Alpha article"), :<, response.body.index("Zeta article")
+
+    get admin_rewrites_path(sort: "article", dir: "desc")
+    assert_operator response.body.index("Zeta article"), :<, response.body.index("Alpha article")
+  end
+
+  test "defaults to newest first" do
+    older_article = create_article(attrs: { title: "Older rewrite article" })
+    newer_article = create_article(attrs: { title: "Newer rewrite article" })
+    older = create_rewrite(article: older_article)
+    newer = create_rewrite(article: newer_article)
+    older.update_column(:created_at, 2.days.ago)
+    newer.update_column(:created_at, 1.hour.ago)
+
+    get admin_rewrites_path
+    assert_operator response.body.index("Newer rewrite article"), :<, response.body.index("Older rewrite article")
+  end
+
+  test "column headers are sortable and preserve active filters" do
+    create_rewrite(attrs: { status: "completed" })
+    get admin_rewrites_path(status: "completed")
+    assert_select "thead a[href*='sort=article']"
+    assert_select "thead a[href*='sort=model']"
+    assert_select "thead a[href*='status=completed']" # filter preserved in sort links
+  end
+
+  test "active sort column shows a direction indicator" do
+    create_rewrite
+    get admin_rewrites_path(sort: "model", dir: "asc")
+    assert_select "thead a", text: /Model ▲/
+  end
+
   private
 
   def log_in

@@ -40,7 +40,15 @@
   <thead>
     <tr>
       <th><input type="checkbox" id="select_all_tasks" class="form-check-input" title="Select all"></th>
-      <th>#</th><th>Priority</th><th>Kind</th><th>Article</th><th>Server / Model</th><th>Status</th><th>Attempts</th><th>Created</th><th></th>
+      <th>#</th>
+      <th><%= sort_link "priority", "Priority" %></th>
+      <th><%= sort_link "kind", "Kind" %></th>
+      <th>Article</th>
+      <th>Server / Model</th>
+      <th><%= sort_link "status", "Status" %></th>
+      <th><%= sort_link "attempts", "Attempts" %></th>
+      <th><%= sort_link "created", "Created" %></th>
+      <th></th>
     </tr>
   </thead>
   <tbody>

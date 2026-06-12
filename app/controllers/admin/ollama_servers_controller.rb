@@ -1,8 +1,15 @@
 class Admin::OllamaServersController < Admin::BaseController
   before_action :set_server, only: %i[edit update destroy toggle]
 
+  SORT_COLUMNS = {
+    "name"    => "ollama_servers.name",
+    "enabled" => "ollama_servers.enabled"
+  }.freeze
+
   def index
-    @ollama_servers = OllamaServer.order(:name)
+    column    = SORT_COLUMNS[params[:sort]] || "ollama_servers.name"
+    direction = params[:dir] == "asc" ? "asc" : "desc"
+    @ollama_servers = OllamaServer.order(Arel.sql("#{column} #{direction}"))
   end
 
   def new

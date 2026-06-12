@@ -3,6 +3,14 @@ class Admin::ArticlesController < Admin::BaseController
 
   before_action :set_article, only: %i[show rewrite multi_rewrite translate translate_original multi_translate archive unarchive]
 
+  SORT_COLUMNS = {
+    "title"     => "articles.title",
+    "feed"      => "feeds.name",
+    "published" => "articles.published_at",
+    "status"    => "articles.status",
+    "created"   => "articles.created_at"
+  }.freeze
+
   def index
     new_count = FeedIngestor.run if params[:trigger_fetch]
 
@@ -10,12 +18,12 @@ class Admin::ArticlesController < Admin::BaseController
     @status_counts = base.group(:status).count
     @feed_counts   = base.group(:feed_id).count
 
-    articles = base.includes(:feed)
+    articles = base.eager_load(:feed) # LEFT JOIN needed for feed-name sort/filter
     articles = articles.where(status: params[:status])   if params[:status].present?
     articles = articles.where(feed_id: params[:feed_id]) if params[:feed_id].present?
-    articles = articles.where("title LIKE ? OR description LIKE ?", "%#{params[:q]}%", "%#{params[:q]}%") if params[:q].present?
+    articles = articles.where("articles.title LIKE ? OR articles.description LIKE ?", "%#{params[:q]}%", "%#{params[:q]}%") if params[:q].present?
 
-    @pagy, @articles = pagy(articles.order(created_at: :desc))
+    @pagy, @articles = pagy(articles.order(sort_clause))
     @feeds = Feed.order(:name)
     flash.now[:notice] = "Fetched #{new_count} new article(s)." if params[:trigger_fetch]
   end
@@ -107,4 +115,12 @@ class Admin::ArticlesController < Admin::BaseController
   private
 
   def set_article = @article = Article.find(params[:id])
+
+  def sort_clause
+    column    = SORT_COLUMNS[params[:sort]] || SORT_COLUMNS["created"]
+    direction = params[:dir] == "asc" ? "asc" : "desc"
+    order     = "#{column} #{direction}"
+    order    += ", articles.created_at desc" unless column == SORT_COLUMNS["created"]
+    Arel.sql(order)
+  end
 end

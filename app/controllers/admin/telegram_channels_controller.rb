@@ -1,8 +1,16 @@
 class Admin::TelegramChannelsController < Admin::BaseController
   before_action :set_channel, only: %i[edit update destroy toggle]
 
+  SORT_COLUMNS = {
+    "name"     => "telegram_channels.name",
+    "enabled"  => "telegram_channels.enabled",
+    "autopost" => "telegram_channels.autopost"
+  }.freeze
+
   def index
-    @channels = TelegramChannel.order(:name)
+    column    = SORT_COLUMNS[params[:sort]] || "telegram_channels.name"
+    direction = params[:dir] == "asc" ? "asc" : "desc"
+    @channels = TelegramChannel.order(Arel.sql("#{column} #{direction}"))
   end
 
   def new

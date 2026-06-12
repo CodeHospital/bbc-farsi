@@ -12,7 +12,15 @@
 <%= render "admin/shared/filter_search", placeholder: "Search article title / content…" %>
 
 <table class="table table-hover table-sm">
-  <thead><tr><th>Article</th><th>Model</th><th>Status</th><th>Created</th><th></th></tr></thead>
+  <thead>
+    <tr>
+      <th><%= sort_link "article", "Article" %></th>
+      <th><%= sort_link "model", "Model" %></th>
+      <th><%= sort_link "status", "Status" %></th>
+      <th><%= sort_link "created", "Created" %></th>
+      <th></th>
+    </tr>
+  </thead>
   <tbody>
     <% @rewrites.each do |rewrite| %>
       <tr>

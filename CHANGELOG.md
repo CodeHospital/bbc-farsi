@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Sortable columns on all listing pages
+- All admin listing pages now have clickable, toggle-direction column headers:
+  - **Articles**: Title, Feed, Published, Status (default: newest first)
+  - **Rewrites**: Article, Model, Status, Created (default: newest first)
+  - **Tasks**: Priority, Kind, Status, Attempts, Created (default: priority desc)
+  - **Translations**: Article, Persian Title, Model, Active, Status, Created (unchanged)
+  - **Feeds**: Name, Category, Status (default: name asc)
+  - **Telegram Channels**: Name, Enabled, Autopost (default: name asc)
+  - **Telegram Posts**: Channel, Status, Posted at (default: newest first)
+  - **Ollama Servers**: Name, Status (default: name asc)
+- Added generic `sort_link(column, label)` helper in `ApplicationHelper`; replaces
+  the translations-specific `translation_sort_link` which has been removed from
+  `Admin::TranslationsHelper`.
+- Sort state (column + direction ▲/▼) is preserved across filter and search
+  interactions; pagination is reset on sort change.
+- Articles controller switches `includes(:feed)` → `eager_load(:feed)` to support
+  JOIN-based sorting on `feeds.name`.
+- Telegram Posts controller switches to `eager_load(:telegram_channel)` for
+  channel-name sorting.
+- 133 tests green.
+
+### Changed — Worker is now a standalone Bundler app
+- Added `worker/Gemfile` (Ruby ~> 3.3, `dotenv ~> 3.0`) making the worker an
+  independent Bundler project with its own dependency manifest and lock file.
+- Replaced the hand-rolled stdlib `load_dotenv` parser in `worker.rb` with the
+  `dotenv` gem (`Dotenv.load`); behaviour is identical but more robust.
+- Worker entry point updated to `bundle exec ruby worker.rb` (run from
+  `worker/` directory).
+- Updated `worker/README.md` to reflect new run command and gem requirement.
+
 ### Added — Worker model-aware task claiming
 - **Worker** calls `GET /api/tags` on Ollama at startup of each poll cycle to
   discover locally available models (equivalent to `ollama list`), then passes

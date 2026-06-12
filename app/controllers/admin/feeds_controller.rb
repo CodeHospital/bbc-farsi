@@ -1,8 +1,16 @@
 class Admin::FeedsController < Admin::BaseController
   before_action :set_feed, only: %i[edit update destroy toggle]
 
+  SORT_COLUMNS = {
+    "name"     => "feeds.name",
+    "category" => "feeds.category",
+    "enabled"  => "feeds.enabled"
+  }.freeze
+
   def index
-    @feeds = Feed.order(:name)
+    column    = SORT_COLUMNS[params[:sort]] || "feeds.name"
+    direction = params[:dir] == "asc" ? "asc" : "desc"
+    @feeds = Feed.order(Arel.sql("#{column} #{direction}"))
   end
 
   def new

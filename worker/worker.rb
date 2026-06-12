@@ -3,9 +3,8 @@
 
 # BBC Farsi task worker.
 #
-# A standalone, dependency-free client (Ruby stdlib only). It runs wherever
-# Ollama is reachable — which may be a different machine than the Rails app —
-# and drives the LLM work the web app used to do in-process:
+# A standalone client that runs wherever Ollama is reachable — which may be a
+# different machine than the Rails app — and drives the LLM work:
 #
 #   1. GET  {APP_URL}/api/tasks/next         -> claim the next pending task
 #   2. For each request in the task, POST to Ollama's /api/chat
@@ -14,46 +13,24 @@
 #
 # All API calls send `Authorization: Bearer <WORKER_API_TOKEN>`.
 #
-# Configuration (environment variables):
+# Configuration (environment variables, or worker/.env):
 #   APP_URL           Base URL of the Rails app   (default http://localhost:3000)
 #   WORKER_API_TOKEN  Shared bearer token         (required)
 #   OLLAMA_URL        Fallback Ollama base URL    (default http://localhost:11434)
 #                     Used only when a task has no server URL of its own.
 #   POLL_INTERVAL     Seconds to wait when idle   (default 5)
 #
-# Run:  WORKER_API_TOKEN=secret ruby worker/worker.rb
+# Run:  bundle exec ruby worker.rb   (from the worker/ directory)
+#    or WORKER_API_TOKEN=secret bundle exec ruby worker.rb
 
+require "bundler/setup"
+require "dotenv"
 require "net/http"
 require "json"
 require "uri"
 
-# ── .env loading ────────────────────────────────────────────────────────────
-#
-# Stdlib-only dotenv: read a `.env` file sitting next to this script and copy
-# any keys it defines into ENV. Real environment variables win over file values,
-# so `WORKER_API_TOKEN=… ruby worker/worker.rb` still overrides the file.
-def load_dotenv(path = File.join(__dir__, ".env"))
-  return unless File.exist?(path)
-
-  File.foreach(path) do |raw_line|
-    line = raw_line.strip
-    next if line.empty? || line.start_with?("#")
-
-    line = line.sub(/\Aexport\s+/, "")
-    key, _separator, value = line.partition("=")
-    key = key.strip
-    next if key.empty?
-
-    value = value.strip
-    # Strip matching surrounding quotes, if any.
-    value = value[1..-2] if value.length >= 2 && (value.start_with?('"') && value.end_with?('"') ||
-                                                  value.start_with?("'") && value.end_with?("'"))
-
-    ENV[key] ||= value
-  end
-end
-
-load_dotenv
+# Load worker/.env; real env vars take precedence.
+Dotenv.load(File.join(__dir__, ".env"))
 
 APP_URL          = ENV.fetch("APP_URL", "http://localhost:3000").chomp("/")
 WORKER_API_TOKEN = ENV.fetch("WORKER_API_TOKEN") { abort "WORKER_API_TOKEN is required" }

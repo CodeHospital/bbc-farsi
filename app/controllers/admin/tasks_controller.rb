@@ -3,9 +3,16 @@ class Admin::TasksController < Admin::BaseController
 
   before_action :set_task, only: %i[show retry prioritize]
 
+  SORT_COLUMNS = {
+    "priority" => "tasks.priority",
+    "kind"     => "tasks.kind",
+    "status"   => "tasks.status",
+    "attempts" => "tasks.attempts",
+    "created"  => "tasks.created_at"
+  }.freeze
+
   def index
-    # Highest priority first; newest first within the same priority.
-    tasks = Task.includes(:target, :ollama_server).order(priority: :desc, created_at: :desc)
+    tasks = Task.includes(:target, :ollama_server).order(sort_clause)
     tasks = tasks.where(status: params[:status]) if params[:status].present?
     tasks = tasks.where(kind: params[:kind])     if params[:kind].present?
     tasks = filter_by_article_text(tasks, params[:q]) if params[:q].present?
@@ -58,6 +65,20 @@ class Admin::TasksController < Admin::BaseController
   private
 
   def set_task = @task = Task.includes(:target, :ollama_server).find(params[:id])
+
+  # Default: priority DESC (highest first), tiebroken by newest.
+  # Any explicit sort param overrides, with priority as a secondary tiebreaker.
+  def sort_clause
+    column    = SORT_COLUMNS[params[:sort]]
+    direction = params[:dir] == "asc" ? "asc" : "desc"
+    if column.nil?
+      Arel.sql("tasks.priority desc, tasks.created_at desc")
+    elsif column == SORT_COLUMNS["priority"]
+      Arel.sql("tasks.priority #{direction}, tasks.created_at desc")
+    else
+      Arel.sql("#{column} #{direction}, tasks.priority desc")
+    end
+  end
 
   # Filter tasks whose target's article matches the free-text query. `target` is
   # polymorphic (Rewrite or Translation), so resolve matching article ids first,

@@ -12,12 +12,12 @@
     <table class="table table-hover align-middle">
       <thead class="table-light">
         <tr>
-          <th>Name</th>
+          <th><%= sort_link "name", "Name" %></th>
           <th>URL</th>
           <th>Rewrite models</th>
           <th>Translate models</th>
           <th>Refine models</th>
-          <th>Status</th>
+          <th><%= sort_link "enabled", "Status" %></th>
           <th></th>
         </tr>
       </thead>

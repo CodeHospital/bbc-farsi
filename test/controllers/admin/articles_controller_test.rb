@@ -63,6 +63,42 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[aria-pressed=true][href=?]", admin_articles_path
   end
 
+  test "sorts by title ascending and descending" do
+    create_article(attrs: { title: "Zeta story" })
+    create_article(attrs: { title: "Alpha story" })
+
+    get admin_articles_path(sort: "title", dir: "asc")
+    assert_response :success
+    assert_operator response.body.index("Alpha story"), :<, response.body.index("Zeta story")
+
+    get admin_articles_path(sort: "title", dir: "desc")
+    assert_operator response.body.index("Zeta story"), :<, response.body.index("Alpha story")
+  end
+
+  test "defaults to newest first" do
+    older = create_article(attrs: { title: "Older article" })
+    newer = create_article(attrs: { title: "Newer article" })
+    older.update_column(:created_at, 2.days.ago)
+    newer.update_column(:created_at, 1.hour.ago)
+
+    get admin_articles_path
+    assert_operator response.body.index("Newer article"), :<, response.body.index("Older article")
+  end
+
+  test "column headers are sortable and preserve active filters" do
+    create_article(attrs: { status: "pending" })
+    get admin_articles_path(status: "pending")
+    assert_select "thead a[href*='sort=title']"
+    assert_select "thead a[href*='sort=published']"
+    assert_select "thead a[href*='status=pending']" # filter preserved in sort links
+  end
+
+  test "active sort column shows a direction indicator" do
+    create_article(attrs: { title: "Test" })
+    get admin_articles_path(sort: "title", dir: "asc")
+    assert_select "thead a", text: /Title ▲/
+  end
+
   private
 
   def log_in

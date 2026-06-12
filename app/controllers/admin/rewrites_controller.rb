@@ -3,18 +3,25 @@ class Admin::RewritesController < Admin::BaseController
 
   before_action :set_rewrite, only: %i[show edit update rerun activate archive]
 
+  SORT_COLUMNS = {
+    "article" => "articles.title",
+    "model"   => "rewrites.llm_model",
+    "status"  => "rewrites.status",
+    "created" => "rewrites.created_at"
+  }.freeze
+
   def index
     base = Rewrite.where(archived: params[:archived] == "1")
     @status_counts = base.group(:status).count
 
-    rewrites = base.eager_load(:article) # LEFT JOIN: search/show article without N+1
+    rewrites = base.eager_load(:article) # LEFT JOIN: search/sort/show article without N+1
     rewrites = rewrites.where(status: params[:status]) if params[:status].present?
     if params[:q].present?
       like = "%#{params[:q]}%"
       rewrites = rewrites.where("articles.title LIKE :q OR rewrites.content LIKE :q", q: like)
     end
 
-    @pagy, @rewrites = pagy(rewrites.order(created_at: :desc))
+    @pagy, @rewrites = pagy(rewrites.order(sort_clause))
   end
 
   def show; end
@@ -52,4 +59,12 @@ class Admin::RewritesController < Admin::BaseController
 
   def set_rewrite = @rewrite = Rewrite.find(params[:id])
   def rewrite_params = params.require(:rewrite).permit(:content)
+
+  def sort_clause
+    column    = SORT_COLUMNS[params[:sort]] || SORT_COLUMNS["created"]
+    direction = params[:dir] == "asc" ? "asc" : "desc"
+    order     = "#{column} #{direction}"
+    order    += ", rewrites.created_at desc" unless column == SORT_COLUMNS["created"]
+    Arel.sql(order)
+  end
 end

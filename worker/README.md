@@ -5,9 +5,11 @@ app no longer talks to Ollama itself — it only enqueues **tasks**. This worker
 (which has access to Ollama) claims tasks over a protected API, runs them
 against Ollama, and posts the results back.
 
-The worker uses **only the Ruby standard library** (`net/http`, `json`), so it
-runs anywhere Ruby is installed — including the machine that hosts Ollama, which
-may be different from the one running the Rails app.
+The worker is a standalone Bundler app (`worker/Gemfile`). Its only external
+dependency is the `dotenv` gem for `.env` loading; all HTTP work uses the Ruby
+standard library. It runs anywhere Ruby 3.3+ is installed — including the
+machine that hosts Ollama, which may be different from the one running the Rails
+app.
 
 ## How it works
 
@@ -47,9 +49,9 @@ hung worker.
 
 Configuration can also live in a `.env` file next to `worker.rb` (one
 `KEY=value` per line; `#` comments and an optional `export` prefix are allowed).
-The worker loads it on startup using only the standard library — no `dotenv`
-gem. **Real environment variables take precedence over `.env` values**, so you
-can still override any setting on the command line.
+The worker loads it on startup via the `dotenv` gem. **Real environment
+variables take precedence over `.env` values**, so you can still override any
+setting on the command line.
 
 ```ini
 # worker/.env
@@ -58,17 +60,21 @@ APP_URL=http://localhost:5000
 OLLAMA_URL=http://localhost:11434
 ```
 
+## Setup
+
+```bash
+cd worker
+bundle install
+```
+
 ## Run
 
 ```bash
-# Using worker/.env:
-ruby worker/worker.rb
+# From the worker/ directory, using worker/.env:
+bundle exec ruby worker.rb
 
 # Or with explicit environment variables (these override .env):
-export WORKER_API_TOKEN=your-shared-secret
-export APP_URL=https://app.example.com
-export OLLAMA_URL=http://localhost:11434
-ruby worker/worker.rb
+WORKER_API_TOKEN=your-shared-secret bundle exec ruby worker.rb
 ```
 
 The same `WORKER_API_TOKEN` must be set in the Rails app's environment so the
