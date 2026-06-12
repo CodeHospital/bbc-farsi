@@ -41,6 +41,21 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", admin_translation_path(inactive), count: 0
   end
 
+  test "hide_posted filter excludes translations whose article is posted" do
+    visible  = translation_with(title: "Pending article",  article_status: "pending")
+    excluded = translation_with(title: "Posted article",   article_status: "posted")
+
+    get admin_translations_path(hide_posted: "1")
+    assert_select "a[href=?]", admin_translation_path(visible)
+    assert_select "a[href=?]", admin_translation_path(excluded), count: 0
+  end
+
+  test "translation rows for posted articles show strikethrough class" do
+    translation_with(title: "Posted article", article_status: "posted")
+    get admin_translations_path
+    assert_select "small.posted-title"
+  end
+
   test "search matches the article title" do
     match = translation_with(title: "Quantum leap")
     other = translation_with(title: "Sports roundup")
@@ -120,8 +135,8 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
     post admin_login_path, params: { username: "testadmin", password: "testpass" }
   end
 
-  def translation_with(title:, **attrs)
-    article = create_article(attrs: { title: title })
+  def translation_with(title:, article_status: "pending", **attrs)
+    article = create_article(attrs: { title: title, status: article_status })
     rewrite = create_rewrite(article: article)
     create_translation(rewrite: rewrite, attrs: attrs)
   end

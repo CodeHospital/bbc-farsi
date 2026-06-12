@@ -21,6 +21,7 @@ class Admin::ArticlesController < Admin::BaseController
     articles = base.eager_load(:feed) # LEFT JOIN needed for feed-name sort/filter
     articles = articles.where(status: params[:status])   if params[:status].present?
     articles = articles.where(feed_id: params[:feed_id]) if params[:feed_id].present?
+    articles = articles.where.not(status: "posted")      if params[:hide_posted] == "1"
     articles = articles.where("articles.title LIKE ? OR articles.description LIKE ?", "%#{params[:q]}%", "%#{params[:q]}%") if params[:q].present?
 
     @pagy, @articles = pagy(articles.order(sort_clause))

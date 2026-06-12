@@ -63,6 +63,21 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[aria-pressed=true][href=?]", admin_articles_path
   end
 
+  test "hide_posted filter excludes posted articles" do
+    visible = create_article(attrs: { title: "Pending article", status: "pending" })
+    posted  = create_article(attrs: { title: "Posted article",  status: "posted" })
+
+    get admin_articles_path(hide_posted: "1")
+    assert_select "a[href=?]", admin_article_path(visible)
+    assert_select "a[href=?]", admin_article_path(posted), count: 0
+  end
+
+  test "posted article titles show strikethrough class" do
+    create_article(attrs: { title: "Done article", status: "posted" })
+    get admin_articles_path
+    assert_select "a.posted-title", text: /Done article/
+  end
+
   test "sorts by title ascending and descending" do
     create_article(attrs: { title: "Zeta story" })
     create_article(attrs: { title: "Alpha story" })

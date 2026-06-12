@@ -20,9 +20,10 @@ class Admin::TranslationsController < Admin::BaseController
     @models        = @model_counts.keys.compact.sort
 
     translations = base.eager_load(:article) # LEFT JOIN: filter/sort on article columns
-    translations = translations.where(status: params[:status])   if params[:status].present?
-    translations = translations.where(llm_model: params[:model]) if params[:model].present?
-    translations = translations.where(active: true)              if params[:active] == "1"
+    translations = translations.where(status: params[:status])             if params[:status].present?
+    translations = translations.where(llm_model: params[:model])           if params[:model].present?
+    translations = translations.where(active: true)                        if params[:active] == "1"
+    translations = translations.where.not(articles: { status: "posted" }) if params[:hide_posted] == "1"
     if params[:q].present?
       like = "%#{params[:q]}%"
       translations = translations.where("articles.title LIKE :q OR translations.translated_title LIKE :q", q: like)

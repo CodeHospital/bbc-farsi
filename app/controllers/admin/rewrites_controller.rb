@@ -15,7 +15,8 @@ class Admin::RewritesController < Admin::BaseController
     @status_counts = base.group(:status).count
 
     rewrites = base.eager_load(:article) # LEFT JOIN: search/sort/show article without N+1
-    rewrites = rewrites.where(status: params[:status]) if params[:status].present?
+    rewrites = rewrites.where(status: params[:status])             if params[:status].present?
+    rewrites = rewrites.where.not(articles: { status: "posted" }) if params[:hide_posted] == "1"
     if params[:q].present?
       like = "%#{params[:q]}%"
       rewrites = rewrites.where("articles.title LIKE :q OR rewrites.content LIKE :q", q: like)

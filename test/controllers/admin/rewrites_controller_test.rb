@@ -42,6 +42,24 @@ class Admin::RewritesControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", admin_rewrite_path(other), count: 0
   end
 
+  test "hide_posted filter excludes rewrites whose article is posted" do
+    posted_article  = create_article(attrs: { title: "Posted article",  status: "posted" })
+    pending_article = create_article(attrs: { title: "Pending article", status: "pending" })
+    visible  = create_rewrite(article: pending_article)
+    excluded = create_rewrite(article: posted_article)
+
+    get admin_rewrites_path(hide_posted: "1")
+    assert_select "a[href=?]", admin_rewrite_path(visible)
+    assert_select "a[href=?]", admin_rewrite_path(excluded), count: 0
+  end
+
+  test "rewrite rows for posted articles show strikethrough class" do
+    posted_article = create_article(attrs: { title: "Posted article", status: "posted" })
+    create_rewrite(article: posted_article)
+    get admin_rewrites_path
+    assert_select "a.posted-title"
+  end
+
   test "archived toggle reveals archived rewrites" do
     visible  = create_rewrite
     archived = create_rewrite(attrs: { archived: true })

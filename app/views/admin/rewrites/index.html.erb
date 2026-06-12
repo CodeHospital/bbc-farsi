@@ -7,6 +7,7 @@
       badge_class: ->(value) { "badge-status-#{value}" } %>
 <div class="mb-2">
   <span class="text-muted small me-1">Other:</span>
+  <%= render "admin/shared/filter_toggle", param: :hide_posted, label: "Hide posted" %>
   <%= render "admin/shared/filter_toggle", param: :archived, label: "Show archived" %>
 </div>
 <%= render "admin/shared/filter_search", placeholder: "Search article title / content…" %>
@@ -24,7 +25,8 @@
   <tbody>
     <% @rewrites.each do |rewrite| %>
       <tr>
-        <td><%= link_to rewrite.article&.title&.truncate(70), admin_rewrite_path(rewrite) %></td>
+        <td><%= link_to rewrite.article&.title&.truncate(70), admin_rewrite_path(rewrite),
+                  class: ("posted-title" if rewrite.article&.status == "posted") %></td>
         <td><small class="text-muted"><%= rewrite.llm_model %></small></td>
         <td><%= render "admin/shared/status_badge", status: rewrite.status %></td>
         <td><small><%= rewrite.created_at.strftime("%b %d %H:%M") %></small>

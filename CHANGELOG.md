@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Posted-article strikethrough + "Hide posted" filter on all content listings
+- Article titles in every content listing show a strikethrough with dimmed opacity
+  (`posted-title` CSS class) when the article's status is `"posted"` (i.e. it has
+  been sent to Telegram), making it immediately obvious which articles are done.
+  Covers: Articles, Rewrites, Translations, and Tasks index views.
+- Added a **"Hide posted"** toggle filter to Articles, Rewrites, and Translations
+  index pages (renders via the shared `filter_toggle` partial, composes with all
+  existing filters and sort state).
+  - Articles: `where.not(status: "posted")`
+  - Rewrites / Translations: `where.not(articles: { status: "posted" })` (uses the
+    existing `eager_load(:article)` JOIN — no extra query).
+- 139 tests green.
+
 ### Added — Sortable columns on all listing pages
 - All admin listing pages now have clickable, toggle-direction column headers:
   - **Articles**: Title, Feed, Published, Status (default: newest first)

@@ -67,7 +67,8 @@
         <td>
           <% article = task.target&.article %>
           <% if article %>
-            <%= link_to article.title.to_s.truncate(60), admin_article_path(article) %>
+            <%= link_to article.title.to_s.truncate(60), admin_article_path(article),
+                  class: ("posted-title" if article.status == "posted") %>
           <% else %>
             <span class="text-muted">—</span>
           <% end %>
