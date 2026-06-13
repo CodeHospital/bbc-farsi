@@ -4,6 +4,69 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Action Cable tests and stream name clarification
+- Added `test/channels/application_cable/connection_test.rb` with 3 cases:
+  anonymous connection rejected, `admin_logged_in: false` rejected, valid session accepted.
+- Added 5 broadcast tests to `task_test.rb` (include `ActionCable::TestHelper`) covering
+  `mark_claimed!`, `complete!` (rewrite & translate), `fail!`, and isolation (no bleed to
+  other articles).
+- Tests revealed that `broadcast_refresh_to` routes through Turbo's `stream_name_from`,
+  which returns the raw string `"article_<id>_tasks"` — not the `"turbo:streams:…"` prefix
+  that `broadcasting_for` returns. `assert_broadcasts` must use the raw name directly.
+- 147 tests green.
+
+### Fixed — TranslationRefiner uses separate prompts for title and body
+- Replaced the single shared `SYSTEM_PROMPT` with `TITLE_PROMPT` and `BODY_PROMPT`.
+- `TITLE_PROMPT` instructs the LLM to output only a short refined headline with no body.
+- `BODY_PROMPT` instructs the LLM to output only the refined body text with no title.
+- This prevents the LLM from bleeding content between the two fields (e.g. generating
+  a full article when given only a headline, or prepending a title to the refined body).
+- `debug_curl_title` and `debug_curl_body` updated to use the matching prompt.
+- 139 tests green.
+
+### Added — Action Cable live updates on article show page
+- When a worker claims, completes, or fails a task belonging to an article,
+  the article show page now automatically refreshes via Action Cable + Turbo
+  Streams — no manual page reload needed to see updated rewrite/translation
+  statuses and content.
+- Enabled `action_cable/engine` in `application.rb` (was commented out).
+- Added `config/cable.yml` with the `async` adapter for all environments.
+- Created `app/channels/application_cable/connection.rb` — rejects anonymous
+  connections; allows connections with a valid admin session
+  (`session[:admin_logged_in]`).
+- Created `app/channels/application_cable/channel.rb` — base channel stub.
+- Mounted `ActionCable.server` at `/cable` in `config/routes.rb`.
+- `Task#mark_claimed!`, `Task#complete!`, and `Task#fail!` each call a private
+  `broadcast_article_refresh` helper that invokes
+  `Turbo::StreamsChannel.broadcast_refresh_to("article_<id>_tasks")`.
+- Article show view adds `<%= turbo_stream_from "article_#{@article.id}_tasks" %>`
+  to subscribe the browser to that stream; a `<turbo-stream action="refresh">`
+  broadcast triggers a Turbo page refresh automatically.
+
+### Added — Translate dropdown on each rewrite card
+- Each completed rewrite card on the article show page now has a card footer with
+  a translate form, so an operator can queue a translation for a specific rewrite
+  without using the top-level multi-translate panel.
+  - One translate target configured → single "with `<model>`" button.
+  - Multiple translate targets → `<select>` dropdown + "Translate" button.
+  - Posts to `multi_translate` with the rewrite's id pre-filled as `rewrite_id`;
+    the controller uses it to translate from that exact rewrite.
+- `translate_targets` computation moved before the rewrites loop so it is available
+  in both the rewrite card footers and the translate panel (no duplication).
+- 139 tests green.
+
+### Changed — Simplified rewrite/translate buttons when only one target exists
+- When exactly one server/model combination is configured for rewrites (or
+  translations), the article show page now renders a single direct button instead
+  of the collapsible multi-target panel with checkboxes.
+  - Single rewrite target → "Rewrite with `<model>`" button, posts directly to
+    `multi_rewrite` with the target pre-filled.
+  - Single translate target → "Translate with `<model>`" button, posts directly to
+    `multi_translate`; rewrite source auto-selected (latest completed rewrite, or
+    original if none).
+  - Multiple targets → unchanged collapsible panel with checkboxes.
+- 139 tests green.
+
 ### Added — Post to Telegram dropdown on article show page
 - Each completed translation card on `/admin/articles/:id` now has a card footer
   with a channel `<select>` dropdown and a "📤 Post" button, so an operator can

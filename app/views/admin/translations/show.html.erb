@@ -44,6 +44,9 @@
 
 <div class="d-flex gap-2 mb-3">
   <%= link_to "Edit", edit_admin_translation_path(@translation), class: "btn btn-outline-primary" %>
+  <%= button_to "✦ Refine Persian", refine_admin_translation_path(@translation), method: :post,
+        class: "btn btn-outline-info",
+        title: "Run AI refinement on the Persian text" %>
   <%= button_to "↺ Re-translate", rerun_admin_translation_path(@translation), method: :post,
         class: "btn btn-outline-warning" %>
   <% if @translation.article %>
@@ -61,10 +64,14 @@
       <p class="text-muted small mb-2">These commands refine the current Persian text.</p>
       <%= render "admin/shared/curl_block",
             label:   "refine title",
-            command: TranslationRefiner.debug_curl_title(@translation) %>
+            command: TranslationRefiner.debug_curl_title(@translation,
+                       server: @translation.ollama_server,
+                       model:  @translation.llm_model) %>
       <%= render "admin/shared/curl_block",
             label:   "refine body",
-            command: TranslationRefiner.debug_curl_body(@translation) %>
+            command: TranslationRefiner.debug_curl_body(@translation,
+                       server: @translation.ollama_server,
+                       model:  @translation.llm_model) %>
     <% else %>
       <p class="text-muted small mb-2">These are the exact calls used to produce this translation.</p>
       <%= render "admin/shared/curl_block",

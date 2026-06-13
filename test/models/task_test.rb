@@ -1,6 +1,7 @@
 require "test_helper"
 
 class TaskTest < ActiveSupport::TestCase
+  include ActionCable::TestHelper
   setup do
     @article = create_article
     @server  = OllamaServer.create!(
@@ -182,5 +183,51 @@ class TaskTest < ActiveSupport::TestCase
     invalid = Task.new(kind: "rewrite", target: rewrite, status: "pending")
     assert_not invalid.valid?
     assert_includes invalid.errors[:model], "can't be blank"
+  end
+
+  # ── Action Cable broadcast tests ────────────────────────────────────────────
+  #
+  # broadcast_refresh_to uses Turbo's internal stream_name_from which returns
+  # the raw streamable string, NOT the "turbo:streams:…" prefixed form that
+  # broadcasting_for returns. So we assert on the raw stream name directly.
+
+  test "mark_claimed! broadcasts a Turbo refresh for the article" do
+    Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    article_stream = "article_#{@article.id}_tasks"
+
+    assert_broadcasts(article_stream, 1) { Task.claim_next! }
+  end
+
+  test "complete! broadcasts a Turbo refresh for the article" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    article_stream = "article_#{@article.id}_tasks"
+
+    assert_broadcasts(article_stream, 1) { task.complete!("content" => "Rewritten body.") }
+  end
+
+  test "fail! broadcasts a Turbo refresh for the article" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    article_stream = "article_#{@article.id}_tasks"
+
+    assert_broadcasts(article_stream, 1) { task.fail!("Worker timeout") }
+  end
+
+  test "translate task complete! broadcasts a refresh for the correct article" do
+    rewrite = create_rewrite(article: @article)
+    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b", chain_autopost: false)
+    Task.claim_next!
+    article_stream = "article_#{@article.id}_tasks"
+
+    assert_broadcasts(article_stream, 1) { task.complete!("title" => "عنوان", "body" => "متن") }
+  end
+
+  test "broadcast goes to the article's stream, not a different article's stream" do
+    other_article = create_article
+    Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    other_stream = "article_#{other_article.id}_tasks"
+
+    assert_no_broadcasts(other_stream) { Task.claim_next! }
   end
 end

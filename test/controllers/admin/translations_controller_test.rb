@@ -118,6 +118,13 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", rewrite_admin_article_path(translation.article)
   end
 
+  test "show page offers a refine translation action" do
+    translation = translation_with(title: "Alpha")
+    get admin_translation_path(translation)
+    assert_response :success
+    assert_select "form[action=?]", refine_admin_translation_path(translation)
+  end
+
   test "rewrite-the-article action creates a rewrite task" do
     OllamaServer.create!(name: "Local", url: "http://localhost:11434",
                          rewrite_models: "qwen3:14b", translate_models: "aya-expanse:32b", refine_models: "qwen3:14b")
@@ -127,6 +134,25 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
       post rewrite_admin_article_path(translation.article)
     end
     assert_response :redirect
+  end
+
+  test "edits and saves a translation" do
+    translation = translation_with(title: "Alpha", translated_title: "عنوان قدیمی", translated_body: "متن قدیمی")
+
+    get edit_admin_translation_path(translation)
+    assert_response :success
+
+    patch admin_translation_path(translation), params: {
+      translation: {
+        translated_title: "عنوان جدید",
+        translated_body:  "متن جدید"
+      }
+    }
+
+    assert_redirected_to admin_translation_path(translation)
+    translation.reload
+    assert_equal "عنوان جدید", translation.translated_title
+    assert_equal "متن جدید", translation.translated_body
   end
 
   private

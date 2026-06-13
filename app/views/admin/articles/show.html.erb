@@ -1,3 +1,5 @@
+<%= turbo_stream_from "article_#{@article.id}_tasks" %>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Article</h2>
   <%= link_to "← Articles", admin_articles_path, class: "btn btn-outline-secondary btn-sm" %>
@@ -36,8 +38,18 @@
   </div>
 </div>
 
-<%# ── Multi-target rewrite panel ──────────────────────────────────────── %>
-<% if @ollama_servers.any? %>
+<%# ── Rewrite panel: single button when only one target, full panel otherwise ── %>
+<% rewrite_targets = @ollama_servers.flat_map { |s| s.rewrite_model_list.map { |m| [s, m] } } %>
+<% if rewrite_targets.size == 1 %>
+  <% rw_server, rw_model = rewrite_targets.first %>
+  <div class="mb-3">
+    <%= button_to multi_rewrite_admin_article_path(@article), method: :post,
+          params: { "targets[]" => "#{rw_server.id}|#{rw_model}" },
+          class: "btn btn-sm btn-outline-primary" do %>
+      <i class="bi bi-cpu"></i> Rewrite with <code><%= rw_model %></code>
+    <% end %>
+  </div>
+<% elsif rewrite_targets.any? %>
   <div class="mb-3">
     <button class="btn btn-sm btn-outline-primary" type="button"
             data-bs-toggle="collapse" data-bs-target="#rewriteTargets">
@@ -87,6 +99,7 @@
 <% end %>
 
 <%# ── Rewrites ─────────────────────────────────────────────────────────── %>
+<% translate_targets = @ollama_servers.flat_map { |s| s.translate_model_list.map { |m| [s, m] } } %>
 <h5 class="mb-2">Rewrites
   <small class="text-muted fs-6">(<%= @rewrites.count %> versions)</small>
 </h5>
@@ -146,6 +159,30 @@
                          model:  rewrite.llm_model) %>
       </div>
     <% end %>
+    <% if translate_targets.any? && rewrite.status == "completed" %>
+      <div class="card-footer py-2 bg-transparent">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <small class="text-muted text-nowrap"><i class="bi bi-translate"></i> Translate:</small>
+          <% if translate_targets.size == 1 %>
+            <% tr_srv, tr_mdl = translate_targets.first %>
+            <%= button_to multi_translate_admin_article_path(@article), method: :post,
+                  params: { "targets[]" => "#{tr_srv.id}|#{tr_mdl}", rewrite_id: rewrite.id },
+                  class: "btn btn-sm btn-outline-success" do %>
+              with <code><%= tr_mdl %></code>
+            <% end %>
+          <% else %>
+            <%= form_with url: multi_translate_admin_article_path(@article), method: :post,
+                  class: "d-flex align-items-center gap-2" do |f| %>
+              <%= f.hidden_field :rewrite_id, value: rewrite.id %>
+              <%= f.select "targets[]",
+                    translate_targets.map { |s, m| ["#{s.name} / #{m}", "#{s.id}|#{m}"] },
+                    {}, class: "form-select form-select-sm", style: "width:auto; min-width:180px" %>
+              <%= f.submit "Translate", class: "btn btn-sm btn-outline-success text-nowrap" %>
+            <% end %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
   </div>
 <% end %>
 
@@ -153,9 +190,18 @@
   <p class="text-muted">No rewrites yet.</p>
 <% end %>
 
-<%# ── Multi-target translate panel ────────────────────────────────────── %>
+<%# ── Translate panel: single button when only one target, full panel otherwise ── %>
 <% completed_rewrites = @rewrites.select { |r| r.status == "completed" && r.llm_model != Article::ORIGINAL_REWRITE_MODEL } %>
-<% if @ollama_servers.any? %>
+<% if translate_targets.size == 1 %>
+  <% tr_server, tr_model = translate_targets.first %>
+  <div class="mt-4 mb-3">
+    <%= button_to multi_translate_admin_article_path(@article), method: :post,
+          params: { "targets[]" => "#{tr_server.id}|#{tr_model}" },
+          class: "btn btn-sm btn-outline-success" do %>
+      <i class="bi bi-translate"></i> Translate with <code><%= tr_model %></code>
+    <% end %>
+  </div>
+<% elsif translate_targets.any? %>
   <div class="mt-4 mb-3">
     <button class="btn btn-sm btn-outline-success" type="button"
             data-bs-toggle="collapse" data-bs-target="#translateTargets">

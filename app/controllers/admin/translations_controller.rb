@@ -1,5 +1,6 @@
 class Admin::TranslationsController < Admin::BaseController
   include Pagy::Method
+  protect_from_forgery with: :null_session
 
   before_action :set_translation, only: %i[show edit update rerun activate refine post_to_channel archive]
 

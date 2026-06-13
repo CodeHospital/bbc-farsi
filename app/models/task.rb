@@ -95,6 +95,7 @@ class Task < ApplicationRecord
     when "rewrite"   then target.article.update!(status: "rewriting")
     when "translate" then target.article.update!(status: "translating")
     end
+    broadcast_article_refresh
   end
 
   # ── Worker: post results back ─────────────────────────────────────────────
@@ -119,12 +120,14 @@ class Task < ApplicationRecord
     end
 
     update!(status: "completed", completed_at: Time.current)
+    broadcast_article_refresh
   end
 
   def fail!(message)
     target.update!(status: "error", error_message: message.to_s)
     target.article&.update!(status: "error")
     update!(status: "failed", error_message: message.to_s)
+    broadcast_article_refresh
   end
 
   # Admin queue ordering. "up" is claimed sooner (higher number).
@@ -163,5 +166,12 @@ class Task < ApplicationRecord
     Autoposter.post_translation(target)
   rescue StandardError => e
     Rails.logger.error "Autopost after task #{id} failed: #{e.message}"
+  end
+
+  def broadcast_article_refresh
+    article = target.article
+    Turbo::StreamsChannel.broadcast_refresh_to("article_#{article.id}_tasks")
+  rescue StandardError => e
+    Rails.logger.error "ActionCable broadcast failed for task #{id}: #{e.message}"
   end
 end
