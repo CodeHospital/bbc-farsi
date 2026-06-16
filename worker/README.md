@@ -46,6 +46,8 @@ hung worker.
 | `OLLAMA_URL`       | `http://localhost:11434` | Fallback Ollama URL when a task has no server URL. |
 | `POLL_INTERVAL`    | `5`                      | Seconds to wait when the queue is empty. |
 | `OLLAMA_TIMEOUT`   | `600`                    | HTTP read timeout (seconds) for Ollama calls. |
+| `STATUS_PORT`      | `4567`                   | Port for the built-in status page. |
+| `STATUS_BIND`      | `0.0.0.0`                | Address the status page binds to. |
 
 Configuration can also live in a `.env` file next to `worker.rb` (one
 `KEY=value` per line; `#` comments and an optional `export` prefix are allowed).
@@ -79,6 +81,33 @@ WORKER_API_TOKEN=your-shared-secret bundle exec ruby worker.rb
 
 The same `WORKER_API_TOKEN` must be set in the Rails app's environment so the
 two sides agree on the bearer token.
+
+## Status page
+
+On startup the worker also serves a small status page over a stdlib-only HTTP
+server (no web framework, no extra gems). Open it in a browser:
+
+```
+http://<worker-host>:4567/
+```
+
+It shows, with a 3-second auto-refresh:
+
+- **Status** — current phase (`starting` / `idle` / `processing` / `error`) and
+  the time of the last queue poll.
+- **Totals** — completed and failed task counts since the worker started.
+- **Ollama** — whether the configured Ollama instance is reachable, when it was
+  last checked, and the list of available models (from `GET /api/tags`).
+- **Current activity** — the in-flight task (id, kind, model, Ollama URL) and
+  which request it is on (`request 2/3 — <key>`), plus elapsed time.
+- **Recent history** — the last 50 finished tasks with kind, model, status,
+  duration, finish time, and any error message.
+
+A machine-readable version of the same data is available at
+`http://<worker-host>:4567/status.json`.
+
+Change the port/bind with `STATUS_PORT` / `STATUS_BIND`. If the port is already
+in use the worker logs a warning and keeps running without the status page.
 
 ## Security
 

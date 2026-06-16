@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Worker interface design document
+- Added `worker_design.md`: a self-contained specification/prompt describing the
+  full worker API contract (endpoints, task payload schema, requests/responses
+  format, authentication, model filtering, stale reclaim, lifecycle, chaining,
+  and an implementation checklist) so any other Rails app can implement the same
+  interface and be served by the same `worker/worker.rb` client.
+
+### Added — Worker status page
+- `worker/worker.rb` now serves a self-contained status page over a stdlib-only
+  HTTP server (`TCPServer`/`socket`, no web framework, no new gems — only added
+  `require "socket"`, `"cgi"`, and `"time"`).
+- New thread-safe `WorkerState` class tracks the current phase
+  (`starting`/`idle`/`processing`/`error`), the in-flight task with per-request
+  progress (`request 2/3 — <key>`), completed/failed totals, last poll time,
+  and a rolling 50-entry history of finished tasks (kind, model, status,
+  duration, finish time, error).
+- Ollama discovery refactored into `fetch_ollama_models` which reports
+  reachability separately from the model list; the status page shows a
+  reachable/unreachable badge, last-checked time, and the available models.
+- Endpoints: `GET /` (auto-refreshing HTML dashboard, light/dark aware) and
+  `GET /status.json` (machine-readable snapshot); unknown paths return 404.
+- New config: `STATUS_PORT` (default `4567`) and `STATUS_BIND` (default
+  `0.0.0.0`). If the port is busy the worker logs a warning and continues
+  without the status page. `$stdout.sync` enabled for live log streaming.
+- `worker/README.md` documents the status page, JSON endpoint, and new env vars.
+
 ### Fixed — Action Cable tests and stream name clarification
 - Added `test/channels/application_cable/connection_test.rb` with 3 cases:
   anonymous connection rejected, `admin_logged_in: false` rejected, valid session accepted.

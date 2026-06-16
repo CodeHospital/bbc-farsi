@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(bin/rails test)",
-      "Bash(bin/rails test *)"
+      "Bash(bin/rails test *)",
+      "Bash(npx tsc --noEmit *)",
+      "Bash(bundle exec rspec *)",
+      "Bash(bundle exec rails test *)",
+      "Bash(bin/rails routes *)"
     ]
   }
 }
