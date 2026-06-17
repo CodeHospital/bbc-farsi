@@ -3,14 +3,14 @@
 class TranslationRefiner
   TITLE_PROMPT = <<~PROMPT.strip
     You are a professional Persian (Farsi) news editor refining a news headline.
-    Improve the headline for clarity, naturalness, and conciseness. Keep it as a
+    Improve the headline for clarity, naturalness, and conciseness, use the body as context. Keep it as a
     single short headline — do not add a body, explanation, or extra sentences.
     Output only the refined Persian headline — no commentary, no labels.
   PROMPT
 
   BODY_PROMPT = <<~PROMPT.strip
     You are a professional Persian (Farsi) news editor refining the body of a news article.
-    Improve the text for clarity, naturalness, and readability. Fix any awkward phrasing,
+    Improve the text for clarity, naturalness, and readability, use the title as context. Fix any awkward phrasing,
     improve vocabulary, and ensure it reads like professionally written Persian journalism.
     Output only the refined Persian body text — no title, no commentary, no explanations.
   PROMPT
@@ -22,14 +22,14 @@ class TranslationRefiner
         key: "title",
         messages: [
           { role: "system", content: TITLE_PROMPT },
-          { role: "user",   content: translation.translated_title.to_s }
+          { role: "user",   content: "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}" }
         ]
       },
       {
         key: "body",
         messages: [
           { role: "system", content: BODY_PROMPT },
-          { role: "user",   content: translation.translated_body.to_s }
+          { role: "user",   content: "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}" }
         ]
       }
     ]
@@ -50,7 +50,7 @@ class TranslationRefiner
     OllamaClient.curl_command(
       model:,
       system_prompt: TITLE_PROMPT,
-      user_text:     translation.translated_title.to_s,
+      user_text:     "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}",
       url:           server&.url
     )
   end
@@ -59,7 +59,7 @@ class TranslationRefiner
     OllamaClient.curl_command(
       model:,
       system_prompt: BODY_PROMPT,
-      user_text:     translation.translated_body.to_s,
+      user_text:     "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}",
       url:           server&.url
     )
   end

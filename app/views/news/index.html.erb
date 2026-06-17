@@ -1,0 +1,41 @@
+<% content_for :title, "بی‌بی‌سی فارسی — آخرین اخبار" %>
+
+<% if @stories.empty? %>
+  <div class="text-center text-muted py-5">
+    <h4>هنوز خبری برای نمایش وجود ندارد.</h4>
+    <p>به محض آماده‌شدن ترجمه‌ها، اینجا نمایش داده می‌شوند.</p>
+  </div>
+<% else %>
+  <% lead = @stories.first %>
+  <% rest = @stories.drop(1) %>
+
+  <%# ── Lead story ──────────────────────────────────────────────────────── %>
+  <article class="lead-story pb-4 mb-4 border-bottom">
+    <%= link_to news_path(lead) do %>
+      <div class="category-pill mb-2"><%= category_name_fa(lead.article.feed&.category) %></div>
+      <h1 class="story-title mb-2"><%= lead.translated_title %></h1>
+      <% if lead.translated_body.present? %>
+        <p class="story-summary fs-5 mb-2"><%= truncate(lead.translated_body, length: 220, separator: " ") %></p>
+      <% end %>
+      <div class="story-meta"><%= story_timestamp(lead.article.published_at || lead.created_at) %></div>
+    <% end %>
+  </article>
+
+  <%# ── Remaining stories ───────────────────────────────────────────────── %>
+  <div class="row g-0">
+    <% rest.each do |story| %>
+      <div class="col-12 col-md-6">
+        <article class="story-card h-100 py-3 px-md-3">
+          <%= link_to news_path(story) do %>
+            <div class="category-pill mb-1"><%= category_name_fa(story.article.feed&.category) %></div>
+            <h2 class="story-title h5 mb-2"><%= story.translated_title %></h2>
+            <% if story.translated_body.present? %>
+              <p class="story-summary mb-2"><%= truncate(story.translated_body, length: 140, separator: " ") %></p>
+            <% end %>
+            <div class="story-meta"><%= story_timestamp(story.article.published_at || story.created_at) %></div>
+          <% end %>
+        </article>
+      </div>
+    <% end %>
+  </div>
+<% end %>

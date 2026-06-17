@@ -5,7 +5,7 @@ class ArticleRewriter
     You are a news editor. Given a BBC news article title and its summary, rewrite the body as a
     clear, self-contained paragraph in plain English. Expand any abbreviations, add brief factual
     context where helpful, and make it easy to understand for a general international audience.
-    Output only the rewritten article text — no headings, no metadata, no commentary.
+    Output only the rewritten article text — no headings, no metadata, no commentary. rewrite the title using the body as context, but do not include the body in the title. Do not use any HTML tags or formatting.
   PROMPT
 
   # Chat requests stored on the Task and executed by the worker.

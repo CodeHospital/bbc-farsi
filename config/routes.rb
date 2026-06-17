@@ -72,5 +72,8 @@ Rails.application.routes.draw do
     post "tasks/:id/fail",     to: "tasks#mark_failed"
   end
 
-  root to: redirect("/admin")
+  # Public-facing site (no auth): latest translated/refined news, BBC-Persian style.
+  resources :news, only: %i[index show]
+
+  root to: "news#index"
 end

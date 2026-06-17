@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Public BBC-Persian-style news site
+- New unauthenticated public front end at the site root showing the latest
+  translated/refined Persian news, styled after BBC Persian (RTL, Vazirmatn
+  font, dark header with BBC mark, lead story + two-column story grid).
+- `NewsController#index` lists one story per article — the most recently created
+  completed, non-archived translation that has Persian text — so a finished
+  refinement (a `Translation` with `prompt_name: "refine"`) supersedes the
+  translation it improved. `#show` renders the full translated article with a
+  link back to the original BBC source.
+- Routes: `root` now points to `news#index` (was a redirect to `/admin`);
+  added `resources :news, only: %i[index show]`. Admin remains at `/admin`.
+- Added `app/views/layouts/news.html.erb` (public layout), `news/index` +
+  `news/show` views, and `NewsHelper` (Persian category names + relative
+  "x ago" timestamps).
+
 ### Added — Worker interface design document
 - Added `worker_design.md`: a self-contained specification/prompt describing the
   full worker API contract (endpoints, task payload schema, requests/responses

@@ -1,0 +1,26 @@
+<% content_for :title, "#{@translation.translated_title} — بی‌بی‌سی فارسی" %>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8">
+    <nav class="mb-3">
+      <%= link_to "→ بازگشت به صفحهٔ اصلی", root_path, class: "category-pill" %>
+    </nav>
+
+    <article>
+      <div class="category-pill mb-2"><%= category_name_fa(@article.feed&.category) %></div>
+      <h1 class="story-title mb-3"><%= @translation.translated_title %></h1>
+      <div class="story-meta mb-4 pb-3 border-bottom">
+        <%= story_timestamp(@article.published_at || @translation.created_at) %>
+      </div>
+
+      <div class="article-body">
+        <%= simple_format(@translation.translated_body) %>
+      </div>
+
+      <div class="mt-4 pt-3 border-top">
+        <%= link_to "مشاهدهٔ خبر اصلی در bbc.com ↗", @article.url,
+              target: "_blank", rel: "noopener", class: "category-pill" %>
+      </div>
+    </article>
+  </div>
+</div>
