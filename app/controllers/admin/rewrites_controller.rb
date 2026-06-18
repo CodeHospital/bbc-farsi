@@ -20,7 +20,7 @@ class Admin::RewritesController < Admin::BaseController
     rewrites = rewrites.where.not(articles: { status: "posted" }) if params[:hide_posted] == "1"
     if params[:q].present?
       like = "%#{params[:q]}%"
-      rewrites = rewrites.where("articles.title LIKE :q OR rewrites.content LIKE :q", q: like)
+      rewrites = rewrites.where("LOWER(articles.title) LIKE LOWER(:q) OR LOWER(rewrites.content) LIKE LOWER(:q)", q: like)
     end
 
     @pagy, @rewrites = pagy(rewrites.order(sort_clause))

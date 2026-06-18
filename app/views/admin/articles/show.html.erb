@@ -135,6 +135,9 @@
         <% rewrite_task = @task_by_target[["Rewrite", rewrite.id]] %>
         <% if rewrite_task&.status == "pending" %>
           <%= render "admin/tasks/priority_controls", task: rewrite_task %>
+          <%= button_to "Cancel", cancel_admin_task_path(rewrite_task), method: :post,
+                class: "btn btn-xs btn-outline-danger",
+                data: { turbo_confirm: "Cancel rewrite task ##{rewrite_task.id}?" } %>
         <% end %>
       </div>
       <div class="d-flex gap-1">
@@ -307,6 +310,9 @@
         <% translation_task = @task_by_target[["Translation", translation.id]] %>
         <% if translation_task&.status == "pending" %>
           <%= render "admin/tasks/priority_controls", task: translation_task %>
+          <%= button_to "Cancel", cancel_admin_task_path(translation_task), method: :post,
+                class: "btn btn-xs btn-outline-danger",
+                data: { turbo_confirm: "Cancel translation task ##{translation_task.id}?" } %>
         <% end %>
       </div>
       <div class="d-flex gap-1">

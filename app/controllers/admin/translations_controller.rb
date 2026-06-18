@@ -27,7 +27,7 @@ class Admin::TranslationsController < Admin::BaseController
     translations = translations.where.not(articles: { status: "posted" }) if params[:hide_posted] == "1"
     if params[:q].present?
       like = "%#{params[:q]}%"
-      translations = translations.where("articles.title LIKE :q OR translations.translated_title LIKE :q", q: like)
+      translations = translations.where("LOWER(articles.title) LIKE LOWER(:q) OR LOWER(translations.translated_title) LIKE LOWER(:q)", q: like)
     end
 
     @pagy, @translations = pagy(translations.order(sort_clause))

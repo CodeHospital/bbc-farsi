@@ -21,7 +21,7 @@
 
   <%# ── Summary cards ──────────────────────────────────────────────────── %>
   <div class="row g-3 mb-4">
-    <div class="col-sm-4">
+    <div class="col-sm-3">
       <div class="card text-center h-100">
         <div class="card-body">
           <div class="fs-2 fw-bold"><%= @total_count %></div>
@@ -29,7 +29,7 @@
         </div>
       </div>
     </div>
-    <div class="col-sm-4">
+    <div class="col-sm-3">
       <div class="card text-center h-100">
         <div class="card-body">
           <div class="fs-2 fw-bold"><%= @by_edition["fa"] || 0 %></div>
@@ -37,11 +37,19 @@
         </div>
       </div>
     </div>
-    <div class="col-sm-4">
+    <div class="col-sm-3">
       <div class="card text-center h-100">
         <div class="card-body">
           <div class="fs-2 fw-bold"><%= @by_edition["en"] || 0 %></div>
           <div class="text-muted small">English (EN) edition</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-3">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold"><%= @search_count || "—" %></div>
+          <div class="text-muted small">Total searches</div>
         </div>
       </div>
     </div>
@@ -137,5 +145,36 @@
       </div>
     </div>
   </div>
+
+  <%# ── Top search keywords ───────────────────────────────────────────── %>
+  <% if @top_searches %>
+    <div class="card mt-4">
+      <div class="card-header fw-semibold">Top search keywords</div>
+      <% if @top_searches.any? %>
+        <table class="table table-sm table-hover mb-0">
+          <thead>
+            <tr><th>#</th><th>Keyword</th><th class="text-end">Searches</th><th></th></tr>
+          </thead>
+          <tbody>
+            <% @top_searches.each_with_index do |(keyword, count), idx| %>
+              <tr>
+                <td class="text-muted"><%= idx + 1 %></td>
+                <td><code><%= keyword %></code></td>
+                <td class="text-end fw-bold"><%= count %></td>
+                <td class="text-end">
+                  <%= link_to "FA", news_search_path(q: keyword), target: "_blank",
+                        class: "btn btn-xs btn-outline-secondary" %>
+                  <%= link_to "EN", news_search_path(q: keyword, lang: "en"), target: "_blank",
+                        class: "btn btn-xs btn-outline-secondary" %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      <% else %>
+        <div class="card-body text-muted small">No searches recorded yet.</div>
+      <% end %>
+    </div>
+  <% end %>
 
 <% end %>

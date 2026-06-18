@@ -1,0 +1,21 @@
+<% content_for :title, "#{news_ui(:search_title)} — #{news_ui(:site_name)}" %>
+
+<h1 class="block-title mb-3" style="--cat: #555"><span><%= news_ui(:search_title) %></span></h1>
+
+<% if @query.present? %>
+  <p class="text-muted mb-4">
+    <strong><%= @results.size %></strong>
+    <%= news_ui(:search_results) %>
+    "<%= @query %>"
+  </p>
+
+  <% if @results.empty? %>
+    <p class="text-muted"><%= news_ui(:search_empty) %></p>
+  <% else %>
+    <% @results.each do |story| %>
+      <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id] %>
+    <% end %>
+  <% end %>
+<% else %>
+  <p class="text-muted"><%= news_ui(:search_empty) %></p>
+<% end %>

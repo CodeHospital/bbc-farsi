@@ -1,4 +1,9 @@
 module NewsHelper
+  JALALI_MONTH_NAMES_FA = %w[
+    فروردین اردیبهشت خرداد تیر مرداد شهریور
+    مهر آبان آذر دی بهمن اسفند
+  ].freeze
+
   CATEGORY_NAMES_FA = {
     "top"        => "خبر فوری",
     "world"      => "جهان",
@@ -48,8 +53,13 @@ module NewsHelper
       read_source:  "مشاهدهٔ خبر اصلی در bbc.com ↗",
       empty_title:  "هنوز خبری برای نمایش وجود ندارد.",
       empty_body:   "به محض آماده‌شدن ترجمه‌ها، اینجا نمایش داده می‌شوند.",
-      empty_cat:    "خبر دیگری در این دسته نیست.",
-      switch_label: "English"
+      empty_cat:      "خبر دیگری در این دسته نیست.",
+      search_placeholder: "جستجو در اخبار…",
+      search_label:   "جستجو",
+      search_title:   "نتایج جستجو",
+      search_results: "نتیجه برای",
+      search_empty:   "نتیجه‌ای یافت نشد.",
+      switch_label:   "English"
     },
     "en" => {
       site_name:    "BBC Persian",
@@ -64,8 +74,13 @@ module NewsHelper
       read_source:  "Read the original on bbc.com ↗",
       empty_title:  "There is no news to show yet.",
       empty_body:   "Stories will appear here as soon as translations are ready.",
-      empty_cat:    "No other stories in this category.",
-      switch_label: "فارسی"
+      empty_cat:          "No other stories in this category.",
+      search_placeholder: "Search news…",
+      search_label:       "Search",
+      search_title:       "Search results",
+      search_results:     "results for",
+      search_empty:       "No results found.",
+      switch_label:       "فارسی"
     }
   }.freeze
 
@@ -131,7 +146,58 @@ module NewsHelper
   # Publication time of a story (article published_at, falling back to creation).
   def story_time(story) = story.article.published_at || story.created_at
 
+  # Convert a Gregorian date to [jy, jm, jd] in the Jalali (Shamsi) calendar.
+  # Uses the reference arithmetic algorithm (valid for 1976–2075 CE, sufficient for news).
+  def gregorian_to_jalali(gy, gm, gd)
+    g_y = gy - 1600
+    g_m = gm - 1
+    g_d = gd - 1
+
+    g_d_no = (365 * g_y) + ((g_y + 3) / 4) - ((g_y + 99) / 100) + ((g_y + 399) / 400)
+    [ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ].each_with_index do |days, i|
+      break if i >= g_m
+      g_d_no += days
+    end
+    g_d_no += 1 if g_m > 1 && ((g_y % 4 == 0 && g_y % 100 != 0) || g_y % 400 == 0)
+    g_d_no += g_d
+
+    j_d_no  = g_d_no - 79
+    j_np    = j_d_no / 12053
+    j_d_no %= 12053
+
+    jy      = 979 + 33 * j_np + 4 * (j_d_no / 1461)
+    j_d_no %= 1461
+
+    if j_d_no >= 366
+      jy     += (j_d_no - 1) / 365
+      j_d_no  = (j_d_no - 1) % 365
+    end
+
+    jm = 0
+    [ 31, 31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29 ].each_with_index do |days, i|
+      break if j_d_no < days
+      j_d_no -= days
+      jm = i + 1
+    end
+
+    [ jy, jm + 1, j_d_no + 1 ]
+  end
+
+  # Render an integer using Eastern Arabic (Farsi) digits.
+  def to_persian_digits(number)
+    number.to_s.tr("0123456789", "۰۱۲۳۴۵۶۷۸۹")
+  end
+
+  # Format a Date/Time as a full Jalali date string with Persian digits.
+  # e.g. "۲۸ خرداد ۱۴۰۵"
+  def jalali_date_string(date_or_time)
+    date    = date_or_time.respond_to?(:to_date) ? date_or_time.to_date : date_or_time
+    jy, jm, jd = gregorian_to_jalali(date.year, date.month, date.day)
+    "#{to_persian_digits(jd)} #{JALALI_MONTH_NAMES_FA[jm - 1]} #{to_persian_digits(jy)}"
+  end
+
   # Short "x ago" style timestamp for a story (Persian or English per edition).
+  # Persian edition always shows calendar dates in Jalali with Persian digits.
   def story_timestamp(time)
     return "" unless time
 
@@ -141,18 +207,18 @@ module NewsHelper
     days    = hours / 24
 
     if english_edition?
-      if minutes < 1    then "just now"
+      if minutes < 1     then "just now"
       elsif minutes < 60 then "#{minutes} min ago"
       elsif hours < 24   then "#{hours} hr ago"
       elsif days < 7     then "#{days} day#{'s' if days != 1} ago"
       else time.strftime("%d %b %Y")
       end
     else
-      if minutes < 1    then "لحظاتی پیش"
-      elsif minutes < 60 then "#{minutes} دقیقه پیش"
-      elsif hours < 24   then "#{hours} ساعت پیش"
-      elsif days < 7     then "#{days} روز پیش"
-      else l(time.to_date, format: :long) rescue time.strftime("%Y/%m/%d")
+      if minutes < 1     then "لحظاتی پیش"
+      elsif minutes < 60 then "#{to_persian_digits(minutes)} دقیقه پیش"
+      elsif hours < 24   then "#{to_persian_digits(hours)} ساعت پیش"
+      elsif days < 7     then "#{to_persian_digits(days)} روز پیش"
+      else jalali_date_string(time)
       end
     end
   end

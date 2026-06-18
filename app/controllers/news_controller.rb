@@ -11,7 +11,7 @@ class NewsController < ApplicationController
   LANGUAGES = %w[fa en].freeze
 
   before_action :set_news_lang
-  before_action :load_chrome, only: %i[index show]
+  before_action :load_chrome, only: %i[index show search]
 
   def index
     stories = @category ? @all_stories.select { |s| s.article.feed&.category == @category } : @all_stories
@@ -51,6 +51,21 @@ class NewsController < ApplicationController
     bump_pending_task_priorities(@article)
     ArticleView.track!(article: @article, translation: @translation,
                        edition: @news_lang, request: request)
+  end
+
+  # GET /search — full-text search across the portal story pool.
+  # Tracks the keyword in search_queries for analytics; gracefully skips
+  # tracking when the table has not yet been migrated.
+  def search
+    @query = params[:q].to_s.strip
+    if @query.present?
+      @results = portal_search(@query)
+      @image_urls = ArticleImageFetcher.call_many(@results.map(&:article))
+      SearchQuery.track!(@query, edition: @news_lang, results_count: @results.size)
+    else
+      @results   = []
+      @image_urls = {}
+    end
   end
 
   # GET /sitemap.xml — lists the homepage plus every published story.
@@ -171,6 +186,30 @@ class NewsController < ApplicationController
     rewrite_tasks.or(translation_tasks).update_all("priority = priority + 1")
   rescue => error
     Rails.logger.warn("[NewsController] priority bump failed: #{error.message}")
+  end
+
+  # Full-text search across the portal story pool (case-insensitive).
+  # FA edition searches translated title + body; EN edition searches
+  # the original article title + description. Results are capped to 30.
+  def portal_search(query)
+    like = "%#{query.downcase}%"
+
+    if english_edition?
+      Article.not_archived
+        .where.not(published_at: nil)
+        .includes(:feed)
+        .where("LOWER(articles.title) LIKE ? OR LOWER(articles.description) LIKE ?", like, like)
+        .order(published_at: :desc)
+        .limit(30)
+        .map { |article| ArticleStory.new(article) }
+    else
+      published_translations
+        .where("LOWER(translations.translated_title) LIKE ? OR LOWER(translations.translated_body) LIKE ?", like, like)
+        .order(created_at: :desc)
+        .group_by(&:article_id)
+        .map { |_, versions| versions.first }
+        .first(30)
+    end
   end
 
   # A content version for the story pool: the newest translation/article

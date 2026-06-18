@@ -29,5 +29,15 @@ class Admin::AnalyticsController < Admin::BaseController
       .group("DATE(article_views.created_at)")
       .order("DATE(article_views.created_at)")
       .count
+
+    if SearchQuery.table_exists?
+      search_scope = SearchQuery.where(created_at: since..)
+      @top_searches = search_scope
+        .group(:keyword)
+        .order("count_all DESC")
+        .limit(20)
+        .count
+      @search_count = search_scope.count
+    end
   end
 end

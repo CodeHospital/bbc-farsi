@@ -1,7 +1,7 @@
 class Admin::TasksController < Admin::BaseController
   include Pagy::Method
 
-  before_action :set_task, only: %i[show retry prioritize]
+  before_action :set_task, only: %i[show retry cancel prioritize]
 
   SORT_COLUMNS = {
     "priority" => "tasks.priority",
@@ -33,6 +33,15 @@ class Admin::TasksController < Admin::BaseController
   def retry
     @task.requeue!
     redirect_to admin_tasks_path, notice: "Task ##{@task.id} re-queued."
+  end
+
+  def cancel
+    if @task.status == "pending"
+      @task.fail!("Cancelled by admin")
+      redirect_back fallback_location: admin_tasks_path, notice: "Task ##{@task.id} cancelled."
+    else
+      redirect_back fallback_location: admin_tasks_path, alert: "Only pending tasks can be cancelled."
+    end
   end
 
   def prioritize
@@ -84,7 +93,7 @@ class Admin::TasksController < Admin::BaseController
   # polymorphic (Rewrite or Translation), so resolve matching article ids first,
   # then the rewrite/translation ids that point at them.
   def filter_by_article_text(tasks, query)
-    article_ids     = Article.where("title LIKE :q OR description LIKE :q", q: "%#{query}%").pluck(:id)
+    article_ids     = Article.where("LOWER(title) LIKE LOWER(:q) OR LOWER(description) LIKE LOWER(:q)", q: "%#{query}%").pluck(:id)
     rewrite_ids     = Rewrite.where(article_id: article_ids).pluck(:id)
     translation_ids = Translation.where(article_id: article_ids).pluck(:id)
 

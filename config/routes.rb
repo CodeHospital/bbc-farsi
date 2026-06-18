@@ -58,6 +58,7 @@ Rails.application.routes.draw do
     resources :tasks, only: %i[index show] do
       member do
         post  :retry
+        post  :cancel
         patch :prioritize
       end
       collection do
@@ -83,7 +84,8 @@ Rails.application.routes.draw do
 
   # Public-facing site (no auth): latest translated/refined news, magazine style.
   resources :news, only: %i[index show]
-  get "category/:category", to: "news#index", as: :category
+  get "search",             to: "news#search",  as: :news_search
+  get "category/:category", to: "news#index",   as: :category
   get "sitemap.xml", to: "news#sitemap", defaults: { format: "xml" }, as: :sitemap
   get "robots.txt",  to: "news#robots", defaults: { format: "text" }, as: :robots
 

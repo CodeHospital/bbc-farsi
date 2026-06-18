@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Jalali (Shamsi) date display in Persian news portal
+
+- All calendar dates in the Persian edition now display in the Jalali calendar with Persian (Eastern Arabic) digits — e.g. "۲۸ خرداد ۱۴۰۵".
+- `NewsHelper` gains three new methods: `gregorian_to_jalali` (pure-Ruby arithmetic conversion, no gem), `to_persian_digits` (converts ASCII digits to ۰–۹), and `jalali_date_string` (formats a Date/Time as a full Jalali string).
+- `story_timestamp` now calls `jalali_date_string` for stories older than 7 days in the Persian edition; relative counts ("X دقیقه پیش" etc.) also use Persian digits for consistency.
+- The topbar current-date display in `layouts/news.html.erb` uses `jalali_date_string` instead of `l(Date.current, format: :long)` in the Persian edition.
+- English edition unchanged. 19 tests green.
+
+
+### Added — Cancel button on pending tasks
+
+- New `POST /admin/tasks/:id/cancel` route and `Admin::TasksController#cancel` action.
+- Cancelling a pending task calls `fail!("Cancelled by admin")`, marking the task `failed`
+  and its rewrite/translation target `error` (non-destructive — retryable from the Tasks page).
+- Cancel button (red outline, confirm dialog) now appears next to every pending task row
+  in the `/admin/tasks` index table.
+- Cancel button also appears inline (next to the priority steppers) on `/admin/articles/:id`
+  for any pending rewrite or translation task attached to that article.
+- Only pending tasks can be cancelled; the action redirects back with an alert for any
+  other status. 192 tests green.
+
+
+
+### Added — Case-insensitive search + news portal search + keyword analytics
+
+**Case-insensitive search across all admin listing pages**
+- All `LIKE` queries in admin controllers now use `LOWER(col) LIKE LOWER(:q)`, making
+  search case-insensitive on both SQLite (dev/test) and PostgreSQL (production).
+  Affected controllers: `Admin::ArticlesController`, `Admin::RewritesController`,
+  `Admin::TranslationsController`, and `Admin::TasksController`.
+
+**Search for the public news portal**
+- New `GET /search` route (`news#search`, named `news_search_path`).
+- A search bar (input + submit button) appears in a slim bar between the masthead and
+  main navigation on every public page. The search form uses `GET` so URLs are
+  shareable and bookmarkable.
+- FA edition searches `translations.translated_title` and `translations.translated_body`
+  (case-insensitive); EN edition searches `articles.title` and `articles.description`.
+  Results are capped to 30, de-duplicated to one story per article, and rendered with
+  the existing `_post_item` partial including thumbnails.
+- UI strings for the search feature added to `NewsHelper::UI_STRINGS` in both FA and EN.
+
+**Search keyword analytics**
+- New `search_queries` table (migration `20260618000002`): `keyword`, `edition`, `results_count`,
+  `created_at`. Run `bin/rails db:migrate` on dev/prod to activate.
+- `SearchQuery` model with `track!` class method (silently swallows errors if the table
+  is absent, so the portal never breaks before migration).
+- Every successful search call records the (normalised, lowercase) keyword, the edition,
+  and the result count.
+- Admin analytics dashboard gains a **Total searches** summary card and a **Top search keywords**
+  table (top 20 by frequency, with quick FA/EN portal links per keyword, period-filtered
+  like all other analytics). The card and table are hidden until the `search_queries`
+  table exists.
+
 ### Added — Bump-priority shortcut for untranslated articles + IP geolocation fallback
 
 **Admin articles index — bump priority when no FA translation exists**

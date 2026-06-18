@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_18_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_18_000002) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -71,6 +71,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_18_000001) do
     t.integer "ollama_server_id"
     t.index ["article_id"], name: "index_rewrites_on_article_id"
     t.index ["ollama_server_id"], name: "index_rewrites_on_ollama_server_id"
+  end
+
+  create_table "search_queries", force: :cascade do |t|
+    t.string "keyword", null: false
+    t.string "edition", limit: 2, default: "fa", null: false
+    t.integer "results_count", default: 0, null: false
+    t.datetime "created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.index ["created_at"], name: "index_search_queries_on_created_at"
+    t.index ["keyword"], name: "index_search_queries_on_keyword"
   end
 
   create_table "solid_cache_entries", force: :cascade do |t|

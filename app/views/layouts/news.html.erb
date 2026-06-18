@@ -164,6 +164,20 @@
     .tag-chip { background: #f0f0f0; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: .85rem; }
     .tag-chip:hover { border-color: var(--accent); color: var(--accent); }
 
+    /* ── Search bar ─────────────────────────────────────────── */
+    .search-bar { padding: 8px 0; background: #f7f7f7; border-bottom: 1px solid var(--line); }
+    .search-bar form { display: flex; gap: 6px; max-width: 480px; margin: 0 auto; }
+    .search-bar input[type=search] {
+      flex: 1; border: 1px solid #ccc; border-radius: 3px; padding: 6px 12px;
+      font-family: inherit; font-size: .9rem; outline: none;
+    }
+    .search-bar input[type=search]:focus { border-color: var(--accent); }
+    .search-bar button {
+      background: var(--accent); color: #fff; border: none; border-radius: 3px;
+      padding: 6px 14px; font-family: inherit; font-size: .9rem; font-weight: 700; cursor: pointer;
+    }
+    .search-bar button:hover { background: #b82a2a; }
+
     /* ── Footer ──────────────────────────────────────────────── */
     .site-footer { background: #111; color: #bbb; margin-top: 40px; }
     .site-footer a { color: #bbb; }
@@ -218,7 +232,7 @@
   <div class="topbar">
     <div class="container d-flex justify-content-between align-items-center py-1">
       <span><i class="bi bi-calendar3"></i>
-        <%= english_edition? ? Date.current.strftime("%d %B %Y") : (l(Date.current, format: :long) rescue Date.current.strftime("%Y/%m/%d")) %>
+        <%= english_edition? ? Date.current.strftime("%d %B %Y") : jalali_date_string(Date.current) %>
       </span>
       <span class="social">
         <%= link_to news_ui(:switch_label), lang_switch_url, class: "fw-bold me-3", rel: "alternate" %>
@@ -237,6 +251,18 @@
       <span class="logo-text"><%= english_edition? ? "Persian" : "فارسی" %><small>.</small></span>
     <% end %>
   </header>
+
+  <%# ── Search bar ────────────────────────────────────────────── %>
+  <div class="search-bar">
+    <%= form_with url: news_search_path, method: :get, local: true do |f| %>
+      <%= f.search_field :q,
+            value: params[:q],
+            placeholder: news_ui(:search_placeholder),
+            autocomplete: "off",
+            "aria-label": news_ui(:search_label) %>
+      <%= f.submit news_ui(:search_label) %>
+    <% end %>
+  </div>
 
   <%# ── Main menu ────────────────────────────────────────────── %>
   <nav class="mainmenu">

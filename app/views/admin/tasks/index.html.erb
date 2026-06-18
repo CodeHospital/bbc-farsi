@@ -103,6 +103,11 @@
           <% if task.status == "failed" %>
             <%= button_to "Retry", retry_admin_task_path(task), method: :post, class: "btn btn-xs btn-outline-warning" %>
           <% end %>
+          <% if task.status == "pending" %>
+            <%= button_to "Cancel", cancel_admin_task_path(task), method: :post,
+                  class: "btn btn-xs btn-outline-danger",
+                  data: { turbo_confirm: "Cancel task ##{task.id}?" } %>
+          <% end %>
         </td>
       </tr>
     <% end %>
