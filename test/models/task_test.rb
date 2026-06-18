@@ -25,7 +25,19 @@ class TaskTest < ActiveSupport::TestCase
   test "claim_next! claims the oldest task and moves target + article to running" do
     task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
 
-    claimed = Task.claim_next!
+    claimed = Task.claim_next!(models: [ "qwen3:14b" ])
+    assert_equal task, claimed
+    assert_equal "claimed", claimed.status
+    assert_equal 1, claimed.attempts
+    assert_not_nil claimed.claimed_at
+    assert_equal "running", claimed.target.reload.status
+    assert_equal "rewriting", @article.reload.status
+  end
+
+  test "claim_next! accepts a supported model prefix when exact match is unavailable" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+
+    claimed = Task.claim_next!(models: [ "qwen3", "gemma" ])
     assert_equal task, claimed
     assert_equal "claimed", claimed.status
     assert_equal 1, claimed.attempts

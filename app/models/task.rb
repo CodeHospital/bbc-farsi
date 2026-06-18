@@ -102,6 +102,11 @@ class Task < ApplicationRecord
       scope = pending.by_priority
       scope = scope.where(model: models) if models.present?
       task  = scope.lock.first
+      if task.nil? && models.present?
+        patterns = models.map { |m| "#{m}%" }
+        scope = pending.by_priority.where(Task.arel_table[:model].matches_any(patterns))
+        task  = scope.lock.first
+      end
       task&.mark_claimed!
       task
     end
