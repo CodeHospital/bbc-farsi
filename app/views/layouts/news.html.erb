@@ -1,76 +1,256 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="<%= english_edition? ? "en" : "fa" %>" dir="<%= english_edition? ? "ltr" : "rtl" %>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= content_for(:title) || "بی‌بی‌سی فارسی" %></title>
+
+  <% default_description = english_edition? ?
+       "The latest world news from the BBC — automatically rewritten and translated." :
+       "آخرین اخبار جهان به فارسی — ترجمه و بازنویسی خودکار خبرهای بی‌بی‌سی." %>
+  <% page_title       = content_for(:title).presence || news_ui(:site_name) %>
+  <% page_description = content_for(:description).presence || default_description %>
+  <% canonical_url    = content_for(:canonical).presence || request.original_url %>
+  <% og_image         = content_for(:og_image).presence %>
+
+  <title><%= page_title %></title>
+  <meta name="description" content="<%= page_description %>">
+  <link rel="canonical" href="<%= canonical_url %>">
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
+
+  <%# hreflang alternates: same page in the other edition (?lang=en ⇄ default). %>
+  <link rel="alternate" hreflang="fa" href="<%= english_edition? ? request.base_url + lang_switch_url : canonical_url %>">
+  <link rel="alternate" hreflang="en" href="<%= english_edition? ? canonical_url : request.base_url + lang_switch_url %>">
+
+  <%# Open Graph / Twitter (social + search previews) %>
+  <meta property="og:site_name" content="<%= news_ui(:site_name) %>">
+  <meta property="og:locale" content="<%= english_edition? ? "en_GB" : "fa_IR" %>">
+  <meta property="og:type" content="<%= content_for(:og_type).presence || "website" %>">
+  <meta property="og:title" content="<%= page_title %>">
+  <meta property="og:description" content="<%= page_description %>">
+  <meta property="og:url" content="<%= canonical_url %>">
+  <% if og_image %><meta property="og:image" content="<%= og_image %>"><% end %>
+  <meta name="twitter:card" content="<%= og_image ? "summary_large_image" : "summary" %>">
+  <meta name="twitter:title" content="<%= page_title %>">
+  <meta name="twitter:description" content="<%= page_description %>">
+  <% if og_image %><meta name="twitter:image" content="<%= og_image %>"><% end %>
+
+  <%= yield :head %>
+
   <link rel="icon" href="/icon.png" type="image/png">
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.rtl.min.css" rel="stylesheet"
-        integrity="sha384-PJsj/BG8Tzh8Kr/lukGD5C6Iuk52gFcs/onULULSwnT8/STzgFG2WLB53o7XHKMM" crossorigin="anonymous">
+  <% if english_edition? %>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <% else %>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.rtl.min.css" rel="stylesheet"
+          integrity="sha384-CfCrinSRH2IR6a4e6fy2q6ioOX7O6Mtm1L9vRvFZ1trBncWmMePhzvafv7oIcWiW" crossorigin="anonymous">
+  <% end %>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet"
+        integrity="sha384-CK2SzKma4jA5H/MXDUU7i1TqZlCFaD4T01vtyDFvPlD97JQyS+IsSh1nI2EFbpyk" crossorigin="anonymous">
   <link rel="stylesheet"
         href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
 
   <style>
-    :root { --bbc-red: #b80000; --bbc-ink: #141414; }
-    body {
-      font-family: "Vazirmatn", system-ui, sans-serif;
-      background: #fff;
-      color: var(--bbc-ink);
-      line-height: 1.8;
+    :root { --accent: #dd3333; --ink: #222; --muted: #777; --line: #e6e6e6; }
+    * { box-sizing: border-box; }
+    body { font-family: "Vazirmatn", system-ui, sans-serif; color: var(--ink); background: #fff; line-height: 1.85; }
+    a { text-decoration: none; color: inherit; }
+
+    /* ── Top bar ─────────────────────────────────────────────── */
+    .topbar { background: #f7f7f7; border-bottom: 1px solid var(--line); font-size: .8rem; color: var(--muted); }
+    .topbar a { color: var(--muted); }
+    .topbar a:hover { color: var(--accent); }
+    .topbar .social a { margin-inline-start: 12px; font-size: .9rem; }
+
+    /* ── Masthead ────────────────────────────────────────────── */
+    .masthead { padding: 22px 0; text-align: center; }
+    .logo-box { display: inline-flex; align-items: center; gap: 10px; }
+    .logo-mark { background: #000; color: #fff; font-weight: 800; letter-spacing: 2px;
+                 padding: 4px 10px; border-radius: 3px; font-family: system-ui, sans-serif; }
+    .logo-text { font-size: 2rem; font-weight: 800; }
+    .logo-text small { color: var(--accent); }
+
+    /* ── Main menu ───────────────────────────────────────────── */
+    .mainmenu { background: var(--ink); }
+    .mainmenu .menu-list {
+      list-style: none; margin: 0; padding: 0;
+      display: flex; justify-content: center; align-items: stretch;
+      flex-wrap: nowrap; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none;
     }
-    .site-header {
-      background: var(--bbc-ink);
-      border-bottom: 4px solid var(--bbc-red);
+    .mainmenu .menu-list::-webkit-scrollbar { display: none; }
+    .mainmenu .menu-list > li { flex: 0 0 auto; }
+    .mainmenu .menu-link {
+      display: block; color: #fff; font-weight: 700; font-size: .95rem; line-height: 1;
+      padding: 15px 18px; white-space: nowrap;
+      border-inline-start: 1px solid rgba(255,255,255,.1);
     }
-    .brand-mark {
-      background: #fff;
-      color: #000;
-      font-weight: 800;
-      letter-spacing: 2px;
-      padding: 2px 8px;
-      border-radius: 3px;
-      font-family: system-ui, sans-serif;
+    .mainmenu .menu-list > li:last-child .menu-link { border-inline-end: 1px solid rgba(255,255,255,.1); }
+    .mainmenu .menu-link:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .mainmenu .menu-link.active { background: var(--accent); color: #fff; }
+    @media (max-width: 575px) {
+      .mainmenu .menu-list { justify-content: flex-start; }
+      .mainmenu .menu-link { padding: 13px 14px; font-size: .9rem; }
     }
-    .brand-name { color: #fff; font-weight: 700; font-size: 1.25rem; }
-    a { text-decoration: none; }
-    .story-card { border: 0; border-top: 1px solid #e7e7e7; border-radius: 0; }
-    .story-card:hover .story-title { color: var(--bbc-red); }
-    .story-title { color: var(--bbc-ink); font-weight: 700; transition: color .15s ease; }
-    .story-summary { color: #404040; }
-    .story-meta { color: #6b6b6b; font-size: .8rem; }
-    .category-pill {
-      color: var(--bbc-red);
-      font-weight: 700;
-      font-size: .8rem;
-    }
-    .lead-story .story-title { font-size: 1.9rem; line-height: 1.4; }
-    .article-body { font-size: 1.12rem; color: #1a1a1a; }
+
+    /* ── Section headers ─────────────────────────────────────── */
+    .block-title { font-weight: 800; font-size: 1.15rem; margin: 0 0 18px;
+                   border-bottom: 2px solid var(--cat, var(--ink)); padding-bottom: 6px; position: relative; }
+    .block-title span { background: var(--cat, var(--accent)); color: #fff; padding: 4px 12px; display: inline-block;
+                        margin-bottom: -2px; }
+    .block-title .more { float: left; font-size: .78rem; font-weight: 700; color: var(--muted); padding-top: 6px; }
+    .block-title .more:hover { color: var(--cat, var(--accent)); }
+
+    /* ── Category label (overlaid on images) ─────────────────── */
+    .cat-label { display: inline-block; background: var(--cat, var(--accent)); color: #fff; font-size: .72rem;
+                 font-weight: 700; padding: 3px 9px; text-transform: uppercase; }
+    .cat-label.flat { background: transparent; color: var(--cat, var(--accent)); padding: 0; }
+
+    /* ── Overlay (hero / featured) cards ─────────────────────── */
+    .overlay-card { position: relative; overflow: hidden; display: block; height: 100%; min-height: 220px; background: #111; }
+    .overlay-card img { width: 100%; height: 100%; object-fit: cover; opacity: .82; transition: transform .4s, opacity .2s; }
+    .overlay-card:hover img { transform: scale(1.05); opacity: .7; }
+    .overlay-card .overlay-body { position: absolute; inset-inline: 0; bottom: 0; padding: 18px 18px 16px;
+      background: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,0)); color: #fff; }
+    .overlay-card .overlay-title { color: #fff; font-weight: 800; line-height: 1.5; margin: 8px 0 4px; }
+    .overlay-card.hero { min-height: 460px; }
+    .overlay-card.hero .overlay-title { font-size: 1.7rem; }
+    .overlay-card.tile { min-height: 150px; }
+    .overlay-card.tile .overlay-title { font-size: .98rem; margin: 4px 0 2px; }
+    .overlay-card .meta { color: #d8d8d8; font-size: .78rem; }
+
+    /* ── Mosaic hero (big grid) ──────────────────────────────── */
+    .mosaic { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr);
+              grid-template-rows: repeat(2, 1fr); grid-auto-rows: 1fr; }
+    .mosaic .lead { grid-column: 1 / 2; grid-row: 1 / 3; }
+    @media (max-width: 767px) { .mosaic { grid-template-columns: 1fr; } .mosaic .lead { grid-column: auto; grid-row: auto; } }
+
+    /* ── List items (thumb + text) ───────────────────────────── */
+    .post-item { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .post-item .thumb { flex: 0 0 110px; height: 80px; overflow: hidden; background: #eee; }
+    .post-item .thumb img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s; }
+    .post-item:hover .thumb img { transform: scale(1.06); }
+    .post-item .post-title { font-weight: 700; font-size: 1.02rem; line-height: 1.6; margin: 4px 0; }
+    .post-item:hover .post-title { color: var(--cat, var(--accent)); }
+    .post-item .meta { color: var(--muted); font-size: .78rem; }
+    .post-item .excerpt { color: #555; font-size: .9rem; margin-top: 4px; }
+
+    /* ── Category module: big lead post + side list ──────────── */
+    .module-lead { display: block; margin-bottom: 4px; }
+    .module-lead .lead-figure { overflow: hidden; background: #eee; aspect-ratio: 16 / 9; }
+    .module-lead .lead-figure img { width: 100%; height: 100%; object-fit: cover; transition: transform .4s; }
+    .module-lead:hover .lead-figure img { transform: scale(1.04); }
+    .module-lead .lead-title { font-weight: 800; font-size: 1.3rem; line-height: 1.6; margin: 10px 0 4px; }
+    .module-lead:hover .lead-title { color: var(--cat, var(--accent)); }
+    .module-lead .excerpt { color: #555; font-size: .95rem; margin-top: 6px; }
+    .module-lead .meta { color: var(--muted); font-size: .78rem; }
+
+    /* ── Sidebar ─────────────────────────────────────────────── */
+    .sidebar .post-item .thumb { flex-basis: 80px; height: 60px; }
+    .sidebar .post-title { font-size: .92rem; }
+    .cat-list a { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); font-weight: 700; }
+    .cat-list a:hover { color: var(--accent); }
+    .cat-list .count { background: #eee; color: #555; border-radius: 3px; padding: 0 8px; font-size: .8rem; font-weight: 700; }
+
+    /* ── Article (show) ──────────────────────────────────────── */
+    .article-figure img { width: 100%; border-radius: 0; }
+    .article-body { font-size: 1.13rem; color: #1a1a1a; }
     .article-body p { margin-bottom: 1.1rem; }
-    .site-footer { background: var(--bbc-ink); color: #cfcfcf; }
+    .article-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .tags-label { color: var(--muted); font-weight: 700; font-size: .85rem; }
+    .tag-chip { background: #f0f0f0; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: .85rem; }
+    .tag-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Footer ──────────────────────────────────────────────── */
+    .site-footer { background: #111; color: #bbb; margin-top: 40px; }
+    .site-footer a { color: #bbb; }
+    .site-footer a:hover { color: #fff; }
+    .footer-bottom { background: #000; color: #888; font-size: .82rem; }
   </style>
 </head>
 <body>
-  <header class="site-header py-3">
-    <div class="container d-flex align-items-center gap-3">
-      <%= link_to root_path, class: "d-flex align-items-center gap-2" do %>
-        <span class="brand-mark">BBC</span>
-        <span class="brand-name">فارسی</span>
-      <% end %>
+  <%# ── Top bar ──────────────────────────────────────────────── %>
+  <div class="topbar">
+    <div class="container d-flex justify-content-between align-items-center py-1">
+      <span><i class="bi bi-calendar3"></i>
+        <%= english_edition? ? Date.current.strftime("%d %B %Y") : (l(Date.current, format: :long) rescue Date.current.strftime("%Y/%m/%d")) %>
+      </span>
+      <span class="social">
+        <%= link_to news_ui(:switch_label), lang_switch_url, class: "fw-bold me-3", rel: "alternate" %>
+        <a href="#" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
+        <a href="#" aria-label="Twitter"><i class="bi bi-twitter-x"></i></a>
+        <a href="#" aria-label="Telegram"><i class="bi bi-telegram"></i></a>
+        <a href="#" aria-label="RSS"><i class="bi bi-rss"></i></a>
+      </span>
     </div>
+  </div>
+
+  <%# ── Masthead ─────────────────────────────────────────────── %>
+  <header class="masthead">
+    <%= link_to root_path, class: "logo-box" do %>
+      <span class="logo-mark">BBC</span>
+      <span class="logo-text"><%= english_edition? ? "Persian" : "فارسی" %><small>.</small></span>
+    <% end %>
   </header>
 
-  <main class="container py-4">
-    <%= yield %>
-  </main>
+  <%# ── Main menu ────────────────────────────────────────────── %>
+  <nav class="mainmenu">
+    <div class="container">
+      <ul class="menu-list">
+        <li>
+          <%= link_to news_ui(:home), root_path, class: "menu-link #{'active' if current_page?(root_path)}" %>
+        </li>
+        <% nav_categories.each do |slug, name| %>
+          <li>
+            <%= link_to name, category_path(slug),
+                  class: "menu-link #{'active' if @category == slug}" %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </nav>
 
-  <footer class="site-footer py-4 mt-5">
-    <div class="container small">
-      <span class="brand-mark">BBC</span>
-      <span class="ms-2">بازنویسی و ترجمهٔ خودکار اخبار — نسخهٔ نمایشی</span>
+  <%# ── Body: main + sidebar ─────────────────────────────────── %>
+  <div class="container py-4">
+    <div class="row g-4">
+      <main class="col-lg-8"><%= yield %></main>
+      <aside class="col-lg-4 sidebar"><%= render "news/sidebar" %></aside>
+    </div>
+  </div>
+
+  <%# ── Footer ───────────────────────────────────────────────── %>
+  <footer class="site-footer pt-4">
+    <div class="container">
+      <div class="row gy-3">
+        <div class="col-md-5">
+          <div class="logo-box mb-2">
+            <span class="logo-mark">BBC</span>
+            <span class="logo-text" style="font-size:1.4rem;color:#fff"><%= english_edition? ? "Persian" : "فارسی" %></span>
+          </div>
+          <p class="small"><%= news_ui(:tagline) %></p>
+        </div>
+        <div class="col-md-4">
+          <h6 class="text-white fw-bold mb-3"><%= news_ui(:sections) %></h6>
+          <div class="d-flex flex-wrap gap-3">
+            <% nav_categories.each do |slug, name| %>
+              <%= link_to name, category_path(slug), class: "small" %>
+            <% end %>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <h6 class="text-white fw-bold mb-3"><%= news_ui(:follow) %></h6>
+          <a href="#" class="me-2"><i class="bi bi-instagram"></i></a>
+          <a href="#" class="me-2"><i class="bi bi-twitter-x"></i></a>
+          <a href="#" class="me-2"><i class="bi bi-telegram"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom mt-4 py-3">
+      <div class="container">© <%= Date.current.year %> <%= news_ui(:site_name) %></div>
     </div>
   </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 </body>
 </html>

@@ -100,7 +100,7 @@ class Admin::TasksControllerTest < ActionDispatch::IntegrationTest
     also        = create_task(kind: "rewrite", status: "pending")
     untouched  = create_task(kind: "rewrite", status: "pending")
 
-    patch bulk_prioritize_admin_tasks_path, params: { task_ids: [selected.id, also.id], direction: "up" }
+    patch bulk_prioritize_admin_tasks_path, params: { task_ids: [ selected.id, also.id ], direction: "up" }
     assert_response :redirect
     assert_equal 1, selected.reload.priority
     assert_equal 1, also.reload.priority
@@ -111,7 +111,7 @@ class Admin::TasksControllerTest < ActionDispatch::IntegrationTest
     one = create_task(kind: "rewrite", status: "pending")
     two = create_task(kind: "rewrite", status: "pending")
 
-    patch bulk_prioritize_admin_tasks_path, params: { task_ids: [one.id, two.id], priority: "5" }
+    patch bulk_prioritize_admin_tasks_path, params: { task_ids: [ one.id, two.id ], priority: "5" }
     assert_equal 5, one.reload.priority
     assert_equal 5, two.reload.priority
   end

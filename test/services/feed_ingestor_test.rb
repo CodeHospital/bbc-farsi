@@ -14,7 +14,7 @@ class FeedIngestorTest < ActiveSupport::TestCase
     ]
 
     stub_fetcher(returns: new_articles) do
-      assert_difference(["Article.count", "Task.count"], 2) do
+      assert_difference([ "Article.count", "Task.count" ], 2) do
         assert_equal 2, FeedIngestor.run
       end
     end
@@ -24,10 +24,10 @@ class FeedIngestorTest < ActiveSupport::TestCase
 
   test "skips already-existing articles and creates no tasks for them" do
     existing = create_article(feed: @feed)
-    known    = [{ title: existing.title, url: existing.url, description: "d", published_at: Time.current, status: "pending" }]
+    known    = [ { title: existing.title, url: existing.url, description: "d", published_at: Time.current, status: "pending" } ]
 
     stub_fetcher(returns: known) do
-      assert_no_difference(["Article.count", "Task.count"]) do
+      assert_no_difference([ "Article.count", "Task.count" ]) do
         assert_equal 0, FeedIngestor.run
       end
     end
@@ -46,7 +46,7 @@ class FeedIngestorTest < ActiveSupport::TestCase
 
   test "still ingests articles when no Ollama server is configured (no task)" do
     OllamaServer.delete_all
-    new_articles = [{ title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" }]
+    new_articles = [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ]
 
     stub_fetcher(returns: new_articles) do
       assert_difference("Article.count", 1) do

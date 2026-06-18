@@ -27,4 +27,36 @@ namespace :bbc do
     count = Task.reclaim_stale!
     puts "Reclaimed #{count} stale task(s)."
   end
+
+  desc "Enqueue an AI task to pick the homepage featured stories"
+  task feature: :environment do
+    candidates = FeaturedSelector.candidates
+    if candidates.empty?
+      puts "No translated stories to feature."
+      next
+    end
+
+    server, model = OllamaServer.pick(:refine)
+    server, model = OllamaServer.pick(:translate) unless server
+    abort "No Ollama servers with refine/translate models configured." unless server
+
+    Task.enqueue_feature(candidates, server:, model:)
+    puts "Enqueued feature task (#{server.name} / #{model}) over #{candidates.size} candidate(s)."
+  end
+
+  desc "Enqueue AI tag-generation tasks for translated articles that have no tags yet"
+  task tag: :environment do
+    candidates = TagGenerator.untagged_candidates
+    if candidates.empty?
+      puts "No untagged translated articles."
+      next
+    end
+
+    server, model = OllamaServer.pick(:refine)
+    server, model = OllamaServer.pick(:translate) unless server
+    abort "No Ollama servers with refine/translate models configured." unless server
+
+    candidates.each { |translation| Task.enqueue_tag(translation, server:, model:) }
+    puts "Enqueued #{candidates.size} tag task(s) (#{server.name} / #{model})."
+  end
 end

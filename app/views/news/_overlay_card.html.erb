@@ -1,0 +1,16 @@
+<%# Image card with gradient overlay, category label and title (Newspaper hero).
+    locals: story, image_url, hero: false, tile: false %>
+<% hero = local_assigns.fetch(:hero, false) %>
+<% tile = local_assigns.fetch(:tile, false) %>
+<% category = story.article.feed&.category %>
+<%= link_to news_story_path(story), class: "overlay-card #{'hero' if hero} #{'tile' if tile}",
+      style: category_style(category) do %>
+  <% if image_url.present? %>
+    <%= image_tag image_url, alt: story_title(story), loading: "lazy" %>
+  <% end %>
+  <div class="overlay-body">
+    <span class="cat-label"><%= category_name(category) %></span>
+    <h<%= hero ? 2 : 3 %> class="overlay-title"><%= story_title(story) %></h<%= hero ? 2 : 3 %>>
+    <div class="meta"><i class="bi bi-clock"></i> <%= story_timestamp(story_time(story)) %></div>
+  </div>
+<% end %>

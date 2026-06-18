@@ -40,6 +40,8 @@ class Admin::ArticlesController < Admin::BaseController
                                .pluck(:translation_id, :telegram_channel_id)
     @posted_channel_ids_by_translation = posted_rows.group_by(&:first)
                                                      .transform_values { |rows| rows.map(&:last) }
+
+    @task_by_target = queue_tasks_by_target
   end
 
   def rewrite
@@ -104,7 +106,7 @@ class Admin::ArticlesController < Admin::BaseController
     targets.each do |target|
       server_id_str, model = target.split("|", 2)
       server = OllamaServer.find_by(id: server_id_str.to_i)
-      Task.enqueue_translate(rewrite, server:, model:, chain_autopost: false)
+      Task.enqueue_translate(rewrite, server:, model:, chain_refine: false)
     end
     redirect_to admin_article_path(@article), notice: "#{targets.size} translation task(s) created."
   end
@@ -122,6 +124,15 @@ class Admin::ArticlesController < Admin::BaseController
   private
 
   def set_article = @article = Article.find(params[:id])
+
+  # The queue Task driving each rewrite/translation on the show page, keyed by
+  # [target_type, target_id] so the view can show priority controls next to a
+  # pending task. (One task per target; reruns reuse the same row.)
+  def queue_tasks_by_target
+    tasks = Task.where(target_type: "Rewrite",     target_id: @rewrites.map(&:id))
+            .or(Task.where(target_type: "Translation", target_id: @translations.map(&:id)))
+    tasks.index_by { |task| [ task.target_type, task.target_id ] }
+  end
 
   def sort_clause
     column    = SORT_COLUMNS[params[:sort]] || SORT_COLUMNS["created"]

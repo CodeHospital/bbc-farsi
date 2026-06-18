@@ -36,7 +36,6 @@
 
 # System files
 .DS_Store
-.DS_Store?
 Thumbs.db
 
 # Editor
@@ -45,3 +44,4 @@ Thumbs.db
 *.swp
 *.swo
 db/sessions/*
+.playwright-mcp/

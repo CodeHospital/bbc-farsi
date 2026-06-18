@@ -4,6 +4,137 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Bilingual public news site + controller caching
+- The public site is now bilingual. A `lang` query param selects the edition
+  (`fa` default, `en`); `NewsController#set_news_lang` resolves it and
+  `default_url_options` carries `?lang=en` across every generated link so the
+  reader stays in the same edition. The English edition shows the **original**
+  BBC article (article `title` + `description`); Persian shows the
+  translation/refinement.
+- New `NewsHelper` edition layer: `news_lang`/`english_edition?`,
+  `news_ui(key)` (per-edition UI chrome strings), `story_title`/`story_body`
+  (edition-aware content accessors), `category_name` + `CATEGORY_NAMES_EN`,
+  localized `nav_categories`, English `story_timestamp`, and `lang_switch_url`
+  (toggle to the other edition preserving the query string). Views/partials
+  (`index`, `show`, `_overlay_card`, `_post_item`, `_module_lead`, `_sidebar`,
+  `layouts/news`) now read through these helpers.
+- Layout switches `<html lang/dir>` (RTL Vazirmatn ⇄ LTR Bootstrap), masthead,
+  menu, footer and date formatting per edition, adds a top-bar language toggle,
+  emits `og:locale` + reciprocal `hreflang` alternates; `show` JSON-LD uses the
+  edition's `inLanguage`; `sitemap.xml` lists `fa`/`en` `xhtml:link` alternates.
+- `NewsController#latest_translation_per_article` (the per-page story pool —
+  loads every published translation + article/feed and sorts in Ruby) is now
+  cached in `Rails.cache` (Solid Cache), keyed on a cheap content version
+  (`story_pool_cache_key`: max translation/article `updated_at` + published
+  count) with a 10-minute TTL backstop, so it recomputes only when the
+  underlying data changes. The pool is language-agnostic (the edition only
+  affects which fields views read). Added bilingual + caching tests; 188 green.
+- Fixed a stale Subresource Integrity hash on the RTL Bootstrap stylesheet in
+  `layouts/news` that was silently blocking it in the Persian (RTL) edition —
+  so the Bootstrap grid/menu never loaded and categories rendered out of place.
+  Corrected the `bootstrap.rtl.min.css` `integrity` to the actual published
+  digest and gave the LTR `bootstrap.min.css` its verified SRI hash too.
+
+### Added — Prioritize button on pending tasks on the article page
+- `/admin/articles/:id` now shows the up/down priority stepper next to any
+  rewrite/translation whose queue task is still pending. `ArticlesController#show`
+  loads `@task_by_target` (the Task driving each rewrite/translation) and the
+  rewrite/translation card headers render the shared `admin/tasks/_priority_controls`
+  partial; `prioritize` already `redirect_back`s, so it returns to the article.
+- Fixed two `chain_refine` refactor regressions that raised `ArgumentError`:
+  `ArticlesController#multi_translate` passed the removed `chain_autopost:` kwarg
+  (now `chain_refine: false`) and `Task#chain_refine!` called `enqueue_refine`
+  with `ollama_server:` instead of `server:`. Added a translate→refine chain test
+  and article-page prioritize-button tests. 184 tests green.
+- (`chain_refine` column + `20260617000001_add_chain_refine_to_tasks` migration
+  were already present and applied.)
+
+### Changed — Public site brought closer to the tagDiv "Newspaper" demo
+- Per-category color coding (the signature tagDiv look): new
+  `NewsHelper::CATEGORY_COLORS` + `category_color`/`category_style` helpers feed
+  an inline `--cat` custom property so each category's labels and section
+  headers adopt their own accent (world=green, business=orange, tech=blue,
+  science=purple, health=pink, uk=teal, top=red) instead of one global red.
+- Homepage hero is now a mosaic "big grid": one large lead card plus up to four
+  overlay tiles in a 2×2 grid (was one large + two stacked). Overlay cards gain
+  a `tile` size and uppercase category labels.
+- Homepage category sections are now full modules: a large lead post (big image,
+  big title, excerpt) followed by a thumbnail list, with a colored block header
+  and a "بیشتر ›" (more) link to the category page (was a flat list). New
+  `news/_module_lead` partial; post-item thumbnails get a hover zoom.
+- `news#show` article block adopts its category color too. No schema/route
+  changes; all SEO preserved. 181 tests green.
+
+### Changed — Public site redesigned as a Newspaper-style magazine
+- Rebuilt the public news layout to mirror the tagDiv "Newspaper" demo: a top
+  bar (date + social), centered masthead logo, a dark category menu bar (red
+  active accent), a two-column body (content + sidebar), and a dark footer —
+  all RTL/Persian with the Vazirmatn font and a red accent (#dd3333).
+- Homepage: a hero block (one large featured story + two stacked, with category
+  labels and titles overlaid on the images) followed by per-category section
+  blocks (thumbnail-left post lists). Sidebar shows "latest news" + category
+  counts. New category pages at `GET /category/:slug` (added `category` route)
+  filter the main column to one feed category; the menu/sidebar link to them.
+- Reusable partials `news/_overlay_card`, `_post_item`, `_sidebar`; new helper
+  `nav_categories`/`story_time`. `news#show` restyled (breadcrumb, overlaid
+  category label, full-width figure, tags) and now shares the sidebar. SEO
+  (friendly URLs, meta, OG/Twitter, JSON-LD, sitemap) preserved. Added category
+  + hero tests; updated index/show tests to the new markup. 181 tests green.
+
+### Added — Admin House Keeping: abort all pending tasks
+- New `/admin/housekeeping` page (sidebar item under Infrastructure) with an
+  "Abort all pending tasks" action. `Task.abort_pending!` marks every pending
+  task `failed` ("Aborted by admin") and stops its rewrite/translate/refine
+  target (status → error); it's non-destructive (re-queue from the Tasks page)
+  and leaves claimed/completed tasks and `feature`/`tag` anchor targets
+  untouched. Added `Admin::HousekeepingControllerTest`.
+
+### Added — SEO: friendly URLs, meta tags, structured data, sitemap
+- Friendly public URLs: `Translation#seo_param` builds `"<id>-<persian-slug>"`
+  (id prefix so `params[:id].to_i` recovers the PK on PostgreSQL — no slug
+  column). `to_param` is deliberately NOT overridden, so admin routes keep the
+  numeric id. `NewsHelper#news_story_path/url` build the public links.
+- `news#show` 301-redirects any non-canonical slug to the canonical URL to avoid
+  duplicate-content indexing.
+- News layout `<head>` now emits per-page `<title>`, meta description, canonical
+  link, Open Graph + Twitter Card tags (with the article image when present);
+  `news#show` adds `NewsArticle` JSON-LD structured data.
+- Added `GET /sitemap.xml` (homepage + every published story) and a dynamic
+  `GET /robots.txt` (so the `Sitemap:` directive uses the real request host;
+  the static placeholder `public/robots.txt` was removed). Added SEO tests.
+
+### Added — AI-generated tags for news articles
+- New `TagGenerator` service + `tag` Task kind: `bbc:tag` enqueues one tag task
+  per untagged translated article; the worker runs the LLM request (Persian
+  title+body → up to 6 short Persian topic tags) and the parsed tags are cached
+  per article in Rails.cache (`article_tags/<id>`, 30-day TTL — no schema
+  change). `news#show` renders the tags as chips. `tag` tasks anchor on the
+  translation as a read-only target (never change its status).
+- Added `TagGeneratorTest` + tag-kind `TaskTest` cases + a show-page tags test.
+
+### Added — AI-selected featured stories + homepage thumbnails
+- Homepage thumbnails: `news#index` resolves each story's image via
+  `ArticleImageFetcher.call_many` (cache-first, cache misses fetched with
+  bounded concurrency) and renders them on the lead + story cards.
+- `FeaturedSelector` chooses which stories are featured: a heuristic (high-impact
+  categories, newest first) is used immediately and as a fallback, while
+  `bbc:feature` enqueues a `feature` Task whose LLM request asks the model to
+  pick the most newsworthy article IDs; the worker's choice is cached
+  (`featured_article_ids`, 3-day TTL) and takes precedence. The homepage shows a
+  ★ ویژه lead + featured cards above the rest.
+- `feature` Task kind is targetless in spirit (anchors on a candidate only to
+  satisfy the NOT NULL target; never mutates it). Worker needs no changes — it
+  is kind-agnostic. Added `FeaturedSelectorTest` + feature-kind `TaskTest` cases.
+
+### Added — Article main image on the public news page
+- `news#show` now displays the article's main image, read from the `og:image`
+  meta tag of its original BBC source page via the new `ArticleImageFetcher`
+  service. The lookup is SSRF-guarded (BBC host allow-list) and cached in
+  Rails.cache / Solid Cache for a week (misses cached too), so each source page
+  is fetched at most once — no schema change, the image is resolved on demand.
+- Added `NewsControllerTest` (index latest-per-article + archived exclusion;
+  show with/without an image, source page stubbed via WebMock). 154 tests green.
+
 ### Added — Public BBC-Persian-style news site
 - New unauthenticated public front end at the site root showing the latest
   translated/refined Persian news, styled after BBC Persian (RTL, Vazirmatn

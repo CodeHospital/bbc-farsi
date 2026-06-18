@@ -1,0 +1,17 @@
+<%# Large lead post for a category module: big image, big title, excerpt.
+    locals: story, image_url %>
+<% category = story.article.feed&.category %>
+<% body = story_body(story) %>
+<%= link_to news_story_path(story), class: "module-lead", style: category_style(category) do %>
+  <% if image_url.present? %>
+    <div class="lead-figure">
+      <%= image_tag image_url, alt: story_title(story), loading: "lazy" %>
+    </div>
+  <% end %>
+  <span class="cat-label flat"><%= category_name(category) %></span>
+  <h3 class="lead-title"><%= story_title(story) %></h3>
+  <div class="meta"><i class="bi bi-clock"></i> <%= story_timestamp(story_time(story)) %></div>
+  <% if body.present? %>
+    <p class="excerpt"><%= truncate(body, length: 180, separator: " ") %></p>
+  <% end %>
+<% end %>

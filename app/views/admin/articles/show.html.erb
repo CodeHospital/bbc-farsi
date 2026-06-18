@@ -122,6 +122,10 @@
           <%= rewrite.created_at.strftime("%b %d %H:%M") %>
         </small>
         <%= render "admin/shared/status_badge", status: rewrite.status %>
+        <% rewrite_task = @task_by_target[["Rewrite", rewrite.id]] %>
+        <% if rewrite_task&.status == "pending" %>
+          <%= render "admin/tasks/priority_controls", task: rewrite_task %>
+        <% end %>
       </div>
       <div class="d-flex gap-1">
         <% unless rewrite.active? %>
@@ -290,6 +294,10 @@
           <%= translation.created_at.strftime("%b %d %H:%M") %>
         </small>
         <%= render "admin/shared/status_badge", status: translation.status %>
+        <% translation_task = @task_by_target[["Translation", translation.id]] %>
+        <% if translation_task&.status == "pending" %>
+          <%= render "admin/tasks/priority_controls", task: translation_task %>
+        <% end %>
       </div>
       <div class="d-flex gap-1">
         <% unless translation.active? %>

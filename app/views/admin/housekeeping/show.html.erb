@@ -1,0 +1,26 @@
+<h2 class="mb-4">House Keeping</h2>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-list-task"></i> <strong>Task queue</strong></span>
+    <%= link_to "View queue →", admin_tasks_path(status: "pending"), class: "btn btn-sm btn-outline-secondary" %>
+  </div>
+  <div class="card-body">
+    <p class="mb-3">
+      There <%= @pending_task_count == 1 ? "is" : "are" %>
+      <strong><%= @pending_task_count %></strong>
+      pending <%= "task".pluralize(@pending_task_count) %> waiting to be claimed by a worker.
+    </p>
+    <p class="text-muted small mb-3">
+      Aborting marks every pending task as <em>failed</em> ("<%= Task::ABORT_MESSAGE %>") and stops its
+      rewrite/translation target. Nothing is deleted — you can re-queue any aborted task from the
+      <%= link_to "Tasks page", admin_tasks_path(status: "failed") %>.
+    </p>
+    <%= button_to abort_pending_tasks_admin_housekeeping_path, method: :post,
+          class: "btn btn-danger",
+          disabled: @pending_task_count.zero?,
+          data: { turbo_confirm: "Abort all #{@pending_task_count} pending task(s)? They will be marked failed." } do %>
+      <i class="bi bi-x-octagon"></i> Abort all pending tasks
+    <% end %>
+  </div>
+</div>

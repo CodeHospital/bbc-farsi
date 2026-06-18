@@ -1,41 +1,59 @@
-<% content_for :title, "بی‌بی‌سی فارسی — آخرین اخبار" %>
+<% if @category %>
+  <% content_for :title, "#{category_name(@category)} — #{news_ui(:site_name)}" %>
+<% else %>
+  <% content_for :title, "#{news_ui(:site_name)} — #{news_ui(:latest_news)}" %>
+<% end %>
 
-<% if @stories.empty? %>
+<% if @featured.empty? && @rest.empty? %>
   <div class="text-center text-muted py-5">
-    <h4>هنوز خبری برای نمایش وجود ندارد.</h4>
-    <p>به محض آماده‌شدن ترجمه‌ها، اینجا نمایش داده می‌شوند.</p>
+    <h4><%= news_ui(:empty_title) %></h4>
+    <p><%= news_ui(:empty_body) %></p>
   </div>
 <% else %>
-  <% lead = @stories.first %>
-  <% rest = @stories.drop(1) %>
+  <% if @category %>
+    <h1 class="block-title" style="<%= category_style(@category) %>"><span><%= category_name(@category) %></span></h1>
+  <% end %>
 
-  <%# ── Lead story ──────────────────────────────────────────────────────── %>
-  <article class="lead-story pb-4 mb-4 border-bottom">
-    <%= link_to news_path(lead) do %>
-      <div class="category-pill mb-2"><%= category_name_fa(lead.article.feed&.category) %></div>
-      <h1 class="story-title mb-2"><%= lead.translated_title %></h1>
-      <% if lead.translated_body.present? %>
-        <p class="story-summary fs-5 mb-2"><%= truncate(lead.translated_body, length: 220, separator: " ") %></p>
-      <% end %>
-      <div class="story-meta"><%= story_timestamp(lead.article.published_at || lead.created_at) %></div>
-    <% end %>
-  </article>
-
-  <%# ── Remaining stories ───────────────────────────────────────────────── %>
-  <div class="row g-0">
-    <% rest.each do |story| %>
-      <div class="col-12 col-md-6">
-        <article class="story-card h-100 py-3 px-md-3">
-          <%= link_to news_path(story) do %>
-            <div class="category-pill mb-1"><%= category_name_fa(story.article.feed&.category) %></div>
-            <h2 class="story-title h5 mb-2"><%= story.translated_title %></h2>
-            <% if story.translated_body.present? %>
-              <p class="story-summary mb-2"><%= truncate(story.translated_body, length: 140, separator: " ") %></p>
-            <% end %>
-            <div class="story-meta"><%= story_timestamp(story.article.published_at || story.created_at) %></div>
-          <% end %>
-        </article>
+  <%# ── Mosaic hero: one big lead + up to four overlay tiles ─────────────── %>
+  <% lead = @featured.first %>
+  <% tiles = @featured.drop(1).first(4) %>
+  <% if lead %>
+    <div class="mosaic mb-4">
+      <div class="lead">
+        <%= render "news/overlay_card", story: lead, image_url: @image_urls[lead.article.id], hero: true %>
       </div>
+      <% tiles.each do |story| %>
+        <%= render "news/overlay_card", story: story, image_url: @image_urls[story.article.id], tile: true %>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%# ── Category page: flat list ─────────────────────────────────────────── %>
+  <% if @category %>
+    <section>
+      <% @rest.each do |story| %>
+        <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id] %>
+      <% end %>
+    </section>
+    <% if @rest.empty? && @featured.size <= 1 %>
+      <p class="text-muted mt-3"><%= news_ui(:empty_cat) %></p>
     <% end %>
-  </div>
+  <% else %>
+    <%# ── Homepage: category modules (big lead + thumbnail list) ─────────── %>
+    <% @sections.each do |category, stories| %>
+      <% next if stories.empty? %>
+      <% module_lead = stories.first %>
+      <% module_rest = stories.drop(1) %>
+      <section class="mb-5">
+        <h2 class="block-title" style="<%= category_style(category) %>">
+          <%= link_to category_path(category) do %><span><%= category_name(category) %></span><% end %>
+          <%= link_to news_ui(:more), category_path(category), class: "more" %>
+        </h2>
+        <%= render "news/module_lead", story: module_lead, image_url: @image_urls[module_lead.article.id] %>
+        <% module_rest.each do |story| %>
+          <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id], excerpt: false %>
+        <% end %>
+      </section>
+    <% end %>
+  <% end %>
 <% end %>

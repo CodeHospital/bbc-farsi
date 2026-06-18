@@ -198,7 +198,7 @@ def fetch_ollama_models(base_url)
   return { reachable: false, models: [] } unless res.code.to_i == 200
 
   data = JSON.parse(res.body)
-  models = Array(data["models"]).map { |m| m["name"].to_s }.reject(&:empty?)
+  models = Array(data["models"]).map { |m| m["name"].to_s.split(":").first }.reject(&:empty?)
   { reachable: true, models: models }
 rescue StandardError => e
   log("Could not query Ollama models: #{e.message}")

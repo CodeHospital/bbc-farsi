@@ -19,8 +19,8 @@ class CreateTasks < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :tasks, [:status, :created_at]
-    add_index :tasks, [:target_type, :target_id]
+    add_index :tasks, [ :status, :created_at ]
+    add_index :tasks, [ :target_type, :target_id ]
     add_index :tasks, :ollama_server_id
   end
 end

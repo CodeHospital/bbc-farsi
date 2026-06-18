@@ -114,6 +114,28 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_select "thead a", text: /Title ▲/
   end
 
+  test "show renders a prioritize button next to a pending task" do
+    article = create_article
+    rewrite = create_rewrite(article:, attrs: { status: "pending" })
+    task = Task.create!(kind: "rewrite", status: "pending", target: rewrite, model: "qwen3:14b")
+
+    get admin_article_path(article)
+
+    assert_response :success
+    assert_select "form[action=?]", prioritize_admin_task_path(task)
+  end
+
+  test "show does not render priority controls for a completed task" do
+    article = create_article
+    rewrite = create_rewrite(article:, attrs: { status: "completed" })
+    task = Task.create!(kind: "rewrite", status: "completed", target: rewrite, model: "qwen3:14b")
+
+    get admin_article_path(article)
+
+    assert_response :success
+    assert_select "form[action=?]", prioritize_admin_task_path(task), count: 0
+  end
+
   private
 
   def log_in

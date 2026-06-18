@@ -63,6 +63,11 @@ Rails.application.routes.draw do
         patch :bulk_prioritize
       end
     end
+
+    # Maintenance actions (queue cleanup, etc.).
+    resource :housekeeping, only: :show, controller: :housekeeping do
+      post :abort_pending_tasks
+    end
   end
 
   # Worker-facing task queue API (bearer-token protected).
@@ -72,8 +77,11 @@ Rails.application.routes.draw do
     post "tasks/:id/fail",     to: "tasks#mark_failed"
   end
 
-  # Public-facing site (no auth): latest translated/refined news, BBC-Persian style.
+  # Public-facing site (no auth): latest translated/refined news, magazine style.
   resources :news, only: %i[index show]
+  get "category/:category", to: "news#index", as: :category
+  get "sitemap.xml", to: "news#sitemap", defaults: { format: "xml" }, as: :sitemap
+  get "robots.txt",  to: "news#robots", defaults: { format: "text" }, as: :robots
 
   root to: "news#index"
 end

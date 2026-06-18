@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc><%= root_url %></loc>
+    <xhtml:link rel="alternate" hreflang="fa" href="<%= root_url %>"/>
+    <xhtml:link rel="alternate" hreflang="en" href="<%= root_url(lang: "en") %>"/>
+    <changefreq>hourly</changefreq>
+    <priority>1.0</priority>
+  </url>
+<% @stories.each do |story| %>
+  <url>
+    <loc><%= news_story_url(story) %></loc>
+    <xhtml:link rel="alternate" hreflang="fa" href="<%= news_story_url(story) %>"/>
+    <xhtml:link rel="alternate" hreflang="en" href="<%= news_url(story.seo_param, lang: "en") %>"/>
+    <lastmod><%= story.updated_at.iso8601 %></lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+<% end %>
+</urlset>

@@ -72,7 +72,7 @@ class Admin::TasksController < Admin::BaseController
     column    = SORT_COLUMNS[params[:sort]]
     direction = params[:dir] == "asc" ? "asc" : "desc"
     if column.nil?
-      Arel.sql("tasks.priority desc, tasks.created_at desc")
+      Arel.sql("tasks.created_at desc")
     elsif column == SORT_COLUMNS["priority"]
       Arel.sql("tasks.priority #{direction}, tasks.created_at desc")
     else

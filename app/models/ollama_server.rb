@@ -11,8 +11,8 @@ class OllamaServer < ApplicationRecord
   # (:rewrite, :translate, or :refine). Returns [nil, nil] if none configured.
   def self.pick(type)
     server = enabled.order(:name).find { |s| s.send(:"#{type}_model_list").any? }
-    return [nil, nil] unless server
-    [server, server.send(:"#{type}_model_list").first]
+    return [ nil, nil ] unless server
+    [ server, server.send(:"#{type}_model_list").first ]
   end
 
   def rewrite_model_list   = parse_models(rewrite_models)

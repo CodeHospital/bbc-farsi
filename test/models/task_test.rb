@@ -112,7 +112,7 @@ class TaskTest < ActiveSupport::TestCase
 
   test "completing a translate task stores both fields and marks the article translated" do
     rewrite = create_rewrite(article: @article)
-    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b", chain_autopost: false)
+    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b", chain_refine: false)
     Task.claim_next!
 
     task.complete!("title" => "عنوان", "body" => "متن")
@@ -123,6 +123,21 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal "متن", translation.translated_body
     assert translation.active?
     assert_equal "translated", @article.reload.status
+  end
+
+  test "completing a translate task chains a refine task when chain_refine is set" do
+    rewrite = create_rewrite(article: @article)
+    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b") # chain_refine defaults true
+    Task.claim_next!
+
+    assert_difference("Task.where(kind: 'refine').count", 1) do
+      task.complete!("title" => "عنوان", "body" => "متن")
+    end
+
+    refine_task = Task.where(kind: "refine").last
+    assert_instance_of Translation, refine_task.target
+    assert_equal "refine", refine_task.target.prompt_name
+    assert_equal rewrite, refine_task.target.rewrite
   end
 
   test "fail! marks the target and article as errored" do
@@ -216,7 +231,7 @@ class TaskTest < ActiveSupport::TestCase
 
   test "translate task complete! broadcasts a refresh for the correct article" do
     rewrite = create_rewrite(article: @article)
-    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b", chain_autopost: false)
+    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b", chain_refine: false)
     Task.claim_next!
     article_stream = "article_#{@article.id}_tasks"
 
@@ -229,5 +244,68 @@ class TaskTest < ActiveSupport::TestCase
     other_stream = "article_#{other_article.id}_tasks"
 
     assert_no_broadcasts(other_stream) { Task.claim_next! }
+  end
+
+  # ── feature kind (targetless homepage selection) ──────────────────────────
+
+  test "enqueue_feature creates a pending feature task anchored on a candidate" do
+    translation = create_translation(attrs: { translated_title: "عنوان مهم" })
+    task = Task.enqueue_feature([ translation ], server: @server, model: "qwen3:14b")
+
+    assert_equal "feature", task.kind
+    assert_equal "pending", task.status
+    assert_equal translation, task.target # anchor only, never mutated
+    assert_equal "featured", task.requests.first["key"]
+  end
+
+  test "claiming a feature task does not mutate its anchor target" do
+    translation = create_translation(attrs: { translated_title: "عنوان", status: "completed" })
+    Task.enqueue_feature([ translation ], server: @server, model: "qwen3:14b")
+
+    Task.claim_next!
+
+    assert_equal "completed", translation.reload.status
+  end
+
+  test "feature task complete! caches the chosen article ids" do
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    translation = create_translation(attrs: { translated_title: "عنوان" })
+    task = Task.enqueue_feature([ translation ], server: @server, model: "qwen3:14b")
+
+    assert_equal task, Task.claim_next!
+    task.complete!("featured" => translation.article_id.to_s)
+
+    assert_equal "completed", task.reload.status
+    assert_equal [ translation.article_id ], FeaturedSelector.featured_ids
+  ensure
+    Rails.cache = original
+  end
+
+  # ── tag kind (AI tags cached per article) ─────────────────────────────────
+
+  test "enqueue_tag targets the translation and claiming leaves it untouched" do
+    translation = create_translation(attrs: { translated_title: "عنوان", status: "completed" })
+    task = Task.enqueue_tag(translation, server: @server, model: "qwen3:14b")
+
+    assert_equal "tag", task.kind
+    assert_equal translation, task.target
+    Task.claim_next!
+    assert_equal "completed", translation.reload.status # not flipped to "running"
+  end
+
+  test "tag task complete! caches the generated tags for the article" do
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    translation = create_translation(attrs: { translated_title: "عنوان" })
+    task = Task.enqueue_tag(translation, server: @server, model: "qwen3:14b")
+
+    Task.claim_next!
+    task.complete!("tags" => "ایران, اقتصاد")
+
+    assert_equal "completed", task.reload.status
+    assert_equal %w[ایران اقتصاد], TagGenerator.tags_for(translation.article)
+  ensure
+    Rails.cache = original
   end
 end
