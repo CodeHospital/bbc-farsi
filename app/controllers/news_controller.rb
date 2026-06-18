@@ -47,6 +47,10 @@ class NewsController < ApplicationController
     @image_url = ArticleImageFetcher.call(@article)
     @tags = TagGenerator.tags_for(@article)
     @sidebar_image_urls = ArticleImageFetcher.call_many(@sidebar_recent.map(&:article))
+
+    bump_pending_task_priorities(@article)
+    ArticleView.track!(article: @article, translation: @translation,
+                       edition: @news_lang, request: request)
   end
 
   # GET /sitemap.xml — lists the homepage plus every published story.
@@ -157,6 +161,16 @@ class NewsController < ApplicationController
         .sort_by { |translation| translation.article.published_at || translation.created_at }
         .reverse
     end
+  end
+
+  # Increment priority on every pending Task tied to this article's rewrites or
+  # translations so the worker picks them up sooner when readers click through.
+  def bump_pending_task_priorities(article)
+    rewrite_tasks     = Task.pending.where(target_type: "Rewrite",     target_id: article.rewrites.select(:id))
+    translation_tasks = Task.pending.where(target_type: "Translation", target_id: article.translations.select(:id))
+    rewrite_tasks.or(translation_tasks).update_all("priority = priority + 1")
+  rescue => error
+    Rails.logger.warn("[NewsController] priority bump failed: #{error.message}")
   end
 
   # A content version for the story pool: the newest translation/article

@@ -40,9 +40,20 @@
         <td><span class="badge bg-secondary"><%= article.feed&.name %></span></td>
         <td><small><%= article.published_at&.strftime("%b %d %H:%M") %></small></td>
         <td><%= render "admin/shared/status_badge", status: article.status %></td>
-        <td class="text-end">
+        <td class="text-end text-nowrap">
+          <% portal_tr = @portal_translation_by_article_id[article.id] %>
+          <% if portal_tr %>
+            <%= link_to "🇮🇷", news_path(portal_tr.seo_param), target: "_blank",
+                  class: "btn btn-xs btn-outline-secondary me-1", title: "Preview in Persian portal" %>
+          <% else %>
+            <%= button_to "⬆ FA", bump_priority_admin_article_path(article), method: :post,
+                  class: "btn btn-xs btn-outline-warning me-1",
+                  title: "No Persian translation yet — bump pending task priorities to process sooner" %>
+          <% end %>
+          <%= link_to "🌐", news_path("a#{article.id}", lang: "en"), target: "_blank",
+                class: "btn btn-xs btn-outline-secondary me-1", title: "Preview in English portal" %>
           <%= button_to "Rewrite", rewrite_admin_article_path(article), method: :post,
-                class: "btn btn-xs btn-outline-info me-1" %>
+                class: "btn btn-xs btn-outline-info" %>
         </td>
       </tr>
     <% end %>

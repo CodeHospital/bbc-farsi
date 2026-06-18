@@ -2,7 +2,17 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Article</h2>
-  <%= link_to "← Articles", admin_articles_path, class: "btn btn-outline-secondary btn-sm" %>
+  <div class="d-flex gap-2">
+    <% if @portal_translation %>
+      <%= link_to "🇮🇷 Persian portal", news_path(@portal_translation.seo_param),
+            target: "_blank", class: "btn btn-sm btn-outline-secondary",
+            title: "Open Persian translation in the public portal" %>
+    <% end %>
+    <%= link_to "🌐 English portal", news_path("a#{@article.id}", lang: "en"),
+          target: "_blank", class: "btn btn-sm btn-outline-secondary",
+          title: "Open original article in the English portal" %>
+    <%= link_to "← Articles", admin_articles_path, class: "btn btn-outline-secondary btn-sm" %>
+  </div>
 </div>
 
 <%# ── Original BBC article ─────────────────────────────────────────────── %>

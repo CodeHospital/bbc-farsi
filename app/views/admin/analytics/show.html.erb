@@ -1,0 +1,141 @@
+<%# Analytics dashboard — article page-view stats tracked by NewsController. %>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Analytics</h2>
+  <div class="btn-group btn-group-sm" role="group">
+    <% Admin::AnalyticsController::PERIODS.each do |days, label| %>
+      <%= link_to label,
+            admin_analytics_path(period: days),
+            class: "btn btn-outline-secondary #{'active' if @period_days == days}" %>
+    <% end %>
+  </div>
+</div>
+
+<% if @missing_migration %>
+  <div class="alert alert-warning">
+    <strong>Table not found.</strong>
+    Run <code>bin/rails db:migrate</code> to create the <code>article_views</code> table,
+    then reload this page.
+  </div>
+<% else %>
+
+  <%# ── Summary cards ──────────────────────────────────────────────────── %>
+  <div class="row g-3 mb-4">
+    <div class="col-sm-4">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold"><%= @total_count %></div>
+          <div class="text-muted small">Total page views</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold"><%= @by_edition["fa"] || 0 %></div>
+          <div class="text-muted small">Persian (FA) edition</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold"><%= @by_edition["en"] || 0 %></div>
+          <div class="text-muted small">English (EN) edition</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <%# ── Daily sparkline (simple CSS bar chart) ─────────────────────────── %>
+  <% if @daily_views.any? %>
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">Daily views</div>
+      <div class="card-body py-3">
+        <% max_daily = @daily_views.values.max.to_f %>
+        <div class="d-flex align-items-end gap-1" style="height:100px">
+          <% @daily_views.each do |date, count| %>
+            <% pct = max_daily > 0 ? (count / max_daily * 100).round : 0 %>
+            <div class="flex-grow-1 bg-primary rounded-top"
+                 style="height:<%= [pct, 4].max %>%"
+                 title="<%= date %>: <%= count %> view(s)"></div>
+          <% end %>
+        </div>
+        <div class="d-flex justify-content-between small text-muted mt-1">
+          <span><%= @daily_views.keys.first %></span>
+          <span><%= @daily_views.keys.last %></span>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <div class="row g-4">
+    <%# ── Top articles ──────────────────────────────────────────────────── %>
+    <div class="col-md-7">
+      <div class="card">
+        <div class="card-header fw-semibold">Top articles</div>
+        <% if @top_articles.any? %>
+          <table class="table table-sm table-hover mb-0">
+            <thead>
+              <tr><th>#</th><th>Title</th><th class="text-end">Views</th><th></th></tr>
+            </thead>
+            <tbody>
+              <% @top_articles.each_with_index do |row, idx| %>
+                <tr>
+                  <td class="text-muted"><%= idx + 1 %></td>
+                  <td><%= link_to row[:title].to_s.truncate(60), admin_article_path(row[:article_id]) %></td>
+                  <td class="text-end fw-bold"><%= row[:count] %></td>
+                  <td class="text-end">
+                    <%= link_to "FA", news_path("a#{row[:article_id]}"), target: "_blank",
+                          class: "btn btn-xs btn-outline-secondary" %>
+                    <%= link_to "EN", news_path("a#{row[:article_id]}", lang: "en"), target: "_blank",
+                          class: "btn btn-xs btn-outline-secondary" %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% else %>
+          <div class="card-body text-muted small">No views recorded yet.</div>
+        <% end %>
+      </div>
+    </div>
+
+    <%# ── Top countries ──────────────────────────────────────────────────── %>
+    <div class="col-md-5">
+      <div class="card">
+        <div class="card-header fw-semibold">Top countries</div>
+        <% if @by_country.any? %>
+          <table class="table table-sm table-hover mb-0">
+            <thead>
+              <tr><th>Country</th><th class="text-end">Views</th></tr>
+            </thead>
+            <tbody>
+              <% @by_country.each do |code, count| %>
+                <tr>
+                  <td>
+                    <%= country_flag(code) %> <strong><%= code %></strong>
+                    <small class="text-muted"><%= country_name(code) %></small>
+                  </td>
+                  <td class="text-end fw-bold"><%= count %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+          <% if @by_country.empty? %>
+            <div class="card-body text-muted small">
+              No country data yet. Country detection requires a Cloudflare/CDN header
+              (<code>CF-IPCountry</code>, <code>CloudFront-Viewer-Country</code>, or <code>X-Country-Code</code>).
+            </div>
+          <% end %>
+        <% else %>
+          <div class="card-body text-muted small">
+            No country data yet — country detection requires a Cloudflare or CDN header
+            (<code>CF-IPCountry</code> / <code>CloudFront-Viewer-Country</code>).
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+<% end %>

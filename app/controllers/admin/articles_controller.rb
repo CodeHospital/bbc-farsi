@@ -1,7 +1,7 @@
 class Admin::ArticlesController < Admin::BaseController
   include Pagy::Method
 
-  before_action :set_article, only: %i[show rewrite multi_rewrite translate translate_original multi_translate archive unarchive]
+  before_action :set_article, only: %i[show rewrite multi_rewrite translate translate_original multi_translate archive unarchive bump_priority]
 
   SORT_COLUMNS = {
     "title"     => "articles.title",
@@ -26,6 +26,16 @@ class Admin::ArticlesController < Admin::BaseController
 
     @pagy, @articles = pagy(articles.order(sort_clause))
     @feeds = Feed.order(:name)
+
+    # Preload one published translation per displayed article for portal preview links.
+    article_ids = @articles.map(&:id)
+    @portal_translation_by_article_id = Translation.completed
+      .where(archived: false, article_id: article_ids)
+      .where.not(translated_title: [ nil, "" ])
+      .order(created_at: :desc)
+      .group_by(&:article_id)
+      .transform_values(&:first)
+
     flash.now[:notice] = "Fetched #{new_count} new article(s)." if params[:trigger_fetch]
   end
 
@@ -35,6 +45,11 @@ class Admin::ArticlesController < Admin::BaseController
     @translations   = @article.translations.includes(:ollama_server).order(created_at: :desc)
     @ollama_servers = OllamaServer.enabled.order(:name)
     @telegram_channels = TelegramChannel.enabled.order(:name)
+
+    # Best published translation for the portal preview button.
+    @portal_translation = @translations.find { |t|
+      t.status == "completed" && t.translated_title.present? && !t.archived?
+    }
 
     posted_rows = TelegramPost.where(translation: @translations, status: "posted")
                                .pluck(:translation_id, :telegram_channel_id)
@@ -109,6 +124,21 @@ class Admin::ArticlesController < Admin::BaseController
       Task.enqueue_translate(rewrite, server:, model:, chain_refine: false)
     end
     redirect_to admin_article_path(@article), notice: "#{targets.size} translation task(s) created."
+  end
+
+  def bump_priority
+    rewrite_tasks     = Task.pending.where(target_type: "Rewrite",
+                                           target_id: @article.rewrites.select(:id))
+    translation_tasks = Task.pending.where(target_type: "Translation",
+                                           target_id: @article.translations.select(:id))
+    bumped_count = rewrite_tasks.or(translation_tasks).update_all("priority = priority + 1")
+    if bumped_count > 0
+      redirect_back fallback_location: admin_articles_path,
+                    notice: "Bumped priority on #{bumped_count} pending task(s) for this article."
+    else
+      redirect_back fallback_location: admin_articles_path,
+                    alert: "No pending tasks found for this article."
+    end
   end
 
   def archive

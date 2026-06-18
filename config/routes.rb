@@ -23,6 +23,7 @@ Rails.application.routes.draw do
         post :multi_translate
         post :archive
         post :unarchive
+        post :bump_priority
       end
     end
 
@@ -68,6 +69,9 @@ Rails.application.routes.draw do
     resource :housekeeping, only: :show, controller: :housekeeping do
       post :abort_pending_tasks
     end
+
+    # Page-view analytics dashboard.
+    resource :analytics, only: :show, controller: :analytics
   end
 
   # Worker-facing task queue API (bearer-token protected).

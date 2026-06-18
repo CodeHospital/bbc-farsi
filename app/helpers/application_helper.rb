@@ -1,4 +1,36 @@
 module ApplicationHelper
+  COUNTRY_NAMES = {
+    "AF" => "Afghanistan", "AR" => "Argentina", "AU" => "Australia",
+    "AT" => "Austria",     "BE" => "Belgium",    "BR" => "Brazil",
+    "CA" => "Canada",      "CN" => "China",       "CO" => "Colombia",
+    "DK" => "Denmark",     "EG" => "Egypt",       "FI" => "Finland",
+    "FR" => "France",      "DE" => "Germany",     "GH" => "Ghana",
+    "GR" => "Greece",      "HK" => "Hong Kong",   "IN" => "India",
+    "ID" => "Indonesia",   "IQ" => "Iraq",        "IR" => "Iran",
+    "IE" => "Ireland",     "IL" => "Palestine",      "IT" => "Italy",
+    "JP" => "Japan",       "JO" => "Jordan",      "KZ" => "Kazakhstan",
+    "KE" => "Kenya",       "KW" => "Kuwait",      "LB" => "Lebanon",
+    "MY" => "Malaysia",    "MX" => "Mexico",      "MA" => "Morocco",
+    "NL" => "Netherlands", "NZ" => "New Zealand", "NG" => "Nigeria",
+    "NO" => "Norway",      "OM" => "Oman",        "PK" => "Pakistan",
+    "PL" => "Poland",      "PT" => "Portugal",    "QA" => "Qatar",
+    "RU" => "Russia",      "SA" => "Saudi Arabia", "ZA" => "South Africa",
+    "KR" => "South Korea", "ES" => "Spain",       "SE" => "Sweden",
+    "CH" => "Switzerland", "SY" => "Syria",       "TW" => "Taiwan",
+    "TR" => "Turkey",      "UA" => "Ukraine",     "AE" => "UAE",
+    "GB" => "United Kingdom", "US" => "United States", "UZ" => "Uzbekistan",
+    "VN" => "Vietnam",     "YE" => "Yemen"
+  }.freeze
+
+  # Convert a 2-letter ISO code into a flag emoji (e.g. "US" → 🇺🇸).
+  def country_flag(code)
+    return "🌐" unless code.to_s.length == 2
+    code.upcase.chars.map { |c| (c.ord - 65 + 0x1F1E6).chr(Encoding::UTF_8) }.join
+  end
+
+  # Human-readable country name for a 2-letter ISO code, or the code itself.
+  def country_name(code) = COUNTRY_NAMES[code.to_s.upcase] || code.to_s
+
   # Generic sortable column header link.
   # Preserves all current query params, toggles direction for the active column,
   # and resets pagination. Uses ▲/▼ to indicate the active sort direction.

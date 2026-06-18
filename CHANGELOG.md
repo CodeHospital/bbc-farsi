@@ -4,6 +4,67 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Bump-priority shortcut for untranslated articles + IP geolocation fallback
+
+**Admin articles index — bump priority when no FA translation exists**
+- When a row has no published Persian translation, the 🇮🇷 portal link is replaced by
+  an **⬆ FA** button (orange outline). Clicking it calls the new
+  `POST /admin/articles/:id/bump_priority` action, which increments `priority + 1` on
+  every pending Task tied to that article's rewrites and translations in one SQL UPDATE,
+  then redirects back with a flash count. If no pending tasks exist, an alert is shown.
+
+**ArticleView — IP geolocation fallback via Supabase edge function**
+- `extract_country` now tries CDN headers first (Cloudflare / CloudFront / generic),
+  then falls back to querying the Supabase `messagram` geolocation function with the
+  client IP (`request.remote_ip`). Local/loopback IPs are skipped. Timeouts: 2 s open,
+  3 s read. All errors are rescued and logged; the view never breaks on a slow or
+  failing geo call.
+
+### Added — Mobile-friendly portal, admin portal shortcuts, click-based priority, and analytics
+
+**Mobile-friendly news portal (both FA and EN editions)**
+- Viewport meta updated to `viewport-fit=cover` for notch phones.
+- `col-lg-8/4` → `col-md-8/4` so the sidebar renders alongside content from tablet width.
+- Mobile CSS overrides (`≤575px`): reduced hero card height (460→280px), smaller overlay
+  titles, compact masthead/menu, tighter container padding, hidden topbar social icons.
+- Sidebar gets a top separator when it stacks below the main column on mobile.
+
+**Admin — mobile-friendly layout**
+- Added a sticky dark top bar (hamburger `☰` + brand label) that appears only on
+  `<768px` screens; the sidebar (`#adminSidebar`) toggles open/closed via a tiny JS
+  function. Sidebar closes automatically when the user taps a nav link.
+
+**Admin — portal preview shortcuts on articles**
+- Articles index: each row now has 🇮🇷 (Persian portal, if a published translation
+  exists) and 🌐 (English portal) icon buttons that open the story in a new tab.
+  The controller preloads one translation per displayed article to avoid N+1.
+- Articles show: "🇮🇷 Persian portal" and "🌐 English portal" buttons added to the
+  top action bar. `@portal_translation` is set from the already-loaded translations
+  list (no extra query).
+
+**Click-based task priority bump**
+- `NewsController#show` calls `bump_pending_task_priorities` after resolving the
+  story: finds all pending Tasks whose target is a Rewrite or Translation of this
+  article and runs a single `UPDATE … priority = priority + 1`. Readers clicking
+  through to a story signal demand, moving its worker pipeline up the queue.
+
+**Page-view analytics**
+- New migration `20260618000001_create_article_views` (run `bin/rails db:migrate`
+  to activate): `article_views` table with `article_id`, `translation_id`,
+  `country_code` (2-char), `edition` (`fa`/`en`), `created_at`; indexed on
+  `[article_id, created_at]`, `country_code`, and `created_at`.
+- `ArticleView` model with `track!` class method called from `NewsController#show`.
+  Country code is detected from Cloudflare (`CF-IPCountry`), CloudFront
+  (`CloudFront-Viewer-Country`), or generic CDN (`X-Country-Code`) headers.
+  Errors are logged and swallowed so a missing table never surfaces to readers.
+- `Admin::AnalyticsController#show` (route `GET /admin/analytics`) aggregates
+  total views, FA vs EN breakdown, top 15 countries, top 15 articles by views,
+  and a daily sparkline — all scoped to a selectable period (7 / 30 / 90 days).
+  Shows a migration-missing banner if the table doesn't exist yet.
+- `ApplicationHelper` gains `country_flag(code)` (ISO→flag emoji via regional
+  indicator characters) and `country_name(code)` (code→English name table).
+- "📊 Analytics" added to the admin sidebar under Infrastructure.
+
 ### Fixed — Login page no longer shows admin menus
 - `Admin::SessionsController` rendered its self-contained login view inside the
   `admin` layout, so the admin sidebar menus appeared to unauthenticated
