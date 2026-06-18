@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Login page no longer shows admin menus
+- `Admin::SessionsController` rendered its self-contained login view inside the
+  `admin` layout, so the admin sidebar menus appeared to unauthenticated
+  visitors on the login screen. Switched the controller to `layout false`.
+
+### Added — Untranslated news visible in the English edition
+- The English (`?lang=en`) edition of the public site now also surfaces recent,
+  non-archived articles that have **no completed Persian translation yet**, so
+  fresh BBC news shows up before the rewrite/translate worker pipeline finishes.
+  The Persian edition is unchanged (translated stories only).
+- New `ArticleStory` PORO wraps a raw `Article` in the Translation-story
+  interface the news views use (`article`, `article_id`, `translated_title`,
+  `translated_body`, `created_at`, `updated_at`, `seo_param`); its "translated"
+  accessors fall back to the original English article fields.
+- `NewsController#story_pool` merges these `ArticleStory` items into the pool for
+  the English edition (capped, newest-first). `news#show` resolves an
+  `"a<id>-slug"` param to an untranslated article story (digit-prefixed params
+  remain translation stories).
+
 ### Added — Bilingual public news site + controller caching
 - The public site is now bilingual. A `lang` query param selects the edition
   (`fa` default, `en`); `NewsController#set_news_lang` resolves it and

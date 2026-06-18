@@ -154,6 +154,33 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href*='lang=en']"
   end
 
+  # ── English edition surfaces still-untranslated articles ──────────────────
+
+  test "english edition lists untranslated articles; persian edition hides them" do
+    create_article(attrs: { title: "Untranslated Breaking News", published_at: 1.hour.ago })
+
+    get root_path(lang: "en")
+    assert_response :success
+    assert_match "Untranslated Breaking News", @response.body
+
+    get root_path
+    assert_response :success
+    assert_no_match "Untranslated Breaking News", @response.body
+  end
+
+  test "show resolves an untranslated article story by its a-prefixed param" do
+    article = create_article(attrs: { title: "Lone English Story",
+      description: "Body of an as-yet untranslated article.", published_at: 1.hour.ago })
+    story = ArticleStory.new(article)
+    stub_request(:get, article.url).to_return(body: "<html></html>")
+
+    get news_path(story.seo_param, lang: "en")
+
+    assert_response :success
+    assert_select "h1", /Lone English Story/
+    assert_match "Body of an as-yet untranslated article.", @response.body
+  end
+
   # ── SEO: friendly URLs, canonical redirect, meta, structured data ─────────
 
   test "seo_param produces a friendly id-and-slug param; admin to_param stays numeric" do

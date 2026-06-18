@@ -11,6 +11,13 @@ class Admin::SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "login page does not render the admin sidebar menus" do
+    get admin_login_path
+    assert_response :success
+    assert_select "nav.sidebar", false, "login page must not show the admin sidebar menus"
+    assert_select "form[action=?]", admin_login_path
+  end
+
   test "redirects to dashboard on valid credentials" do
     post admin_login_path, params: { username: "testadmin", password: "testpass" }
     assert_redirected_to admin_root_path

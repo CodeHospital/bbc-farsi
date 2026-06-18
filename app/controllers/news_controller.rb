@@ -27,8 +27,15 @@ class NewsController < ApplicationController
   end
 
   def show
-    # The :id param is "<id>-<slug>"; .to_i recovers the primary key (DB-agnostic).
-    @translation = published_translations.find(params[:id].to_i)
+    # An "a"-prefixed id ("a123-slug") is an untranslated article story (shown in
+    # the English edition); a digit-prefixed id ("123-slug") is a translation.
+    @translation =
+      if params[:id].start_with?("a")
+        ArticleStory.new(Article.not_archived.find(params[:id].delete_prefix("a").to_i))
+      else
+        # The :id param is "<id>-<slug>"; .to_i recovers the key (DB-agnostic).
+        published_translations.find(params[:id].to_i)
+      end
 
     # Canonical-URL guard: redirect any stale/partial slug to the real one (301)
     # so search engines see a single canonical URL per story.
@@ -72,9 +79,41 @@ class NewsController < ApplicationController
   # "latest news" sidebar list (with its thumbnails).
   def load_chrome
     @category = params[:category].presence
-    @all_stories = latest_translation_per_article
+    @all_stories = story_pool
     @sidebar_recent = @all_stories.first(6)
     @sidebar_image_urls = ArticleImageFetcher.call_many(@sidebar_recent.map(&:article))
+  end
+
+  # The story pool driving every page. Persian shows only translated stories;
+  # the English edition additionally surfaces still-untranslated articles
+  # (wrapped as ArticleStory) so fresh BBC news is visible before the worker
+  # pipeline has produced a Persian version. Merged and re-sorted newest-first.
+  def story_pool
+    stories = latest_translation_per_article
+    return stories unless english_edition?
+
+    translated_ids = stories.map(&:article_id)
+    extras = untranslated_article_stories(translated_ids)
+    (stories + extras)
+      .sort_by { |story| story.article.published_at || story.created_at }
+      .reverse
+  end
+
+  # The active edition (mirrors NewsHelper#english_edition?), available in the
+  # controller for shaping the story pool.
+  def english_edition? = @news_lang == "en"
+
+  # Recent, non-archived articles that have no completed translation yet,
+  # wrapped as ArticleStory. Capped so the homepage's on-demand image fetching
+  # and grouping stay bounded.
+  def untranslated_article_stories(translated_article_ids, limit: 60)
+    Article.not_archived
+      .where.not(published_at: nil)
+      .where.not(id: translated_article_ids)
+      .includes(:feed)
+      .order(published_at: :desc)
+      .limit(limit)
+      .map { |article| ArticleStory.new(article) }
   end
 
   # Group stories by feed category, preserving the recency order within each and

@@ -1,5 +1,8 @@
 class Admin::SessionsController < ApplicationController
-  layout "admin"
+  # The login screen is a self-contained page (its own <html>), so it must NOT
+  # be wrapped in the admin layout — otherwise the sidebar menus show up for an
+  # unauthenticated visitor on the login page.
+  layout false
 
   def new
     redirect_to admin_root_path if logged_in?
