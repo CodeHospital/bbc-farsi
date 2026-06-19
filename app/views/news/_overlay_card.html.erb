@@ -1,22 +1,24 @@
 <%# Image card with gradient overlay, category label and title (Newspaper hero).
     locals: story, image_url, hero: false, tile: false %>
-<% hero     = local_assigns.fetch(:hero, false) %>
-<% tile     = local_assigns.fetch(:tile, false) %>
-<% category = story.article.feed&.category %>
-<% pub_time = story_time(story) %>
-<%= link_to news_story_path(story), class: "overlay-card #{'hero' if hero} #{'tile' if tile}",
-      style: category_style(category) do %>
-  <% if image_url.present? %>
-    <%= image_tag image_url, alt: story_title(story),
-          loading: (hero ? "eager" : "lazy"),
-          fetchpriority: (hero ? "high" : "auto") %>
-  <% end %>
-  <div class="overlay-body">
-    <span class="cat-label"><%= category_name(category) %></span>
-    <h<%= hero ? 2 : 3 %> class="overlay-title"><%= story_title(story) %></h<%= hero ? 2 : 3 %>>
-    <div class="meta">
-      <i class="bi bi-clock"></i>
-      <time datetime="<%= pub_time&.iso8601 %>"><%= story_timestamp(pub_time) %></time>
+<% hero = local_assigns.fetch(:hero, false) %>
+<% tile = local_assigns.fetch(:tile, false) %>
+<% cache [story, story.article, news_lang, image_url, hero, tile] do %>
+  <% category = story.article.feed&.category %>
+  <% pub_time = story_time(story) %>
+  <%= link_to news_story_path(story), class: "overlay-card #{'hero' if hero} #{'tile' if tile}",
+        style: category_style(category) do %>
+    <% if image_url.present? %>
+      <%= image_tag image_url, alt: story_title(story),
+            loading: (hero ? "eager" : "lazy"),
+            fetchpriority: (hero ? "high" : "auto") %>
+    <% end %>
+    <div class="overlay-body">
+      <span class="cat-label"><%= category_name(category) %></span>
+      <h<%= hero ? 2 : 3 %> class="overlay-title"><%= story_title(story) %></h<%= hero ? 2 : 3 %>>
+      <div class="meta">
+        <i class="bi bi-clock"></i>
+        <time datetime="<%= pub_time&.iso8601 %>"><%= story_timestamp(pub_time) %></time>
+      </div>
     </div>
-  </div>
+  <% end %>
 <% end %>

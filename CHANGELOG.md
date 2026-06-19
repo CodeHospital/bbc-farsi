@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Fragment caching for the news portal (no migrations)
+
+- `ArticleStory` PORO now implements `cache_key` + `cache_key_with_version` (delegating to its `article`) so Rails' `cache` helper can fingerprint it alongside AR models.
+- `NewsHelper#news_sidebar_cache_key` computes a stable, short fragment key for the sidebar from the sum of each sidebar story's `updated_at` epoch plus the total story count.
+- Fragment caches added across all story-card partials and the article body:
+  - `_post_item.html.erb` — `cache [story, story.article, news_lang, image_url, show_excerpt]`
+  - `_overlay_card.html.erb` — `cache [story, story.article, news_lang, image_url, hero, tile]`
+  - `_module_lead.html.erb` — `cache [story, story.article, news_lang, image_url, eager]`
+  - `_sidebar.html.erb` — `cache news_sidebar_cache_key(...)` wrapping both the latest-news list and the category-count widget
+  - `show.html.erb` — `cache [@translation, @article, news_lang, @image_url, @tags.join(",")]` wraps the article `<h1>`, image, body, tags, and source link
+- `content_for` blocks and the breadcrumb nav on `show` remain outside the fragment and run every request (they populate layout `<head>` slots).
+- Cache keys auto-bust on any AR `updated_at` change; no explicit TTL needed (the existing 10-min story-pool TTL serves as the outer backstop).
+- Fragment caching is **off** by default in development — run `bin/rails dev:cache` to enable. Production already has `config.action_controller.perform_caching = true`.
+- 197 tests green.
+
 ### Added — SEO, Google, bot, and LLM optimisations for the public news portal
 
 **Google**

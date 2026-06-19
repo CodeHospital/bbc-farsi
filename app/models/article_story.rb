@@ -20,6 +20,11 @@ class ArticleStory
   def created_at = article.created_at
   def updated_at = article.updated_at
 
+  # Rails fragment-cache fingerprint: delegate to the underlying article so the
+  # fragment busts whenever the article row changes.
+  def cache_key              = "article_stories/#{article.id}"
+  def cache_key_with_version = "#{cache_key}-#{article.updated_at.to_i}"
+
   # No Persian version exists yet, so fall back to the original article text.
   def translated_title = article.title
   def translated_body  = article.description

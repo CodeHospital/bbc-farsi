@@ -1,28 +1,33 @@
 <%# Right sidebar: latest news + categories. Fed by @sidebar_recent /
-    @sidebar_image_urls / @all_stories (set in NewsController#load_chrome). %>
+    @sidebar_image_urls / @all_stories (set in NewsController#load_chrome).
+    Fragment-cached: busts when any sidebar story changes or total count moves. %>
 <% sidebar_recent = @sidebar_recent || [] %>
 <% sidebar_images = @sidebar_image_urls || {} %>
+<% all_stories    = @all_stories || [] %>
 
-<% if sidebar_recent.any? %>
+<% cache news_sidebar_cache_key(sidebar_recent, all_stories.size, news_lang) do %>
+  <% if sidebar_recent.any? %>
+    <section class="mb-4">
+      <h2 class="block-title"><span><%= news_ui(:latest_news) %></span></h2>
+      <%# Individual post_item partials are themselves fragment-cached %>
+      <% sidebar_recent.each do |story| %>
+        <%= render "news/post_item", story: story,
+              image_url: sidebar_images[story.article.id], excerpt: false %>
+      <% end %>
+    </section>
+  <% end %>
+
+  <% category_counts = all_stories.group_by { |s| s.article.feed&.category }.transform_values(&:size) %>
   <section class="mb-4">
-    <h2 class="block-title"><span><%= news_ui(:latest_news) %></span></h2>
-    <% sidebar_recent.each do |story| %>
-      <%= render "news/post_item", story: story,
-            image_url: sidebar_images[story.article.id], excerpt: false %>
-    <% end %>
+    <h2 class="block-title"><span><%= news_ui(:categories) %></span></h2>
+    <div class="cat-list">
+      <% nav_categories.each do |slug, name| %>
+        <% next if category_counts[slug].to_i.zero? %>
+        <%= link_to category_path(category: slug) do %>
+          <span><%= name %></span>
+          <span class="count"><%= category_counts[slug] %></span>
+        <% end %>
+      <% end %>
+    </div>
   </section>
 <% end %>
-
-<% category_counts = (@all_stories || []).group_by { |s| s.article.feed&.category }.transform_values(&:size) %>
-<section class="mb-4">
-  <h2 class="block-title"><span><%= news_ui(:categories) %></span></h2>
-  <div class="cat-list">
-    <% nav_categories.each do |slug, name| %>
-      <% next if category_counts[slug].to_i.zero? %>
-      <%= link_to category_path(category: slug) do %>
-        <span><%= name %></span>
-        <span class="count"><%= category_counts[slug] %></span>
-      <% end %>
-    <% end %>
-  </div>
-</section>

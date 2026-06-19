@@ -1,24 +1,26 @@
 <%# Large lead post for a category module: big image, big title, excerpt.
     locals: story, image_url, eager: false %>
-<% category = story.article.feed&.category %>
-<% body     = story_body(story) %>
-<% eager    = local_assigns.fetch(:eager, false) %>
-<% pub_time = story_time(story) %>
-<%= link_to news_story_path(story), class: "module-lead", style: category_style(category) do %>
-  <% if image_url.present? %>
-    <div class="lead-figure">
-      <%= image_tag image_url, alt: story_title(story),
-            loading: (eager ? "eager" : "lazy"),
-            fetchpriority: (eager ? "high" : "auto") %>
+<% eager = local_assigns.fetch(:eager, false) %>
+<% cache [story, story.article, news_lang, image_url, eager] do %>
+  <% category = story.article.feed&.category %>
+  <% body     = story_body(story) %>
+  <% pub_time = story_time(story) %>
+  <%= link_to news_story_path(story), class: "module-lead", style: category_style(category) do %>
+    <% if image_url.present? %>
+      <div class="lead-figure">
+        <%= image_tag image_url, alt: story_title(story),
+              loading: (eager ? "eager" : "lazy"),
+              fetchpriority: (eager ? "high" : "auto") %>
+      </div>
+    <% end %>
+    <span class="cat-label flat"><%= category_name(category) %></span>
+    <h3 class="lead-title"><%= story_title(story) %></h3>
+    <div class="meta">
+      <i class="bi bi-clock"></i>
+      <time datetime="<%= pub_time&.iso8601 %>"><%= story_timestamp(pub_time) %></time>
     </div>
-  <% end %>
-  <span class="cat-label flat"><%= category_name(category) %></span>
-  <h3 class="lead-title"><%= story_title(story) %></h3>
-  <div class="meta">
-    <i class="bi bi-clock"></i>
-    <time datetime="<%= pub_time&.iso8601 %>"><%= story_timestamp(pub_time) %></time>
-  </div>
-  <% if body.present? %>
-    <p class="excerpt"><%= truncate(body, length: 180, separator: " ") %></p>
+    <% if body.present? %>
+      <p class="excerpt"><%= truncate(body, length: 180, separator: " ") %></p>
+    <% end %>
   <% end %>
 <% end %>

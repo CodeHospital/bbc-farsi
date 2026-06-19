@@ -150,10 +150,19 @@ module NewsHelper
     CATEGORY_NAMES_FA.keys.map { |slug| [ slug, names[slug] || slug ] }
   end
 
-  # Friendly public URL for a story (id + Persian slug). Admin routes keep the
-  # plain numeric id, so the slug lives here rather than on Translation#to_param.
+  # Friendly public URL for a story. Admin routes keep the plain numeric id.
   def news_story_path(translation) = news_path(id: translation.seo_param)
   def news_story_url(translation)  = news_url(id: translation.seo_param)
+
+  # Fragment-cache key for the sidebar block: a sum of each story's updated_at
+  # epoch (cheap, changes whenever any sidebar story changes) plus the total
+  # story count so added/removed stories also bust the fragment.
+  def news_sidebar_cache_key(sidebar_stories, all_stories_count, lang)
+    version_sum = sidebar_stories.sum do |story|
+      (story.respond_to?(:updated_at) ? story.updated_at : story.article.updated_at).to_i
+    end
+    ["news/sidebar", version_sum, all_stories_count, lang]
+  end
 
   # Publication time of a story (article published_at, falling back to creation).
   def story_time(story) = story.article.published_at || story.created_at
