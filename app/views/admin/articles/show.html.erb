@@ -8,7 +8,7 @@
             target: "_blank", class: "btn btn-sm btn-outline-secondary",
             title: "Open Persian translation in the public portal" %>
     <% end %>
-    <%= link_to "🌐 English portal", news_path(id: "a#{@article.id}", lang: "en"),
+    <%= link_to "🌐 English portal", news_path(id: ArticleStory.new(@article).seo_param, lang: "en"),
           target: "_blank", class: "btn btn-sm btn-outline-secondary",
           title: "Open original article in the English portal" %>
     <%= link_to "← Articles", admin_articles_path, class: "btn btn-outline-secondary btn-sm" %>

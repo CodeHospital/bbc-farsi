@@ -14,20 +14,23 @@ class Translation < ApplicationRecord
     completed.where.not(id: TelegramPost.where(telegram_channel: channel).select(:translation_id))
   }
 
+  before_save :ensure_slug
+
   def archive! = update!(archived: true)
 
-  # Friendly, SEO-oriented URL param for the public news routes: "<id>-<slug>".
-  # The id stays a prefix so `params[:id].to_i` recovers the primary key on any
-  # database (no slug column — derived on the fly from the Persian title).
-  # NB: `to_param` is intentionally NOT overridden, so admin routes keep using
-  # the numeric id (a Persian slug would break `find` on PostgreSQL).
+  # Public URL param for news routes. Returns the stored slug column when
+  # available (after the slug migration); falls back to "<id>-<computed>" so
+  # the site keeps working before the migration is applied.
+  # NB: `to_param` is intentionally NOT overridden — admin routes keep the
+  # numeric id so `find` works on PostgreSQL without a slug column.
   def seo_param
-    [ id, slug ].compact_blank.join("-")
+    return slug if self.class.column_names.include?("slug") && slug.present?
+    [ id, computed_slug ].compact_blank.join("-")
   end
 
-  # A URL slug from the Persian title: word characters (Persian letters/digits
-  # included) kept, everything else collapsed to single hyphens.
-  def slug
+  # Derive a URL-safe slug from the Persian title (word chars kept, everything
+  # else collapsed to hyphens). Used internally to populate the slug column.
+  def computed_slug
     translated_title.to_s.strip
       .gsub(/[[:space:]]+/, "-")
       .gsub(/[^[[:word:]]\-]/, "")
@@ -39,5 +42,22 @@ class Translation < ApplicationRecord
   def activate!
     article.translations.where.not(id: id).update_all(active: false)
     update!(active: true)
+  end
+
+  private
+
+  # Populate the slug column once (on first save with a non-blank title).
+  # Appends "-2", "-3", … to resolve uniqueness collisions. Skips gracefully
+  # when the slug column has not yet been added via migration.
+  def ensure_slug
+    return if slug.present?
+    return if (base = computed_slug).blank?
+
+    candidate = base
+    while Translation.where(slug: candidate).where.not(id: id).exists?
+      counter  = rand(10**16) # add some jitter to reduce collisions when backfilling many records
+      candidate = "#{base}-#{counter}"
+    end
+    self[:slug] = candidate
   end
 end

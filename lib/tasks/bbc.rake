@@ -44,6 +44,26 @@ namespace :bbc do
     puts "Enqueued feature task (#{server.name} / #{model}) over #{candidates.size} candidate(s)."
   end
 
+  desc "Backfill slug columns for existing translations and articles (run once after the slug migration)"
+  task backfill_slugs: :environment do
+    unless Translation.column_names.include?("slug")
+      abort "slug column not found — run bin/rails db:migrate first."
+    end
+    translation_count = 0
+    Translation.where(slug: nil).find_each do |translation|
+      translation.save!
+      translation_count += 1
+      print "."
+    end
+    article_count = 0
+    Article.where(slug: nil).find_each do |article|
+      article.save!
+      article_count += 1
+      print "."
+    end
+    puts "\nBackfilled #{translation_count} translation(s) and #{article_count} article(s)."
+  end
+
   desc "Enqueue AI tag-generation tasks for translated articles that have no tags yet"
   task tag: :environment do
     candidates = TagGenerator.untagged_candidates

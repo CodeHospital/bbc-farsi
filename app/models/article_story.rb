@@ -24,21 +24,21 @@ class ArticleStory
   def translated_title = article.title
   def translated_body  = article.description
 
-  # Friendly public URL param. Prefixed with "a" so the news#show action can
-  # tell an article-only story ("a123-slug") apart from a translation story
-  # ("123-slug", which always starts with a digit) and resolve it correctly.
+  # Friendly public URL param. Prefixed with "a-" so news#show distinguishes
+  # article stories from translation stories (which never start with "a-").
+  # Uses the stored article.slug column when available; falls back to the old
+  # "a<id>-<title-slug>" format so URLs keep working before migration runs.
   def seo_param
-    [ "a#{article.id}", slug ].compact_blank.join("-")
-  end
-
-  # A URL slug from the (English) article title: word characters kept,
-  # everything else collapsed to single hyphens. Mirrors Translation#slug.
-  def slug
-    article.title.to_s.strip
-      .gsub(/[[:space:]]+/, "-")
-      .gsub(/[^[[:word:]]\-]/, "")
-      .gsub(/-+/, "-")
-      .gsub(/\A-+|-+\z/, "")
-      .presence
+    if Article.column_names.include?("slug") && article.slug.present?
+      "a-#{article.slug}"
+    else
+      computed_parts = article.title.to_s.strip
+        .gsub(/[[:space:]]+/, "-")
+        .gsub(/[^[[:word:]]\-]/, "")
+        .gsub(/-+/, "-")
+        .gsub(/\A-+|-+\z/, "")
+        .presence
+      [ "a#{article.id}", computed_parts ].compact_blank.join("-")
+    end
   end
 end

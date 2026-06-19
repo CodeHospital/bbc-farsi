@@ -50,7 +50,7 @@
                   class: "btn btn-xs btn-outline-warning me-1",
                   title: "No Persian translation yet — bump pending task priorities to process sooner" %>
           <% end %>
-          <%= link_to "🌐", news_path(id: "a#{article.id}", lang: "en"), target: "_blank",
+          <%= link_to "🌐", news_path(id: ArticleStory.new(article).seo_param, lang: "en"), target: "_blank",
                 class: "btn btn-xs btn-outline-secondary me-1", title: "Preview in English portal" %>
           <%= button_to "Rewrite", rewrite_admin_article_path(article), method: :post,
                 class: "btn btn-xs btn-outline-info" %>

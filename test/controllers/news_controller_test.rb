@@ -183,12 +183,13 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
 
   # ── SEO: friendly URLs, canonical redirect, meta, structured data ─────────
 
-  test "seo_param produces a friendly id-and-slug param; admin to_param stays numeric" do
+  test "seo_param produces a pure slug without the numeric id; admin to_param stays numeric" do
     translation = create_translation(attrs: { translated_title: "خبر مهم امروز" })
 
-    assert_equal "#{translation.id}-خبر-مهم-امروز", translation.seo_param
+    assert_equal "خبر-مهم-امروز", translation.seo_param
     assert_equal translation.id.to_s, translation.to_param # admin routes unaffected
-    assert_match %r{/news/#{translation.id}-}, news_path(id: translation.seo_param)
+    # The public path must not contain a bare numeric id segment before the slug.
+    refute_match %r{/news/\d+-}, news_path(id: translation.seo_param)
   end
 
   test "show redirects a non-canonical slug to the canonical url (301)" do

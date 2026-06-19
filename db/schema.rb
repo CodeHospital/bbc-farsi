@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_18_000002) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_19_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -33,7 +33,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_18_000002) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "archived", default: false, null: false
+    t.string "slug"
     t.index ["feed_id"], name: "index_articles_on_feed_id"
+    t.index ["slug"], name: "index_articles_on_slug", unique: true
     t.index ["url"], name: "index_articles_on_url", unique: true
   end
 
@@ -154,9 +156,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_18_000002) do
     t.boolean "active", default: false, null: false
     t.boolean "archived", default: false, null: false
     t.integer "ollama_server_id"
+    t.string "slug"
     t.index ["article_id"], name: "index_translations_on_article_id"
     t.index ["ollama_server_id"], name: "index_translations_on_ollama_server_id"
     t.index ["rewrite_id"], name: "index_translations_on_rewrite_id"
+    t.index ["slug"], name: "index_translations_on_slug", unique: true
   end
 
   add_foreign_key "article_views", "articles"

@@ -27,18 +27,25 @@ class NewsController < ApplicationController
   end
 
   def show
-    # An "a"-prefixed id ("a123-slug") is an untranslated article story (shown in
-    # the English edition); a digit-prefixed id ("123-slug") is a translation.
+    # Resolve the :id segment to a story object. Four formats are handled:
+    #   "a-some-title"  — new article-story slug (no numeric id)
+    #   "a123"/"a123-…" — old article-story format (backwards compat → redirects)
+    #   "123"/"123-…"   — old translation format  (backwards compat → redirects)
+    #   "persian-title" — new translation slug    (no numeric id)
     @translation =
-      if params[:id].start_with?("a")
-        ArticleStory.new(Article.not_archived.find(params[:id].delete_prefix("a").to_i))
+      case params[:id]
+      when /\Aa-/
+        ArticleStory.new(Article.not_archived.find_by!(slug: params[:id].delete_prefix("a-")))
+      when /\Aa(\d+)/
+        ArticleStory.new(Article.not_archived.find($1.to_i))
+      when /\A(\d+)/
+        published_translations.find($1.to_i)
       else
-        # The :id param is "<id>-<slug>"; .to_i recovers the key (DB-agnostic).
-        published_translations.find(params[:id].to_i)
+        published_translations.find_by!(slug: params[:id])
       end
 
-    # Canonical-URL guard: redirect any stale/partial slug to the real one (301)
-    # so search engines see a single canonical URL per story.
+    # Canonical-URL guard: redirect stale/partial/old slugs to the canonical
+    # URL so search engines see a single permanent URL per story.
     if params[:id] != @translation.seo_param
       return redirect_to(news_path(id: @translation.seo_param), status: :moved_permanently)
     end

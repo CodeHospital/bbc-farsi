@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Friendly slugs for public news URLs (no numeric IDs)
+
+- Public story URLs no longer contain a numeric article/translation ID.
+  - Persian translations: `/news/عنوان-خبر` (was `/news/123-عنوان-خبر`)
+  - English article stories: `/en/news/a-bbc-article-title` (was `/en/news/a456-bbc-article-title`)
+- Migration `20260619000001` adds a unique `slug` string column to both `translations` and `articles`.
+- `Translation` and `Article` models auto-generate a slug from the Persian/English title via `before_save :ensure_slug`; collisions are resolved with `-2`, `-3`, … suffixes.
+- `Translation#seo_param` returns the stored slug (falls back to old `id-slug` format before migration runs so the site degrades gracefully).
+- `ArticleStory#seo_param` returns `"a-<article-slug>"` (the `"a-"` prefix distinguishes untranslated article stories from translation slugs in `NewsController#show`).
+- `NewsController#show` resolves all four URL formats: new slug, old `id-slug`, new `a-slug`, old `a<id>-slug`; old-format URLs 301-redirect to the canonical slug URL automatically.
+- Admin portal-preview buttons updated to use `ArticleStory.new(article).seo_param`.
+- New rake task `bin/rails bbc:backfill_slugs` populates the slug column for pre-existing rows (run once after `db:migrate`).
+- 197 tests green.
+
 ### Fixed — Section header "more" link alignment in both portal editions
 
 - `.block-title` converted from float-based layout to `display: flex; justify-content: space-between` so the "more ›" / "بیشتر ›" link always sits at the far end of the header row, opposite the category label.
