@@ -1,28 +1,67 @@
 <% published_at = @article.published_at || @translation.created_at %>
-<% title = story_title(@translation) %>
-<% body  = story_body(@translation) %>
-<% summary = body.to_s.squish.truncate(160) %>
-<% content_for :title, "#{title} — #{news_ui(:site_name)}" %>
+<% title       = story_title(@translation) %>
+<% body        = story_body(@translation) %>
+<% summary     = body.to_s.squish.truncate(160) %>
+<% article_section = category_name(@article.feed&.category) %>
+<% content_for :title,       "#{title} — #{news_ui(:site_name)}" %>
 <% content_for :description, summary %>
-<% content_for :canonical, news_story_url(@translation) %>
-<% content_for :og_type, "article" %>
-<% content_for :og_image, @image_url if @image_url.present? %>
+<% content_for :canonical,   news_story_url(@translation) %>
+<% content_for :og_type,     "article" %>
+<% content_for :og_image,    @image_url if @image_url.present? %>
+
+<%# Open Graph article-specific properties (publication date, section, tags) %>
+<% content_for :og_article_meta do %>
+  <meta property="article:published_time" content="<%= published_at&.iso8601 %>">
+  <meta property="article:modified_time"  content="<%= @translation.updated_at.iso8601 %>">
+  <meta property="article:section"        content="<%= article_section %>">
+  <meta name="author"                     content="BBC News">
+  <% @tags.each do |tag| %>
+    <meta property="article:tag" content="<%= tag %>">
+  <% end %>
+<% end %>
 
 <% content_for :head do %>
   <script type="application/ld+json">
     <%= raw({
       "@context": "https://schema.org",
-      "@type": "NewsArticle",
-      headline: title,
-      description: summary,
-      inLanguage: (english_edition? ? "en" : "fa"),
-      image: (@image_url.presence ? [@image_url] : nil),
-      datePublished: published_at&.iso8601,
-      dateModified: @translation.updated_at.iso8601,
-      keywords: (@tags.presence&.join(", ")),
-      articleSection: category_name(@article.feed&.category),
-      mainEntityOfPage: { "@type": "WebPage", "@id": news_story_url(@translation) },
-      publisher: { "@type": "Organization", name: news_ui(:site_name) }
+      "@graph": [
+        {
+          "@type": "NewsArticle",
+          "@id": "#{news_story_url(@translation)}#article",
+          headline: title,
+          description: summary,
+          inLanguage: (english_edition? ? "en" : "fa"),
+          image: (@image_url.presence ? [{
+            "@type": "ImageObject",
+            url: @image_url,
+            caption: title
+          }] : nil),
+          datePublished: published_at&.iso8601,
+          dateModified: @translation.updated_at.iso8601,
+          keywords: (@tags.presence&.join(", ")),
+          articleSection: article_section,
+          author: { "@type": "Organization", name: "BBC News", url: "https://www.bbc.com/news" },
+          mainEntityOfPage: { "@type": "WebPage", "@id": news_story_url(@translation) },
+          publisher: {
+            "@type": "Organization",
+            name: news_ui(:site_name),
+            url: root_url,
+            logo: { "@type": "ImageObject", url: "#{request.base_url}/icon.png" }
+          },
+          isAccessibleForFree: true,
+          url: news_story_url(@translation)
+        },
+        {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: news_ui(:site_name), item: root_url },
+            { "@type": "ListItem", position: 2, name: article_section,
+              item: category_url(category: @article.feed&.category) },
+            { "@type": "ListItem", position: 3, name: title,
+              item: news_story_url(@translation) }
+          ]
+        }
+      ]
     }.compact.to_json) %>
   </script>
 <% end %>
@@ -37,12 +76,15 @@
   <span class="cat-label flat"><%= category_name(@article.feed&.category) %></span>
   <h1 class="fw-bold my-2" style="line-height:1.6"><%= title %></h1>
   <div class="text-muted mb-3" style="font-size:.85rem">
-    <i class="bi bi-clock"></i> <%= story_timestamp(@article.published_at || @translation.created_at) %>
+    <i class="bi bi-clock"></i>
+    <time datetime="<%= published_at&.iso8601 %>">
+      <%= story_timestamp(published_at) %>
+    </time>
   </div>
 
   <% if @image_url.present? %>
     <figure class="article-figure mb-4">
-      <%= image_tag @image_url, alt: title, loading: "lazy" %>
+      <%= image_tag @image_url, alt: title, loading: "eager", fetchpriority: "high" %>
     </figure>
   <% end %>
 

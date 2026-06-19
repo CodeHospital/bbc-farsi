@@ -82,9 +82,118 @@ class NewsController < ApplicationController
   end
 
   # GET /robots.txt — served dynamically so the Sitemap directive uses the real
-  # request host (the deploy host isn't known at build time).
+  # request host. Explicitly allows major AI / LLM crawlers and protects
+  # private admin + API paths from indexing.
   def robots
-    render plain: "User-agent: *\nAllow: /\nSitemap: #{sitemap_url}\n", content_type: "text/plain"
+    content = <<~ROBOTS
+      # All crawlers: public content is fully open; admin/api are private.
+      User-agent: *
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      # AI / LLM crawlers — explicitly welcomed on public content.
+      User-agent: GPTBot
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: OAI-SearchBot
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: ChatGPT-User
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: PerplexityBot
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: anthropic-ai
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: Claude-Web
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: Applebot
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: Amazonbot
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: cohere-ai
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      User-agent: CCBot
+      Allow: /
+      Disallow: /admin
+      Disallow: /api
+
+      Sitemap: #{sitemap_url}
+    ROBOTS
+    render plain: content, content_type: "text/plain"
+  end
+
+  # GET /llms.txt — machine-readable site summary for LLM tools (llmstxt.org).
+  # Always in English regardless of edition; intended for AI crawlers and tools.
+  def llms
+    base = request.base_url
+    content = <<~LLMS
+      # BBC Persian (بی‌بی‌سی فارسی)
+
+      > An automated bilingual news digest that rewrites and translates BBC world
+      > news articles into Persian using large language models, with an English
+      > edition for side-by-side reading.
+
+      ## About
+      This site ingests BBC English news articles via RSS, rewrites them with an
+      LLM, translates the rewrites into Persian (Farsi), and publishes the results
+      as a magazine-style news portal. Content is available in both Persian and
+      English editions. The project is a demonstration and is not affiliated with
+      or endorsed by the BBC.
+
+      ## What you will find here
+      - Persian-language news articles (automatically translated from BBC sources)
+      - English-language originals (accessible via the /en/ URL prefix)
+      - AI-generated topic tags per article
+      - Category sections: World, UK, Business, Technology, Science, Health, Breaking
+
+      ## Editions and URLs
+      - Persian edition (default): #{base}/
+      - English edition: #{base}/en/
+      - Article pages: #{base}/news/{slug}  (Persian) / #{base}/en/news/{slug} (English)
+      - Category pages: #{base}/category/{category}
+      - Search: #{base}/search?q={query}
+
+      ## Content language
+      Persian (fa-IR) / English (en-GB) — bilingual, same article corpus
+
+      ## Technical metadata
+      - Sitemap: #{sitemap_url(format: :xml)}
+      - robots.txt: #{base}/robots.txt
+      - Canonical slugs are in the article's language (Persian for fa edition)
+      - JSON-LD (NewsArticle, BreadcrumbList, WebSite, Organization) on all pages
+      - hreflang alternates on every page linking fa ↔ en editions
+
+      ## Crawling guidance
+      Full crawl of public pages is permitted. /admin and /api are private.
+      Sitemap lists all published stories with lastmod and hreflang alternates.
+    LLMS
+    render plain: content, content_type: "text/plain"
   end
 
   # Carry the active edition through every URL helper. Because the routes wrap

@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="theme-color" content="#dd3333">
 
   <% default_description = english_edition? ?
-       "The latest world news from the BBC — automatically rewritten and translated." :
+       "The latest world news from the BBC — automatically rewritten and translated into Persian and English." :
        "آخرین اخبار جهان به فارسی — ترجمه و بازنویسی خودکار خبرهای بی‌بی‌سی." %>
   <% page_title       = content_for(:title).presence || news_ui(:site_name) %>
   <% page_description = content_for(:description).presence || default_description %>
@@ -15,27 +17,53 @@
   <title><%= page_title %></title>
   <meta name="description" content="<%= page_description %>">
   <link rel="canonical" href="<%= canonical_url %>">
+  <link rel="sitemap" type="application/xml" href="<%= sitemap_url %>">
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
 
-  <%# hreflang alternates: same page in the other edition (?lang=en ⇄ default). %>
+  <%# hreflang alternates for bilingual editions %>
   <link rel="alternate" hreflang="fa" href="<%= english_edition? ? request.base_url + lang_switch_url : canonical_url %>">
   <link rel="alternate" hreflang="en" href="<%= english_edition? ? canonical_url : request.base_url + lang_switch_url %>">
+  <link rel="alternate" hreflang="x-default" href="<%= request.base_url %>/">
 
-  <%# Open Graph / Twitter (social + search previews) %>
+  <%# Open Graph / Twitter %>
   <meta property="og:site_name" content="<%= news_ui(:site_name) %>">
   <meta property="og:locale" content="<%= english_edition? ? "en_GB" : "fa_IR" %>">
+  <meta property="og:locale:alternate" content="<%= english_edition? ? "fa_IR" : "en_GB" %>">
   <meta property="og:type" content="<%= content_for(:og_type).presence || "website" %>">
   <meta property="og:title" content="<%= page_title %>">
   <meta property="og:description" content="<%= page_description %>">
   <meta property="og:url" content="<%= canonical_url %>">
-  <% if og_image %><meta property="og:image" content="<%= og_image %>"><% end %>
+  <% if og_image %>
+    <meta property="og:image" content="<%= og_image %>">
+    <meta property="og:image:alt" content="<%= page_title %>">
+  <% end %>
+  <%= yield :og_article_meta %>
   <meta name="twitter:card" content="<%= og_image ? "summary_large_image" : "summary" %>">
   <meta name="twitter:title" content="<%= page_title %>">
   <meta name="twitter:description" content="<%= page_description %>">
   <% if og_image %><meta name="twitter:image" content="<%= og_image %>"><% end %>
 
+  <%# Organization JSON-LD (site-wide identity for Knowledge Graph) %>
+  <script type="application/ld+json">
+    <%= raw({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: news_ui(:site_name),
+      url: root_url,
+      logo: {
+        "@type": "ImageObject",
+        url: "#{request.base_url}/icon.png"
+      },
+      sameAs: []
+    }.to_json) %>
+  </script>
+
   <%= yield :head %>
+
+  <%# Resource hints — keep CDN connections warm for first paint %>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
   <link rel="icon" href="/icon.png" type="image/png">
 

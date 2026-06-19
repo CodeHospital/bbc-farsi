@@ -12,7 +12,10 @@
   <div class="flex-grow-1">
     <span class="cat-label flat"><%= category_name(category) %></span>
     <h3 class="post-title"><%= link_to story_title(story), news_story_path(story) %></h3>
-    <div class="meta"><i class="bi bi-clock"></i> <%= story_timestamp(story_time(story)) %></div>
+    <div class="meta">
+      <i class="bi bi-clock"></i>
+      <time datetime="<%= story_time(story)&.iso8601 %>"><%= story_timestamp(story_time(story)) %></time>
+    </div>
     <% if show_excerpt && body.present? %>
       <p class="excerpt d-none d-sm-block"><%= truncate(body, length: 120, separator: " ") %></p>
     <% end %>

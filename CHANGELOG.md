@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — SEO, Google, bot, and LLM optimisations for the public news portal
+
+**Google**
+- `<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">` added site-wide.
+- `<link rel="sitemap">` discovery tag added to every page head.
+- `article:published_time`, `article:modified_time`, `article:section`, and `article:tag` Open Graph meta properties emitted on article show pages.
+- `<meta name="author" content="BBC News">` added to show pages for E-E-A-T signals.
+- JSON-LD on show pages upgraded to a `@graph` containing a `NewsArticle` (with `ImageObject`, `author`, `isAccessibleForFree`, `url`) and a `BreadcrumbList` (home → category → article).
+- `WebSite` + `SearchAction` JSON-LD added to the homepage so Google can index a sitelinks search box.
+- `ItemList` JSON-LD on the homepage lists the top 10 published stories.
+- `Organization` JSON-LD (with logo) emitted on every page for Knowledge Graph identity.
+- `og:image:alt` and `og:locale:alternate` added to Open Graph meta.
+- `hreflang x-default` link added alongside the existing `fa`/`en` alternates.
+- Hero and first-module-lead images upgraded to `loading="eager" fetchpriority="high"` for Core Web Vitals (LCP). All other images stay `loading="lazy"`.
+- `<time datetime="ISO 8601">` elements wrap every story timestamp for structured date semantics (index, show, partials).
+- `<link rel="preconnect" href="https://cdn.jsdelivr.net">` + `dns-prefetch` added to reduce CDN connection time.
+- `<meta name="theme-color">` added for mobile browser UI.
+
+**LLM / AI bots**
+- `GET /llms.txt` (new route + `NewsController#llms`) serves an English plain-text site summary following the llmstxt.org convention — what the site is, section map, URL patterns, crawling guidance, JSON-LD inventory.
+- `robots.txt` updated: explicit `Allow` blocks for `GPTBot`, `OAI-SearchBot`, `ChatGPT-User`, `PerplexityBot`, `anthropic-ai`, `Claude-Web`, `Applebot`, `Amazonbot`, `cohere-ai`, `CCBot`; all bots now see `Disallow: /admin` and `Disallow: /api`.
+
+**197 tests green.**
+
 ### Changed — Friendly slugs for public news URLs (no numeric IDs)
 
 - Public story URLs no longer contain a numeric article/translation ID.

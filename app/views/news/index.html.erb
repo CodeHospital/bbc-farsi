@@ -4,6 +4,50 @@
   <% content_for :title, "#{news_ui(:site_name)} — #{news_ui(:latest_news)}" %>
 <% end %>
 
+<% content_for :head do %>
+  <%# WebSite schema with SearchAction so Google can show a sitelinks search box %>
+  <script type="application/ld+json">
+    <%= raw({
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "#{root_url}#website",
+          name: news_ui(:site_name),
+          url: root_url,
+          description: (english_edition? ?
+            "Automatic rewriting and translation of BBC news into Persian." :
+            "بازنویسی و ترجمهٔ خودکار اخبار بی‌بی‌سی به فارسی."),
+          inLanguage: [english_edition? ? "en" : "fa"],
+          potentialAction: {
+            "@type": "SearchAction",
+            target: {
+              "@type": "EntryPoint",
+              urlTemplate: "#{news_search_url}{search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        (@all_stories.first(10).each_with_index.map do |story, idx|
+          {
+            "@type": "ListItem",
+            position: idx + 1,
+            url: news_story_url(story),
+            name: story_title(story)
+          }
+        end.then do |items|
+          {
+            "@type": "ItemList",
+            "@id": "#{root_url}#top-stories",
+            name: news_ui(:latest_news),
+            itemListElement: items
+          }
+        end)
+      ]
+    }.to_json) %>
+  </script>
+<% end %>
+
 <% if @featured.empty? && @rest.empty? %>
   <div class="text-center text-muted py-5">
     <h4><%= news_ui(:empty_title) %></h4>
@@ -40,7 +84,7 @@
     <% end %>
   <% else %>
     <%# ── Homepage: category modules (big lead + thumbnail list) ─────────── %>
-    <% @sections.each do |category, stories| %>
+    <% @sections.each_with_index do |(category, stories), section_idx| %>
       <% next if stories.empty? %>
       <% module_lead = stories.first %>
       <% module_rest = stories.drop(1) %>
@@ -49,7 +93,10 @@
           <%= link_to category_path(category: category) do %><span><%= category_name(category) %></span><% end %>
           <%= link_to news_ui(:more), category_path(category: category), class: "more" %>
         </h2>
-        <%= render "news/module_lead", story: module_lead, image_url: @image_urls[module_lead.article.id] %>
+        <%# First category module lead loads eagerly — it's likely above the fold %>
+        <%= render "news/module_lead", story: module_lead,
+              image_url: @image_urls[module_lead.article.id],
+              eager: section_idx == 0 %>
         <% module_rest.each do |story| %>
           <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id], excerpt: false %>
         <% end %>

@@ -91,8 +91,9 @@ Rails.application.routes.draw do
     get "category/:category", to: "news#index",  as: :category
   end
   get "/en", to: "news#index", defaults: { lang: "en" }, as: :en_root
-  get "sitemap.xml", to: "news#sitemap", defaults: { format: "xml" }, as: :sitemap
+  get "sitemap.xml", to: "news#sitemap", defaults: { format: "xml" },  as: :sitemap
   get "robots.txt",  to: "news#robots",  defaults: { format: "text" }, as: :robots
+  get "llms.txt",    to: "news#llms",    defaults: { format: "text" }, as: :llms
 
   root to: "news#index"
 end
