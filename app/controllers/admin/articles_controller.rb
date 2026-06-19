@@ -22,7 +22,20 @@ class Admin::ArticlesController < Admin::BaseController
     articles = articles.where(status: params[:status])   if params[:status].present?
     articles = articles.where(feed_id: params[:feed_id]) if params[:feed_id].present?
     articles = articles.where.not(status: "posted")      if params[:hide_posted] == "1"
-    articles = articles.where("LOWER(articles.title) LIKE LOWER(?) OR LOWER(articles.description) LIKE LOWER(?)", "%#{params[:q]}%", "%#{params[:q]}%") if params[:q].present?
+    if params[:q].present?
+      search_pattern = "%#{params[:q]}%"
+      if params[:q].match?(/[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/)
+        articles = articles
+          .left_joins(:translations)
+          .where("LOWER(translations.translated_title) LIKE LOWER(?)", search_pattern)
+          .distinct
+      else
+        articles = articles.where(
+          "LOWER(articles.title) LIKE LOWER(?) OR LOWER(articles.description) LIKE LOWER(?)",
+          search_pattern, search_pattern
+        )
+      end
+    end
 
     @pagy, @articles = pagy(articles.order(sort_clause))
     @feeds = Feed.order(:name)
@@ -37,6 +50,7 @@ class Admin::ArticlesController < Admin::BaseController
       .transform_values(&:first)
 
     flash.now[:notice] = "Fetched #{new_count} new article(s)." if params[:trigger_fetch]
+    redirect_to admin_articles_path(archived: params[:archived]) if params[:trigger_fetch] && request.format.html?
   end
 
   def show

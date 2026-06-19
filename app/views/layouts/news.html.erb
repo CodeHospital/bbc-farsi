@@ -95,10 +95,11 @@
 
     /* ── Section headers ─────────────────────────────────────── */
     .block-title { font-weight: 800; font-size: 1.15rem; margin: 0 0 18px;
-                   border-bottom: 2px solid var(--cat, var(--ink)); padding-bottom: 6px; position: relative; }
+                   border-bottom: 2px solid var(--cat, var(--ink)); padding-bottom: 6px; position: relative;
+                   display: flex; justify-content: space-between; align-items: flex-end; }
     .block-title span { background: var(--cat, var(--accent)); color: #fff; padding: 4px 12px; display: inline-block;
                         margin-bottom: -2px; }
-    .block-title .more { float: left; font-size: .78rem; font-weight: 700; color: var(--muted); padding-top: 6px; }
+    .block-title .more { font-size: .78rem; font-weight: 700; color: var(--muted); padding-bottom: 2px; }
     .block-title .more:hover { color: var(--cat, var(--accent)); }
 
     /* ── Category label (overlaid on images) ─────────────────── */
@@ -212,7 +213,6 @@
 
       /* Block title smaller */
       .block-title { font-size: 1rem; }
-      .block-title .more { float: none; display: block; margin-top: 4px; }
 
       /* Menu items a bit more compact */
       .mainmenu .menu-link { padding: 11px 12px; font-size: .85rem; }
@@ -246,7 +246,7 @@
 
   <%# ── Masthead ─────────────────────────────────────────────── %>
   <header class="masthead">
-    <%= link_to root_path, class: "logo-box" do %>
+    <%= link_to home_path, class: "logo-box" do %>
       <span class="logo-mark">BBC</span>
       <span class="logo-text"><%= english_edition? ? "Persian" : "فارسی" %><small>.</small></span>
     <% end %>
@@ -269,11 +269,11 @@
     <div class="container">
       <ul class="menu-list">
         <li>
-          <%= link_to news_ui(:home), root_path, class: "menu-link #{'active' if current_page?(root_path)}" %>
+          <%= link_to news_ui(:home), home_path, class: "menu-link #{'active' if current_page?(home_path)}" %>
         </li>
         <% nav_categories.each do |slug, name| %>
           <li>
-            <%= link_to name, category_path(slug),
+            <%= link_to name, category_path(category: slug),
                   class: "menu-link #{'active' if @category == slug}" %>
           </li>
         <% end %>
@@ -304,7 +304,7 @@
           <h6 class="text-white fw-bold mb-3"><%= news_ui(:sections) %></h6>
           <div class="d-flex flex-wrap gap-3">
             <% nav_categories.each do |slug, name| %>
-              <%= link_to name, category_path(slug), class: "small" %>
+              <%= link_to name, category_path(category: slug), class: "small" %>
             <% end %>
           </div>
         </div>

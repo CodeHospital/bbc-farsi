@@ -1,10 +1,10 @@
 # Public-facing news site (no authentication). Magazine layout (Newspaper-style)
 # showing the latest completed Persian translation (or refinement) per article.
 #
-# The site is bilingual: the default Persian (`fa`) edition shows the
-# translated/refined text, while the English (`en`) edition shows the *original*
-# BBC article (title + description). The edition is chosen by the `lang` query
-# param and is propagated across every generated link via `default_url_options`.
+# The site is bilingual: the default Persian (`fa`) edition serves URLs at the
+# site root (/news/…, /search, …); the English (`en`) edition lives under the
+# /en/ prefix (/en/news/…, /en/search, …). The edition is detected from the
+# optional :lang URL segment and propagated via `default_url_options`.
 class NewsController < ApplicationController
   layout "news"
 
@@ -40,7 +40,7 @@ class NewsController < ApplicationController
     # Canonical-URL guard: redirect any stale/partial slug to the real one (301)
     # so search engines see a single canonical URL per story.
     if params[:id] != @translation.seo_param
-      return redirect_to(news_path(@translation.seo_param), status: :moved_permanently)
+      return redirect_to(news_path(id: @translation.seo_param), status: :moved_permanently)
     end
 
     @article = @translation.article
@@ -80,8 +80,10 @@ class NewsController < ApplicationController
     render plain: "User-agent: *\nAllow: /\nSitemap: #{sitemap_url}\n", content_type: "text/plain"
   end
 
-  # Carry the active edition (?lang=en) through every URL helper, so links keep
-  # the reader in the same language. Persian is the default and stays unadorned.
+  # Carry the active edition through every URL helper. Because the routes wrap
+  # news paths in `scope "(:lang)"`, passing `lang: "en"` produces /en/… path
+  # prefixes rather than ?lang=en query params. Persian is the default and stays
+  # at the root (no prefix).
   def default_url_options
     @news_lang == "en" ? { lang: "en" } : {}
   end

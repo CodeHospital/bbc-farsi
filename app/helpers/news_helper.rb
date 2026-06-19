@@ -93,13 +93,25 @@ module NewsHelper
   # A UI chrome string for the active edition.
   def news_ui(key) = UI_STRINGS.fetch(news_lang, UI_STRINGS["fa"]).fetch(key)
 
+  # Edition-aware link to the homepage (/ for Farsi, /en for English).
+  def home_path = english_edition? ? en_root_path : root_path
+  def home_url  = english_edition? ? en_root_url  : root_url
+
   # Where the language toggle should point: the current page in the other
-  # edition, preserving the rest of the query string.
+  # edition, preserving any query params except `lang` (now a URL segment, not
+  # a query param).
   def lang_switch_url
-    target = english_edition? ? "fa" : "en"
-    query  = request.query_parameters.except("lang")
-    query["lang"] = target if target == "en"
-    query.empty? ? request.path : "#{request.path}?#{query.to_query}"
+    query = request.query_parameters.to_query
+    if english_edition?
+      # Strip the /en prefix to get the Farsi equivalent path.
+      path = request.path.delete_prefix("/en")
+      path = "/" if path.blank?
+      query.present? ? "#{path}?#{query}" : path
+    else
+      # Prepend /en to the current path to get the English equivalent.
+      path = "/en#{request.path}"
+      query.present? ? "#{path}?#{query}" : path
+    end
   end
 
   # ── Edition-aware content accessors ─────────────────────────────────────────
@@ -140,8 +152,8 @@ module NewsHelper
 
   # Friendly public URL for a story (id + Persian slug). Admin routes keep the
   # plain numeric id, so the slug lives here rather than on Translation#to_param.
-  def news_story_path(translation) = news_path(translation.seo_param)
-  def news_story_url(translation)  = news_url(translation.seo_param)
+  def news_story_path(translation) = news_path(id: translation.seo_param)
+  def news_story_url(translation)  = news_url(id: translation.seo_param)
 
   # Publication time of a story (article published_at, falling back to creation).
   def story_time(story) = story.article.published_at || story.created_at

@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Section header "more" link alignment in both portal editions
+
+- `.block-title` converted from float-based layout to `display: flex; justify-content: space-between` so the "more ›" / "بیشتر ›" link always sits at the far end of the header row, opposite the category label.
+- `float: left` was putting the link on the wrong side in LTR (English); flexbox handles RTL and LTR correctly without direction-specific overrides.
+- Removed the mobile `float: none; display: block` override that was compensating for the float.
+
+### Changed — English edition served under /en/ URL prefix
+
+- All English-edition public URLs now use a `/en/` path prefix (`/en/news/…`, `/en/search`, `/en/category/…`, `/en` homepage) instead of `?lang=en` query params.
+- Achieved by wrapping news routes in `scope "(:lang)", constraints: { lang: /en/ }` — `lang` is now an optional URL path segment, so `default_url_options { lang: "en" }` produces `/en/…` paths automatically.
+- Added `GET /en` as the named `en_root` route for the English homepage.
+- `lang_switch_url` helper updated to swap `/en` path prefix instead of the `?lang=` query param.
+- Added `home_path`/`home_url` helpers for edition-aware homepage links.
+- All `news_path`/`news_url`/`category_path` calls converted to keyword-argument form (`id:`, `category:`) since `(:lang)` is now the first URL segment.
+- All tests and admin portal-preview links updated accordingly. 197 tests green.
+
+### Fixed — Admin articles search routes by script (English vs Farsi)
+
+- Farsi/Arabic-script queries (detected via Unicode range) search `translations.translated_title` via a LEFT JOIN + `.distinct`.
+- Latin/English queries search `articles.title` and `articles.description` (BBC source fields) as before — no translation join.
+- Previously English terms were also searching translated Farsi fields (or vice versa), mixing results across languages.
+
 ### Added — Jalali (Shamsi) date display in Persian news portal
 
 - All calendar dates in the Persian edition now display in the Jalali calendar with Persian (Eastern Arabic) digits — e.g. "۲۸ خرداد ۱۴۰۵".

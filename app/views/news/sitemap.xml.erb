@@ -4,7 +4,7 @@
   <url>
     <loc><%= root_url %></loc>
     <xhtml:link rel="alternate" hreflang="fa" href="<%= root_url %>"/>
-    <xhtml:link rel="alternate" hreflang="en" href="<%= root_url(lang: "en") %>"/>
+    <xhtml:link rel="alternate" hreflang="en" href="<%= en_root_url %>"/>
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
@@ -12,7 +12,7 @@
   <url>
     <loc><%= news_story_url(story) %></loc>
     <xhtml:link rel="alternate" hreflang="fa" href="<%= news_story_url(story) %>"/>
-    <xhtml:link rel="alternate" hreflang="en" href="<%= news_url(story.seo_param, lang: "en") %>"/>
+    <xhtml:link rel="alternate" hreflang="en" href="<%= news_url(id: story.seo_param, lang: "en") %>"/>
     <lastmod><%= story.updated_at.iso8601 %></lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>

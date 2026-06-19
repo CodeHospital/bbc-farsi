@@ -44,6 +44,36 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", admin_article_path(other), count: 0
   end
 
+  test "english search finds articles by source title and description" do
+    match_by_title = create_article(attrs: { title: "Climate summit begins" })
+    match_by_desc  = create_article(attrs: { title: "Other article", description: "Climate change is discussed" })
+    no_match       = create_article(attrs: { title: "Football results" })
+
+    get admin_articles_path(q: "climate")
+    assert_select "a[href=?]", admin_article_path(match_by_title)
+    assert_select "a[href=?]", admin_article_path(match_by_desc)
+    assert_select "a[href=?]", admin_article_path(no_match), count: 0
+  end
+
+  test "farsi search finds articles by translated title" do
+    matching_article    = create_article(attrs: { title: "UK Economy" })
+    non_matching_article = create_article(attrs: { title: "Sports news" })
+
+    rewrite = create_rewrite(article: matching_article)
+    create_translation(rewrite:, attrs: { translated_title: "اقتصاد بریتانیا در بحران" })
+
+    get admin_articles_path(q: "اقتصاد")
+    assert_select "a[href=?]", admin_article_path(matching_article)
+    assert_select "a[href=?]", admin_article_path(non_matching_article), count: 0
+  end
+
+  test "farsi search does not match english source fields" do
+    article = create_article(attrs: { title: "اقتصاد", description: "اخبار" })
+
+    get admin_articles_path(q: "اقتصاد")
+    assert_select "a[href=?]", admin_article_path(article), count: 0
+  end
+
   test "archived toggle reveals archived articles" do
     visible  = create_article
     archived = create_article(attrs: { archived: true })

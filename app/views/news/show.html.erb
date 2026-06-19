@@ -28,9 +28,9 @@
 <% end %>
 
 <nav class="mb-3 small text-muted">
-  <%= link_to news_ui(:home), root_path %>
+  <%= link_to news_ui(:home), home_path %>
   <i class="bi bi-chevron-left mx-1" style="font-size:.7rem"></i>
-  <%= link_to category_name(@article.feed&.category), category_path(@article.feed&.category) %>
+  <%= link_to category_name(@article.feed&.category), category_path(category: @article.feed&.category) %>
 </nav>
 
 <article style="<%= category_style(@article.feed&.category) %>">

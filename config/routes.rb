@@ -83,11 +83,16 @@ Rails.application.routes.draw do
   end
 
   # Public-facing site (no auth): latest translated/refined news, magazine style.
-  resources :news, only: %i[index show]
-  get "search",             to: "news#search",  as: :news_search
-  get "category/:category", to: "news#index",   as: :category
+  # The (:lang) optional segment makes `lang: "en"` a URL path prefix (/en/…)
+  # rather than a query param, so default_url_options propagates it cleanly.
+  scope "(:lang)", constraints: { lang: /en/ } do
+    resources :news, only: %i[index show]
+    get "search",             to: "news#search", as: :news_search
+    get "category/:category", to: "news#index",  as: :category
+  end
+  get "/en", to: "news#index", defaults: { lang: "en" }, as: :en_root
   get "sitemap.xml", to: "news#sitemap", defaults: { format: "xml" }, as: :sitemap
-  get "robots.txt",  to: "news#robots", defaults: { format: "text" }, as: :robots
+  get "robots.txt",  to: "news#robots",  defaults: { format: "text" }, as: :robots
 
   root to: "news#index"
 end

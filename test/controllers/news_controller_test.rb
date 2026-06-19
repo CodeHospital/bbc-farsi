@@ -46,7 +46,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     stub_request(:get, translation.article.url)
       .to_return(body: %(<html><head><meta property="og:image" content="https://ichef.bbci.co.uk/x.jpg"></head></html>))
 
-    get news_path(translation.seo_param)
+    get news_path(id: translation.seo_param)
 
     assert_response :success
     assert_select "h1", /تیتر کامل/
@@ -57,7 +57,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     translation = create_translation
     stub_request(:get, translation.article.url).to_return(body: "<html><head></head></html>")
 
-    get news_path(translation.seo_param)
+    get news_path(id: translation.seo_param)
 
     assert_response :success
     assert_select "figure.article-figure", false
@@ -69,7 +69,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     translation = create_translation
     TagGenerator.store(translation.article_id, %w[ایران اقتصاد])
 
-    get news_path(translation.seo_param)
+    get news_path(id: translation.seo_param)
 
     assert_response :success
     assert_select ".article-tags .tag-chip", count: 2
@@ -93,7 +93,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     health = create_translation(rewrite: create_rewrite(article: create_article(feed: create_feed(category: "health"))),
       attrs: { translated_title: "خبر سلامت" })
 
-    get category_path("technology")
+    get category_path(category: "technology")
 
     assert_response :success
     # Main column is scoped to the category; the sidebar still lists site-wide news.
@@ -102,13 +102,13 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "خبر سلامت", main_html
   end
 
-  # ── Bilingual: ?lang=en shows the original BBC article ────────────────────
+  # ── Bilingual: /en/ prefix shows the original BBC article ────────────────
 
   test "index in english edition shows the original title and is ltr" do
     article = create_article(attrs: { title: "Original English Headline" })
     create_translation(rewrite: create_rewrite(article: article), attrs: { translated_title: "تیتر فارسی" })
 
-    get root_path(lang: "en")
+    get en_root_path
 
     assert_response :success
     assert_select "html[lang=en][dir=ltr]"
@@ -134,7 +134,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
       attrs: { translated_title: "تیتر فارسی", translated_body: "متن فارسی" })
     stub_request(:get, article.url).to_return(body: "<html></html>")
 
-    get news_path(translation.seo_param, lang: "en")
+    get news_path(id: translation.seo_param, lang: "en")
 
     assert_response :success
     assert_select "html[lang=en]"
@@ -148,10 +148,10 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     get root_path
 
     assert_response :success
-    # Toggle to the English edition, and reciprocal hreflang alternates.
+    # Toggle to the English edition (now /en/ path prefix, not ?lang=en).
     assert_select "link[rel=alternate][hreflang=en]"
     assert_select "link[rel=alternate][hreflang=fa]"
-    assert_select "a[href*='lang=en']"
+    assert_select "a[href*='/en']"
   end
 
   # ── English edition surfaces still-untranslated articles ──────────────────
@@ -159,7 +159,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
   test "english edition lists untranslated articles; persian edition hides them" do
     create_article(attrs: { title: "Untranslated Breaking News", published_at: 1.hour.ago })
 
-    get root_path(lang: "en")
+    get en_root_path
     assert_response :success
     assert_match "Untranslated Breaking News", @response.body
 
@@ -174,7 +174,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     story = ArticleStory.new(article)
     stub_request(:get, article.url).to_return(body: "<html></html>")
 
-    get news_path(story.seo_param, lang: "en")
+    get news_path(id: story.seo_param, lang: "en")
 
     assert_response :success
     assert_select "h1", /Lone English Story/
@@ -188,7 +188,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal "#{translation.id}-خبر-مهم-امروز", translation.seo_param
     assert_equal translation.id.to_s, translation.to_param # admin routes unaffected
-    assert_match %r{/news/#{translation.id}-}, news_path(translation.seo_param)
+    assert_match %r{/news/#{translation.id}-}, news_path(id: translation.seo_param)
   end
 
   test "show redirects a non-canonical slug to the canonical url (301)" do
@@ -198,17 +198,17 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     get "/news/#{translation.id}-wrong-slug"
 
     assert_response :moved_permanently
-    assert_redirected_to news_path(translation.seo_param)
+    assert_redirected_to news_path(id: translation.seo_param)
   end
 
   test "show emits canonical link, description meta and NewsArticle JSON-LD" do
     translation = create_translation(attrs: { translated_title: "تیتر", translated_body: "متن خبر برای توضیحات" })
     stub_request(:get, translation.article.url).to_return(body: "<html></html>")
 
-    get news_path(translation.seo_param)
+    get news_path(id: translation.seo_param)
 
     assert_response :success
-    assert_select "link[rel=canonical][href=?]", news_url(translation.seo_param)
+    assert_select "link[rel=canonical][href=?]", news_url(id: translation.seo_param)
     assert_select "meta[name=description][content=?]", "متن خبر برای توضیحات"
     assert_select "meta[property='og:type'][content=article]"
     assert_match %r{"@type":\s*"NewsArticle"}, @response.body
@@ -222,7 +222,7 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_equal "application/xml", @response.media_type
-    assert_match news_url(translation.seo_param), @response.body
+    assert_match news_url(id: translation.seo_param), @response.body
     assert_match root_url, @response.body
   end
 
@@ -232,5 +232,42 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_match "User-agent: *", @response.body
     assert_match sitemap_url, @response.body
+  end
+
+  # ── Search: URL and result correctness per edition ────────────────────────
+
+  test "farsi search lands on the persian search results page and finds translated content" do
+    article = create_article(attrs: { title: "UK Politics" })
+    create_translation(rewrite: create_rewrite(article:), attrs: { translated_title: "سیاست بریتانیا" })
+    other   = create_article(attrs: { title: "Health news" })
+    create_translation(rewrite: create_rewrite(article: other), attrs: { translated_title: "اخبار سلامت" })
+
+    get news_search_path(q: "سیاست")
+
+    assert_response :success
+    assert_equal "/search", request.path
+    assert_not request.path.start_with?("/en")
+    assert_select "html[lang=fa][dir=rtl]"
+    main_html = css_select("main").to_html
+    assert_match "سیاست بریتانیا", main_html
+    assert_no_match "اخبار سلامت", main_html
+  end
+
+  test "english search lands on the english search results page and finds source content" do
+    article = create_article(attrs: { title: "Climate Summit", published_at: 1.hour.ago })
+    create_translation(rewrite: create_rewrite(article:), attrs: { translated_title: "اجلاس آب و هوا" })
+    other   = create_article(attrs: { title: "Football results", published_at: 2.hours.ago })
+    create_translation(rewrite: create_rewrite(article: other), attrs: { translated_title: "نتایج فوتبال" })
+
+    get news_search_path(lang: "en", q: "climate")
+
+    assert_response :success
+    assert_equal "/en/search", request.path
+    assert request.path.start_with?("/en")
+    assert_select "html[lang=en][dir=ltr]"
+    main_html = css_select("main").to_html
+    assert_match "Climate Summit", main_html
+    assert_no_match "Football results", main_html
+    assert_no_match "اجلاس آب و هوا", main_html
   end
 end

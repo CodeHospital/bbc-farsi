@@ -19,7 +19,7 @@
   <div class="cat-list">
     <% nav_categories.each do |slug, name| %>
       <% next if category_counts[slug].to_i.zero? %>
-      <%= link_to category_path(slug) do %>
+      <%= link_to category_path(category: slug) do %>
         <span><%= name %></span>
         <span class="count"><%= category_counts[slug] %></span>
       <% end %>

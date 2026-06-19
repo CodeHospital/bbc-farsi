@@ -46,8 +46,8 @@
       <% module_rest = stories.drop(1) %>
       <section class="mb-5">
         <h2 class="block-title" style="<%= category_style(category) %>">
-          <%= link_to category_path(category) do %><span><%= category_name(category) %></span><% end %>
-          <%= link_to news_ui(:more), category_path(category), class: "more" %>
+          <%= link_to category_path(category: category) do %><span><%= category_name(category) %></span><% end %>
+          <%= link_to news_ui(:more), category_path(category: category), class: "more" %>
         </h2>
         <%= render "news/module_lead", story: module_lead, image_url: @image_urls[module_lead.article.id] %>
         <% module_rest.each do |story| %>
