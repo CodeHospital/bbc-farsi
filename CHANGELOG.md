@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Worker now runs N parallel threads (default 4)
+
+- `WORKER_CONCURRENCY` env var (default `4`) controls how many worker threads run simultaneously. Each thread independently claims and processes tasks from the Rails queue.
+- `WorkerState` refactored from single-task tracking to a `@active_tasks` hash keyed by `worker_id` (`"worker-1"` … `"worker-N"`). All public methods (`begin_task`, `set_current_request`, `finish_task`) now accept `worker_id:`.
+- **Shared Ollama model cache with cooldown**: `claim_models_refresh?` atomically claims the refresh slot for one thread per `MODELS_REFRESH_INTERVAL` (30 s); all other threads reuse the cached model list, eliminating redundant `/api/tags` calls under concurrency.
+- **Thread-safe logging**: `LOG_MUTEX` serialises `puts` calls; each log line is prefixed with `[HH:MM:SS][worker-N]` so per-thread activity is easy to follow.
+- **Graceful shutdown**: `trap("INT")` / `trap("TERM")` set `$shutdown = true`; `interruptible_sleep` replaces bare `sleep` so threads wake within 1 second of the signal, finish any in-flight Ollama call, then exit cleanly. Main thread calls `threads.each(&:join)`.
+- **Status page updated**: "Current activity" replaced by a "Workers (M/N active)" table showing every slot (idle or processing, with task ID, kind, model, step progress, elapsed time); history table gains a "Worker" column; JSON `/status.json` adds `concurrency` and `active_tasks` array.
+- 197 Rails tests green; worker syntax verified (`ruby -c`).
+
 ### Added — Fragment caching for the news portal (no migrations)
 
 - `ArticleStory` PORO now implements `cache_key` + `cache_key_with_version` (delegating to its `article`) so Rails' `cache` helper can fingerprint it alongside AR models.

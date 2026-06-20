@@ -161,11 +161,13 @@ module NewsHelper
     version_sum = sidebar_stories.sum do |story|
       (story.respond_to?(:updated_at) ? story.updated_at : story.article.updated_at).to_i
     end
-    ["news/sidebar", version_sum, all_stories_count, lang]
+    [ "news/sidebar", version_sum, all_stories_count, lang ]
   end
 
-  # Publication time of a story (article published_at, falling back to creation).
-  def story_time(story) = story.article.published_at || story.created_at
+  # Publication time of a story — always the original article's date.
+  # Falls back to article.created_at (ingest time) rather than the translation's
+  # created_at so the displayed date is never the pipeline timestamp.
+  def story_time(story) = story.article.published_at || story.article.created_at
 
   # Convert a Gregorian date to [jy, jm, jd] in the Jalali (Shamsi) calendar.
   # Uses the reference arithmetic algorithm (valid for 1976–2075 CE, sufficient for news).

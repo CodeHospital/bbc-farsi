@@ -1,4 +1,4 @@
-<% published_at = @article.published_at || @translation.created_at %>
+<% published_at = @article.published_at || @article.created_at %>
 <% title       = story_title(@translation) %>
 <% body        = story_body(@translation) %>
 <% summary     = body.to_s.squish.truncate(160) %>
