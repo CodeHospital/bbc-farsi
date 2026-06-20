@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Retry button now uses Turbo Stream for in-place updates
+
+- Changed `data: { turbo_stream: true }` to `data: { turbo: true }` on the "Retry" button in `_task.html.erb` so the POST request includes the proper Turbo Stream Accept header (`text/vnd.turbo-stream.html`), ensuring the response is handled by Turbo Stream instead of the HTML fallback route.
+
+### Changed — Retry button on failed tasks uses Hotwire in-place update
+
+- Clicking "Retry" on the `/admin/tasks?status=failed` page now updates only the affected table row via Turbo Stream — no page refresh or redirect.
+- Extracted the task `<tr>` into `admin/tasks/_task.html.erb` (with `id: dom_id(task)`) so it can be re-rendered and swapped in by `retry.turbo_stream.erb`.
+- `Admin::TasksController#retry` now responds to `turbo_stream` (inline row replace) as well as `html` (fallback redirect for non-Turbo requests).
+- 14 tasks controller tests still green.
+
 ### Changed — Worker now runs N parallel threads (default 4)
 
 - `WORKER_CONCURRENCY` env var (default `4`) controls how many worker threads run simultaneously. Each thread independently claims and processes tasks from the Rails queue.

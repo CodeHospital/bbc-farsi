@@ -94,9 +94,9 @@
                   <td><%= link_to row[:title].to_s.truncate(60), admin_article_path(row[:article_id]) %></td>
                   <td class="text-end fw-bold"><%= row[:count] %></td>
                   <td class="text-end">
-                    <%= link_to "FA", news_path("a#{row[:article_id]}"), target: "_blank",
+                    <%= link_to "FA", news_path(id: "a#{row[:article_id]}"), target: "_blank",
                           class: "btn btn-xs btn-outline-secondary" %>
-                    <%= link_to "EN", news_path("a#{row[:article_id]}", lang: "en"), target: "_blank",
+                    <%= link_to "EN", news_path(id: "a#{row[:article_id]}", lang: "en"), target: "_blank",
                           class: "btn btn-xs btn-outline-secondary" %>
                   </td>
                 </tr>

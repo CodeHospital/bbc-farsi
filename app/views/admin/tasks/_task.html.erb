@@ -1,0 +1,59 @@
+<tr id="<%= dom_id(task) %>">
+  <td>
+    <%= check_box_tag "task_ids[]", task.id, false,
+          id: "task_select_#{task.id}", form: "bulk_priority_form",
+          class: "form-check-input task-select" %>
+  </td>
+  <td><%= link_to "##{task.id}", admin_task_path(task) %></td>
+  <td class="text-nowrap">
+    <%= render "admin/tasks/priority_controls", task: task %>
+  </td>
+  <td><span class="badge bg-secondary"><%= task.kind %></span></td>
+  <td>
+    <% article = task.target&.article %>
+    <% if article %>
+      <%= link_to article.title.to_s.truncate(60), admin_article_path(article),
+            class: ("posted-title" if article.status == "posted") %>
+    <% else %>
+      <span class="text-muted">—</span>
+    <% end %>
+  </td>
+  <td>
+    <small class="text-muted">
+      <%= task.ollama_server&.name || "—" %> / <%= task.model %>
+    </small>
+  </td>
+  <td><%= render "admin/shared/status_badge", status: task.status %></td>
+  <td>
+    <%= task.attempts %>
+    <br />
+    <%= begin
+          duration = (task.updated_at - task.created_at).to_i
+          hours    = duration / 3600
+          minutes  = (duration % 3600) / 60
+          seconds  = duration % 60
+          if hours.positive?
+            "#{hours}h #{minutes}m"
+          else
+            "#{minutes}m #{seconds}s"
+          end
+        end %>
+  </td>
+  <td>
+    <small><%= task.created_at.strftime("%b %d %H:%M") %></small>
+    <br />
+    <small><%= task.updated_at.strftime("%b %d %H:%M") %></small>
+  </td>
+  <td>
+    <% if task.status == "failed" %>
+      <%= button_to "Retry", retry_admin_task_path(task), method: :post,
+            class: "btn btn-xs btn-outline-warning",
+            data: { turbo: true } %>
+    <% end %>
+    <% if task.status == "pending" %>
+      <%= button_to "Cancel", cancel_admin_task_path(task), method: :post,
+            class: "btn btn-xs btn-outline-danger",
+            data: { turbo_confirm: "Cancel task ##{task.id}?" } %>
+    <% end %>
+  </td>
+</tr>

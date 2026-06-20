@@ -32,7 +32,10 @@ class Admin::TasksController < Admin::BaseController
 
   def retry
     @task.requeue!
-    redirect_to admin_tasks_path, notice: "Task ##{@task.id} re-queued."
+    respond_to do |format|
+      format.turbo_stream
+      format.html { redirect_to admin_tasks_path, notice: "Task ##{@task.id} re-queued." }
+    end
   end
 
   def cancel
