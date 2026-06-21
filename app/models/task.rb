@@ -21,7 +21,7 @@ class Task < ApplicationRecord
 
   # A claimed task whose worker hasn't reported back within this window is
   # presumed dead; the task is returned to the queue (see `reclaim_stale!`).
-  STALE_AFTER = 1.hour
+  STALE_AFTER = 15.minutes
 
   validates :kind,     inclusion: { in: KINDS }
   validates :status,   inclusion: { in: STATUSES }

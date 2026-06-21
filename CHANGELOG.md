@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Admin unpublish/republish for articles and translations
+
+- **Article-level unpublish**: renamed the "Archive article" button on the article show page to **"Unpublish from portal"** / **"Republish to portal"** for clearer intent — the same `archived` flag that drives portal visibility is used.
+- **Translation-level unpublish**: added **"Unpublish"** button (with confirmation) on every completed translation card in the article show page; unpublishing a translation hides it from the public portal while the previous (older, non-archived) translation is shown instead. An **"Unpublished"** badge with dimmed card styling marks affected cards.
+- **Translation republish**: archived (unpublished) translations gain a **"Republish"** button on the article show page and a dismissible alert + button on the translation show page.
+- `Translation#unarchive!` method added; `POST /admin/translations/:id/unarchive` route and `Admin::TranslationsController#unarchive` action wired up.
+- Translations index: archived rows now display an **"Unpublished"** badge in the Active column and a muted `table-secondary` row style.
+- 197 tests green.
+
+### Fixed — Worker now terminates immediately on Ctrl-C / SIGTERM
+
+- Signal traps now call `trigger_shutdown`, which sets `$shutdown = true` **and** raises `Interrupt` on every worker thread via `Thread#raise`. This interrupts threads blocked inside long Ollama HTTP calls (up to `OLLAMA_TIMEOUT` seconds) so the process exits without hanging.
+- `claim_and_run` gains a `rescue Interrupt` clause that reports the in-flight task as failed to the Rails API (best-effort) before re-raising so the thread exits.
+- The worker loop catches `Interrupt` with a clean `break` instead of logging it as an error.
+- `$worker_threads` promoted from a local to a global so the signal trap can reach it.
+- `Thread#join` is now called with a 15-second grace period (`SHUTDOWN_GRACE = 15`) — any thread still alive after that is abandoned and the process exits.
+
+### Changed — Stale task reclaim window reduced to 15 minutes
+
+- `Task::STALE_AFTER` changed from `1.hour` to `15.minutes`; claimed tasks not reported back within 15 minutes are automatically returned to `pending` status on the next `claim_next!` poll or `bbc:reclaim_stale` rake invocation.
+
+
 ### Fixed — Translator uses rewritten title + no placeholder brackets
 
 - `ArticleTranslator.requests` now uses `rewrite.rewritten_title` (falling back to `rewrite.article.title` for older rewrites without one) as the title input, so the LLM translates the rewritten headline rather than the raw BBC original.

@@ -16,7 +16,8 @@ class Translation < ApplicationRecord
 
   before_save :ensure_slug
 
-  def archive! = update!(archived: true)
+  def archive!   = update!(archived: true)
+  def unarchive! = update!(archived: false)
 
   # Public URL param for news routes. Returns the stored slug column when
   # available (after the slug migration); falls back to "<id>-<computed>" so

@@ -290,15 +290,32 @@ def claim_and_run(worker_id:)
   STATE.finish_task(status: "completed", worker_id: worker_id)
   true
 
+rescue Interrupt
+  task_id = task&.dig("id")
+  error("Task ##{task_id} interrupted by shutdown signal")
+  begin
+    if task_id
+      HTTP.post(
+        URI("#{CONFIG.app_url}/api/tasks/#{task_id}/fail"),
+        { error: "Worker interrupted" },
+        { "Authorization" => "Bearer #{CONFIG.worker_api_token}" }
+      )
+    end
+  rescue StandardError
+    # best effort — app may be unreachable during shutdown
+  end
+  STATE.finish_task(status: "failed", worker_id: worker_id, error: "Interrupted")
+  raise # propagate so the worker loop exits
+
 rescue StandardError => e
-  error("Task ##{task['id']} failed: #{e.message}")
+  error("Task ##{task&.dig('id')} failed: #{e.message}")
   begin
     HTTP.post(
       URI("#{CONFIG.app_url}/api/tasks/#{task['id']}/fail"),
       { error: e.message },
       { "Authorization" => "Bearer #{CONFIG.worker_api_token}" }
     )
-  rescue
+  rescue StandardError
     # best effort
   end
   STATE.finish_task(status: "failed", worker_id: worker_id, error: e.message)
@@ -311,8 +328,17 @@ end
 
 # ── Shutdown ───────────────────────────────────────────────────────────────
 $shutdown = false
-trap("INT")  { $shutdown = true }
-trap("TERM") { $shutdown = true }
+$worker_threads = []
+
+def trigger_shutdown
+  $shutdown = true
+  # Interrupt threads blocked in IO (e.g. a long Ollama HTTP call) so they
+  # don't sit frozen for up to OLLAMA_TIMEOUT seconds after Ctrl-C.
+  $worker_threads.each { |t| t.raise(Interrupt) rescue nil }
+end
+
+trap("INT")  { trigger_shutdown }
+trap("TERM") { trigger_shutdown }
 
 def interruptible_sleep(seconds)
   deadline = Time.now + seconds
@@ -325,7 +351,7 @@ info("Worker starting — app=#{CONFIG.app_url} ollama=#{CONFIG.default_ollama_u
 
 # Start status server (implementation remains similar to original)
 
-worker_threads = CONFIG.concurrency.times.map do |i|
+$worker_threads = CONFIG.concurrency.times.map do |i|
   worker_id = "worker-#{i + 1}"
   Thread.new do
     Thread.current.name = worker_id
@@ -335,6 +361,8 @@ worker_threads = CONFIG.concurrency.times.map do |i|
       begin
         did_work = claim_and_run(worker_id: worker_id)
         interruptible_sleep(CONFIG.poll_interval) unless did_work
+      rescue Interrupt
+        break
       rescue StandardError => e
         break if $shutdown
         error("Worker loop error: #{e.class}: #{e.message}")
@@ -345,5 +373,9 @@ worker_threads = CONFIG.concurrency.times.map do |i|
   end
 end
 
-worker_threads.each(&:join)
+# Give threads up to 15 s to finish any in-flight work after shutdown; force-
+# kill anything still blocked after that so the process never hangs.
+SHUTDOWN_GRACE = 15
+
+$worker_threads.each { |t| t.join(SHUTDOWN_GRACE) }
 info("All workers stopped.")

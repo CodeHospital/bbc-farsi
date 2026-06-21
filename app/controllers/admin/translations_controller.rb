@@ -2,7 +2,7 @@ class Admin::TranslationsController < Admin::BaseController
   include Pagy::Method
   protect_from_forgery with: :null_session
 
-  before_action :set_translation, only: %i[show edit update rerun activate refine post_to_channel archive]
+  before_action :set_translation, only: %i[show edit update rerun activate refine post_to_channel archive unarchive]
 
   # Whitelisted sort keys -> SQL column expressions (guards against injection).
   SORT_COLUMNS = {
@@ -65,6 +65,12 @@ class Admin::TranslationsController < Admin::BaseController
   def archive
     @translation.archive!
     redirect_to admin_article_path(@translation.article), notice: "Translation archived."
+  end
+
+  def unarchive
+    @translation.unarchive!
+    redirect_back fallback_location: admin_article_path(@translation.article),
+                  notice: "Translation republished to portal."
   end
 
   def refine

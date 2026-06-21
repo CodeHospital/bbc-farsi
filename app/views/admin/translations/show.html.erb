@@ -42,13 +42,29 @@
   </div>
 </div>
 
-<div class="d-flex gap-2 mb-3">
+<% if @translation.archived? %>
+  <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-eye-slash-fill"></i>
+    <span>This translation is <strong>unpublished</strong> — it is hidden from the public portal.</span>
+    <%= button_to "Republish to portal", unarchive_admin_translation_path(@translation), method: :post,
+          class: "btn btn-sm btn-outline-success ms-auto" %>
+  </div>
+<% end %>
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
   <%= link_to "Edit", edit_admin_translation_path(@translation), class: "btn btn-outline-primary" %>
-  <%= button_to "✦ Refine Persian", refine_admin_translation_path(@translation), method: :post,
-        class: "btn btn-outline-info",
-        title: "Run AI refinement on the Persian text" %>
-  <%= button_to "↺ Re-translate", rerun_admin_translation_path(@translation), method: :post,
-        class: "btn btn-outline-warning" %>
+  <% unless @translation.archived? %>
+    <%= button_to "✦ Refine Persian", refine_admin_translation_path(@translation), method: :post,
+          class: "btn btn-outline-info",
+          title: "Run AI refinement on the Persian text" %>
+    <%= button_to "↺ Re-translate", rerun_admin_translation_path(@translation), method: :post,
+          class: "btn btn-outline-warning" %>
+    <% if @translation.status == "completed" && @translation.translated_title.present? %>
+      <%= button_to "Unpublish from portal", archive_admin_translation_path(@translation), method: :post,
+            class: "btn btn-outline-danger",
+            data: { turbo_confirm: "Unpublish this translation? The previous version will be shown on the portal." } %>
+    <% end %>
+  <% end %>
   <% if @translation.article %>
     <%= button_to rewrite_admin_article_path(@translation.article), method: :post,
           class: "btn btn-outline-info" do %>

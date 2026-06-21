@@ -37,12 +37,12 @@
             class: "btn btn-sm btn-outline-success",
             title: "Translate the original BBC text directly, skipping the AI rewrite step" %>
       <% if @article.archived? %>
-        <%= button_to "↩ Unarchive", unarchive_admin_article_path(@article), method: :post,
-              class: "btn btn-sm btn-outline-secondary" %>
+        <%= button_to "Republish to portal", unarchive_admin_article_path(@article), method: :post,
+              class: "btn btn-sm btn-outline-success" %>
       <% else %>
-        <%= button_to "🗄 Archive article", archive_admin_article_path(@article), method: :post,
-              class: "btn btn-sm btn-outline-secondary",
-              data: { turbo_confirm: "Archive this article? It will be hidden from the main list." } %>
+        <%= button_to "Unpublish from portal", archive_admin_article_path(@article), method: :post,
+              class: "btn btn-sm btn-outline-danger",
+              data: { turbo_confirm: "Unpublish this article? It will be hidden from the public portal." } %>
       <% end %>
     </div>
   </div>
@@ -292,10 +292,12 @@
 </h5>
 
 <% @translations.each do |translation| %>
-  <div class="card mb-2 <%= translation.active? ? 'border-success' : '' %>">
+  <div class="card mb-2 <%= translation.active? ? 'border-success' : (translation.archived? ? 'border-secondary opacity-75' : '') %>">
     <div class="card-header d-flex justify-content-between align-items-center py-1">
       <div class="d-flex align-items-center gap-2">
-        <% if translation.active? %>
+        <% if translation.archived? %>
+          <span class="badge bg-secondary">Unpublished</span>
+        <% elsif translation.active? %>
           <span class="badge bg-success">✓ Active</span>
         <% end %>
         <small class="text-muted">
@@ -319,21 +321,32 @@
         <% end %>
       </div>
       <div class="d-flex gap-1">
-        <% unless translation.active? %>
-          <%= button_to "✓ Activate", activate_admin_translation_path(translation), method: :post,
-                class: "btn btn-xs btn-success" %>
+        <% if translation.archived? %>
+          <%= button_to "Republish", unarchive_admin_translation_path(translation), method: :post,
+                class: "btn btn-xs btn-outline-success",
+                title: "Republish this translation to the public portal" %>
+        <% else %>
+          <% unless translation.active? %>
+            <%= button_to "✓ Activate", activate_admin_translation_path(translation), method: :post,
+                  class: "btn btn-xs btn-success" %>
+          <% end %>
+          <%= button_to "✦ Refine Persian", refine_admin_translation_path(translation), method: :post,
+                class: "btn btn-xs btn-outline-info",
+                title: "Run AI rewrite on the Persian text to improve it" %>
+          <%= button_to "↺ Retranslate", rerun_admin_translation_path(translation), method: :post,
+                class: "btn btn-xs btn-outline-warning" %>
+          <% if translation.status == "completed" && translation.translated_title.present? %>
+            <%= button_to "Unpublish", archive_admin_translation_path(translation), method: :post,
+                  class: "btn btn-xs btn-outline-danger",
+                  title: "Hide this translation from the public portal (previous version will be shown)",
+                  data: { turbo_confirm: "Unpublish this translation? The previous version will be shown on the portal." } %>
+          <% elsif translation.status == "error" %>
+            <%= button_to "🗄", archive_admin_translation_path(translation), method: :post,
+                  class: "btn btn-xs btn-outline-secondary", title: "Archive this error" %>
+          <% end %>
         <% end %>
-        <%= button_to "✦ Refine Persian", refine_admin_translation_path(translation), method: :post,
-              class: "btn btn-xs btn-outline-info",
-              title: "Run AI rewrite on the Persian text to improve it" %>
-        <%= button_to "↺ Retranslate", rerun_admin_translation_path(translation), method: :post,
-              class: "btn btn-xs btn-outline-warning" %>
         <%= link_to "Edit / Post", admin_translation_path(translation),
               class: "btn btn-xs btn-outline-primary" %>
-        <% if translation.status == "error" %>
-          <%= button_to "🗄", archive_admin_translation_path(translation), method: :post,
-                class: "btn btn-xs btn-outline-secondary", title: "Archive this error" %>
-        <% end %>
       </div>
     </div>
     <% posted_channel_ids = @posted_channel_ids_by_translation[translation.id] || [] %>

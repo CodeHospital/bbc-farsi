@@ -42,6 +42,7 @@ Rails.application.routes.draw do
         post :refine
         post :post_to_channel
         post :archive
+        post :unarchive
       end
     end
 
