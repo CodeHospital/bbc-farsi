@@ -36,13 +36,13 @@
       <%= button_to "🌐 Translate original (no rewrite)", translate_original_admin_article_path(@article), method: :post,
             class: "btn btn-sm btn-outline-success",
             title: "Translate the original BBC text directly, skipping the AI rewrite step" %>
-      <% if @article.archived? %>
-        <%= button_to "Republish to portal", unarchive_admin_article_path(@article), method: :post,
-              class: "btn btn-sm btn-outline-success" %>
-      <% else %>
-        <%= button_to "Unpublish from portal", archive_admin_article_path(@article), method: :post,
+      <% if @farsi_portal_visible %>
+        <%= button_to "Unpublish from Farsi portal", archive_admin_article_path(@article), method: :post,
               class: "btn btn-sm btn-outline-danger",
-              data: { turbo_confirm: "Unpublish this article? It will be hidden from the public portal." } %>
+              data: { turbo_confirm: "Unpublish this article from the Farsi portal? It will remain visible on the English portal." } %>
+      <% else %>
+        <%= button_to "Republish to Farsi portal", unarchive_admin_article_path(@article), method: :post,
+              class: "btn btn-sm btn-outline-success" %>
       <% end %>
     </div>
   </div>

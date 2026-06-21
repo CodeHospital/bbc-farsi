@@ -65,6 +65,10 @@ class Admin::ArticlesController < Admin::BaseController
       t.status == "completed" && t.translated_title.present? && !t.archived?
     }
 
+    # True when at least one completed translation with Persian text is visible on
+    # the Farsi portal (drives the Unpublish/Republish button state).
+    @farsi_portal_visible = @portal_translation.present?
+
     posted_rows = TelegramPost.where(translation: @translations, status: "posted")
                                .pluck(:translation_id, :telegram_channel_id)
     @posted_channel_ids_by_translation = posted_rows.group_by(&:first)
@@ -156,13 +160,13 @@ class Admin::ArticlesController < Admin::BaseController
   end
 
   def archive
-    @article.archive!
-    redirect_to admin_articles_path, notice: "Article archived."
+    @article.translations.update_all(archived: true)
+    redirect_to admin_article_path(@article), notice: "Article hidden from the Farsi portal. It remains visible on the English portal."
   end
 
   def unarchive
-    @article.unarchive!
-    redirect_to admin_article_path(@article), notice: "Article unarchived."
+    @article.translations.update_all(archived: false)
+    redirect_to admin_article_path(@article), notice: "Article republished to the Farsi portal."
   end
 
   private

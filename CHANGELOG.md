@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Unpublishing an article from the Farsi portal no longer removes it from the English portal
+
+- "Unpublish from portal" on the article admin page previously called `Article#archive!` (setting `archived: true`), which hid the article from both the Farsi and English public portals.
+- The action now archives the article's **translations** instead (`translations.update_all(archived: true)`). This removes it from the Farsi portal (which shows translations), while the article itself remains visible in the English edition (as an `ArticleStory`).
+- "Republish to Farsi portal" correspondingly unarchives all translations (`update_all(archived: false)`).
+- Button label updated to "Unpublish from Farsi portal" / "Republish to Farsi portal" to make the scope explicit.
+- Button state now driven by `@farsi_portal_visible` (whether any non-archived completed translation exists) rather than `@article.archived?`.
+
+### Fixed — Worker process exited after SHUTDOWN_GRACE × concurrency seconds
+
+- The main thread was immediately calling `thread.join(15)` on every worker right after spawning them. After all timeouts expired (e.g. 30 s with 2 workers), the main thread exited and Ruby killed all worker threads mid-task with no log output.
+- Fix: the main thread now loops `sleep(1) until $shutdown` to stay alive, and only enters the grace-period joins after a SIGINT/SIGTERM is received.
+
+### Fixed — Worker shutdown now logs the reason it stopped
+
+- `trigger_shutdown` gains a `reason:` keyword and logs `Shutdown triggered: <reason>` before interrupting threads, so the cause is always visible in the output.
+- Signal traps pass the signal name: `SIGINT (Ctrl-C)` or `SIGTERM`.
+- Each worker thread logs `Stopped — reason: <reason>` on exit instead of the bare `Stopped`.
+- The `Interrupt` rescue in the worker loop records `$shutdown_reason` so threads report why they broke out.
+- The `StandardError` rescue in the worker loop now logs a 5-line backtrace for easier root-cause diagnosis.
+- `when 401` in `claim_and_run` replaced `abort` (which printed to STDERR unformatted and killed the process) with a proper `error(...)` log + `trigger_shutdown` + `raise Interrupt`, giving all threads a chance to clean up.
+- The 401 `warn` for unexpected HTTP responses now includes the response body prefix for context.
+
 ### Added — Admin unpublish/republish for articles and translations
 
 - **Article-level unpublish**: renamed the "Archive article" button on the article show page to **"Unpublish from portal"** / **"Republish to portal"** for clearer intent — the same `archived` flag that drives portal visibility is used.

@@ -269,9 +269,12 @@ def claim_and_run(worker_id:)
   case res.code.to_i
   when 204 then return false
   when 200 then task = JSON.parse(res.body)
-  when 401 then abort "Unauthorized — check WORKER_API_TOKEN"
+  when 401
+    error("Unauthorized (401) — check WORKER_API_TOKEN; initiating shutdown")
+    trigger_shutdown(reason: "unauthorized response from #{CONFIG.app_url}")
+    raise Interrupt
   else
-    warn("Unexpected response from /next: #{res.code}")
+    warn("Unexpected response from /next: #{res.code} #{res.body[0..200]}")
     return false
   end
 
@@ -292,19 +295,22 @@ def claim_and_run(worker_id:)
 
 rescue Interrupt
   task_id = task&.dig("id")
-  error("Task ##{task_id} interrupted by shutdown signal")
-  begin
-    if task_id
+  reason = $shutdown_reason || "unknown interrupt"
+  if task_id
+    error("Task ##{task_id} interrupted (#{reason}) — reporting as failed")
+    begin
       HTTP.post(
         URI("#{CONFIG.app_url}/api/tasks/#{task_id}/fail"),
-        { error: "Worker interrupted" },
+        { error: "Worker interrupted: #{reason}" },
         { "Authorization" => "Bearer #{CONFIG.worker_api_token}" }
       )
+    rescue StandardError
+      # best effort — app may be unreachable during shutdown
     end
-  rescue StandardError
-    # best effort — app may be unreachable during shutdown
+    STATE.finish_task(status: "failed", worker_id: worker_id, error: "Interrupted: #{reason}")
+  else
+    info("Interrupted with no active task (#{reason})")
   end
-  STATE.finish_task(status: "failed", worker_id: worker_id, error: "Interrupted")
   raise # propagate so the worker loop exits
 
 rescue StandardError => e
@@ -328,17 +334,21 @@ end
 
 # ── Shutdown ───────────────────────────────────────────────────────────────
 $shutdown = false
+$shutdown_reason = nil
 $worker_threads = []
 
-def trigger_shutdown
+def trigger_shutdown(reason:)
+  return if $shutdown  # avoid double-triggering and double-logging
   $shutdown = true
-  # Interrupt threads blocked in IO (e.g. a long Ollama HTTP call) so they
-  # don't sit frozen for up to OLLAMA_TIMEOUT seconds after Ctrl-C.
+  $shutdown_reason = reason
+  # LOG_MUTEX must not be used here — signal traps cannot acquire mutexes
+  $stdout.puts "[#{Time.now.strftime('%H:%M:%S')}][main][WARN] Shutdown triggered: #{reason}"
+  $stdout.flush
   $worker_threads.each { |t| t.raise(Interrupt) rescue nil }
 end
 
-trap("INT")  { trigger_shutdown }
-trap("TERM") { trigger_shutdown }
+trap("INT")  { trigger_shutdown(reason: "SIGINT (Ctrl-C)") }
+trap("TERM") { trigger_shutdown(reason: "SIGTERM") }
 
 def interruptible_sleep(seconds)
   deadline = Time.now + seconds
@@ -357,25 +367,33 @@ $worker_threads = CONFIG.concurrency.times.map do |i|
     Thread.current.name = worker_id
     info("Started")
 
+    stop_reason = "shutdown flag"
     until $shutdown
       begin
         did_work = claim_and_run(worker_id: worker_id)
         interruptible_sleep(CONFIG.poll_interval) unless did_work
       rescue Interrupt
+        stop_reason = $shutdown_reason || "Interrupt signal"
         break
       rescue StandardError => e
-        break if $shutdown
-        error("Worker loop error: #{e.class}: #{e.message}")
+        if $shutdown
+          stop_reason = "#{$shutdown_reason || 'shutdown'} (interrupted during #{e.class})"
+          break
+        end
+        error("Worker loop error: #{e.class}: #{e.message}\n  #{e.backtrace.first(5).join("\n  ")}")
         interruptible_sleep(CONFIG.poll_interval)
       end
     end
-    info("Stopped")
+    info("Stopped — reason: #{$shutdown_reason || stop_reason}")
   end
 end
 
-# Give threads up to 15 s to finish any in-flight work after shutdown; force-
-# kill anything still blocked after that so the process never hangs.
-SHUTDOWN_GRACE = 15
+# Main thread: keep alive until a shutdown signal sets $shutdown.
+# Without this, the main thread exits after SHUTDOWN_GRACE * concurrency seconds
+# (the join timeouts below), killing all worker threads mid-task.
+sleep(1) until $shutdown
 
+# Give in-flight tasks up to SHUTDOWN_GRACE seconds to report completion/failure.
+SHUTDOWN_GRACE = 15
 $worker_threads.each { |t| t.join(SHUTDOWN_GRACE) }
 info("All workers stopped.")
