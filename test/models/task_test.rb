@@ -19,7 +19,8 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal @server, task.ollama_server
     assert_instance_of Rewrite, task.target
     assert_equal "pending", task.target.status
-    assert_equal "content", task.requests.first["key"]
+    assert_equal "body", task.requests.first["key"]
+    assert_equal "title", task.requests.second["key"]
   end
 
   test "claim_next! claims the oldest task and moves target + article to running" do
@@ -107,11 +108,12 @@ class TaskTest < ActiveSupport::TestCase
     Task.claim_next!
 
     assert_difference("Task.count", 1) do # the chained translate task
-      task.complete!("content" => "<think>noise</think>The rewritten body.")
+      task.complete!("title" => "<think>noise</think>Floods Worsen Across UK", "body" => "<think>noise</think>The rewritten body.")
     end
 
     rewrite = task.target.reload
     assert_equal "completed", rewrite.status
+    assert_equal "Floods Worsen Across UK", rewrite.rewritten_title
     assert_equal "The rewritten body.", rewrite.content
     assert rewrite.active?
     assert_equal "rewritten", @article.reload.status

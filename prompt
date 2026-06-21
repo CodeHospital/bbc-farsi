@@ -43,9 +43,12 @@ Translation Rules:
 
 7. If multiple interpretations are possible, choose the one that best fits a news article context.
 
+8. Never insert placeholders, brackets, or notes for missing information (e.g. do NOT write [نام]، [اطلاعات ناقص]، [؟] or any similar construct). Translate only what is given; omit anything that cannot be translated from the provided text.
+
 Output:
 
 * Return only the final Persian translation.
 * No explanations.
 * No notes.
 * No transliteration of ordinary English words.
+* No brackets, placeholders, or annotations of any kind.

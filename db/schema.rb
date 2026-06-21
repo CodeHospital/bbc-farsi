@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_19_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_21_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -71,6 +71,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_19_000001) do
     t.boolean "active", default: false, null: false
     t.boolean "archived", default: false, null: false
     t.integer "ollama_server_id"
+    t.string "rewritten_title"
     t.index ["article_id"], name: "index_rewrites_on_article_id"
     t.index ["ollama_server_id"], name: "index_rewrites_on_ollama_server_id"
   end

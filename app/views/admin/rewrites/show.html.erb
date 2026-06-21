@@ -18,6 +18,9 @@
       <%= @rewrite.created_at.strftime("%b %d, %Y %H:%M") %> &bull;
       <%= render "admin/shared/status_badge", status: @rewrite.status %>
     </p>
+    <% if @rewrite.rewritten_title.present? %>
+      <h5 class="mt-3"><%= @rewrite.rewritten_title %></h5>
+    <% end %>
     <% if @rewrite.content.present? %>
       <p><%= @rewrite.content %></p>
     <% end %>

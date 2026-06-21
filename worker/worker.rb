@@ -238,8 +238,15 @@ def process_task(task, worker_id:)
     key = req["key"]
     STATE.update_current_request(key, idx + 1, requests.size, worker_id: worker_id)
 
+    messages = req["messages"].map do |msg|
+      substituted = responses.reduce(msg["content"]) do |text, (k, v)|
+        text.gsub("{{#{k}}}", v.to_s)
+      end
+      { "role" => msg["role"], "content" => substituted }
+    end
+
     info("  → #{key} (#{model} @ #{base_url}) [#{idx+1}/#{requests.size}]")
-    responses[key] = ollama_chat(base_url, model, req["messages"])
+    responses[key] = ollama_chat(base_url, model, messages)
   end
 
   responses

@@ -163,7 +163,7 @@ class Task < ApplicationRecord
 
     case kind
     when "rewrite"
-      target.update!(content: ArticleRewriter.process(responses), status: "completed")
+      target.update!(ArticleRewriter.process(responses).merge(status: "completed"))
       target.activate!
       target.article.update!(status: "rewritten")
       chain_translate!

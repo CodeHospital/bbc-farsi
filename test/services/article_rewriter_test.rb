@@ -5,37 +5,53 @@ class ArticleRewriterTest < ActiveSupport::TestCase
     @article = Article.new(title: "UK floods worsen", description: "Heavy rain causes flooding.")
   end
 
-  test "builds a single content request with system + user messages" do
+  test "builds two requests: body first, then title" do
     requests = ArticleRewriter.requests(@article)
 
-    assert_equal 1, requests.size
-    request = requests.first
-    assert_equal "content", request[:key]
-    assert_equal "system", request[:messages][0][:role]
-    assert_includes request[:messages][0][:content], "news editor"
-    assert_equal "user", request[:messages][1][:role]
-    assert_includes request[:messages][1][:content], "UK floods worsen"
-    assert_includes request[:messages][1][:content], "Heavy rain causes flooding."
+    assert_equal 2, requests.size
+
+    body_req = requests[0]
+    assert_equal "body", body_req[:key]
+    assert_equal "system", body_req[:messages][0][:role]
+    assert_includes body_req[:messages][0][:content], "news editor"
+    assert_equal "user", body_req[:messages][1][:role]
+    assert_includes body_req[:messages][1][:content], "UK floods worsen"
+    assert_includes body_req[:messages][1][:content], "Heavy rain causes flooding."
+
+    title_req = requests[1]
+    assert_equal "title", title_req[:key]
+    assert_includes title_req[:messages][1][:content], "{{body}}"
+    assert_includes title_req[:messages][1][:content], "UK floods worsen"
   end
 
-  test "process returns the content response verbatim when clean" do
-    assert_equal "Rewritten body text.", ArticleRewriter.process("content" => "Rewritten body text.")
+  test "process returns rewritten_title and content from separate responses" do
+    result = ArticleRewriter.process("title" => "New Headline", "body" => "Rewritten body text.")
+    assert_equal({ rewritten_title: "New Headline", content: "Rewritten body text." }, result)
   end
 
-  test "process strips a Qwen3 <think> reasoning block" do
-    raw = "<think>some internal reasoning\nthat spans lines</think>The actual rewrite."
-    result = ArticleRewriter.process("content" => raw)
-    assert_equal "The actual rewrite.", result
-    assert_not_includes result, "<think>"
+  test "process strips Qwen3 <think> blocks from both fields" do
+    result = ArticleRewriter.process(
+      "title" => "<think>thinking</think>Clean Headline",
+      "body"  => "<think>some internal reasoning\nthat spans lines</think>The actual rewrite."
+    )
+    assert_equal "Clean Headline", result[:rewritten_title]
+    assert_equal "The actual rewrite.", result[:content]
   end
 
-  test "process strips multiple <think> blocks" do
-    raw = "<think>block1</think>First part.<think>block2</think>Second part."
-    assert_equal "First part.Second part.", ArticleRewriter.process("content" => raw)
+  test "process strips multiple <think> blocks from body" do
+    result = ArticleRewriter.process(
+      "title" => "Headline",
+      "body"  => "<think>block1</think>First part.<think>block2</think>Second part."
+    )
+    assert_equal "First part.Second part.", result[:content]
   end
 
   test "process strips <think> block with surrounding whitespace" do
-    raw = "<think>reasoning</think>   Clean output.   "
-    assert_equal "Clean output.", ArticleRewriter.process("content" => raw)
+    result = ArticleRewriter.process(
+      "title" => "  Headline  ",
+      "body"  => "<think>reasoning</think>   Clean output.   "
+    )
+    assert_equal "Headline", result[:rewritten_title]
+    assert_equal "Clean output.", result[:content]
   end
 end

@@ -14,7 +14,7 @@ class ArticleTranslator
         key: "title",
         messages: [
           { role: "system", content: prompt },
-          { role: "user",   content: rewrite.article.title }
+          { role: "user",   content: (rewrite.rewritten_title.presence || rewrite.article.title).to_s }
         ]
       },
       {
@@ -38,7 +38,7 @@ class ArticleTranslator
     OllamaClient.curl_command(
       model:,
       system_prompt: system_prompt,
-      user_text:     rewrite.article.title,
+      user_text:     (rewrite.rewritten_title.presence || rewrite.article.title).to_s,
       url:           server&.url
     )
   end

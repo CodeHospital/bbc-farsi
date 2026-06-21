@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Translator uses rewritten title + no placeholder brackets
+
+- `ArticleTranslator.requests` now uses `rewrite.rewritten_title` (falling back to `rewrite.article.title` for older rewrites without one) as the title input, so the LLM translates the rewritten headline rather than the raw BBC original.
+- Added rule 8 to `prompt`: the model is explicitly forbidden from inserting brackets, placeholders, or annotations (e.g. `[نام]`, `[اطلاعات ناقص]`) for missing information — it must translate only what is given and omit the rest.
+- Output rule extended: "No brackets, placeholders, or annotations of any kind."
+- 197 tests green.
+
+
+
+### Added — Separate rewritten title and body from ArticleRewriter (migration `20260621000001`)
+
+- `ArticleRewriter` now sends two sequential LLM requests instead of one: `body` (rewrite the article body from the original title + description) and `title` (rewrite the headline from the rewritten body, using a `{{body}}` placeholder that the worker substitutes at runtime).
+- `ArticleRewriter.process` returns `{ rewritten_title:, content: }` instead of a plain string; `Task#complete!` for `"rewrite"` tasks uses `.merge(status:)` to store both fields, matching the translate/refine pattern.
+- New `rewritten_title` string column on `rewrites` (migration `20260621000001`; run `bin/rails db:migrate` on dev/prod then `bin/rails bbc:backfill_slugs` is not needed here).
+- Worker gains `{{key}}` placeholder substitution: each request's messages are scanned for `{{prior_key}}` patterns and replaced with the accumulated response before the Ollama call.
+- Admin rewrite show page and article show page now display `rewritten_title` above the body when present.
+- 197 tests green.
+
+
+
 ### Fixed — Retry button now uses Turbo Stream for in-place updates
 
 - Changed `data: { turbo_stream: true }` to `data: { turbo: true }` on the "Retry" button in `_task.html.erb` so the POST request includes the proper Turbo Stream Accept header (`text/vnd.turbo-stream.html`), ensuring the response is handled by Turbo Stream instead of the HTML fallback route.

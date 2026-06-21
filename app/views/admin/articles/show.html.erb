@@ -156,6 +156,9 @@
     </div>
     <% if rewrite.content.present? %>
       <div class="card-body py-2">
+        <% if rewrite.rewritten_title.present? %>
+          <p class="mb-1 fw-semibold small"><%= rewrite.rewritten_title %></p>
+        <% end %>
         <p class="mb-0 text-body small"><%= rewrite.content %></p>
         <%= render "admin/shared/curl_block",
               label:   "rewrite (title + description → English body)",

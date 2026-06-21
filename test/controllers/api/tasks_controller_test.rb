@@ -36,7 +36,8 @@ class Api::TasksControllerTest < ActionDispatch::IntegrationTest
     assert_equal "rewrite", body["kind"]
     assert_equal "qwen3:14b", body["model"]
     assert_equal "http://gpu.local:11434", body["ollama_url"]
-    assert_equal "content", body["requests"].first["key"]
+    assert_equal "body", body["requests"].first["key"]
+    assert_equal "title", body["requests"].second["key"]
 
     assert_equal "claimed", @task.reload.status
   end
@@ -71,11 +72,12 @@ class Api::TasksControllerTest < ActionDispatch::IntegrationTest
     Task.claim_next!
 
     post "/api/tasks/#{@task.id}/complete",
-         params: { responses: { content: "The rewritten body." } },
+         params: { responses: { title: "UK Floods Worsen", body: "The rewritten body." } },
          headers: auth_headers
 
     assert_response :success
     assert_equal "completed", @task.reload.status
+    assert_equal "UK Floods Worsen", @task.target.reload.rewritten_title
     assert_equal "The rewritten body.", @task.target.reload.content
     assert_equal "rewritten", @article.reload.status
   end
