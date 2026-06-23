@@ -142,12 +142,51 @@ You should see a JSON list of your locally available models.
 
 ---
 
-## Task Queue & Worker
+## LLM backends: llmarkt (primary) + Ollama worker (fallback)
 
-The web app never calls Ollama. When you trigger a rewrite, translation, or
-refine, it creates a **task** in the `tasks` table. A separate **worker client**
-claims tasks over a protected API, runs them against Ollama, and posts the
-results back.
+LLM work always starts as a **task** in the `tasks` table (rewrite, translate,
+refine, feature, tag). There are two ways a task gets executed:
+
+1. **llmarkt (vibeearning) grid — primary, webhook-based.** When llmarkt is
+   configured, a task is submitted to the grid the moment it is enqueued, and
+   the result is delivered back via a webhook. No worker process is needed.
+
+   ```
+    Rails app ──POST /v1/jobs──▶ llmarkt grid ──webhook──▶ POST /api/llm_callbacks ──▶ Rails app
+   ```
+
+   Configure it in **Rails credentials** (preferred) or env vars — credentials
+   win when both are set:
+
+   | Credential key | Env fallback | Purpose |
+   |---|---|---|
+   | `llmarkt_api_url` | `LLMARKT_API_URL` | API base incl. version, e.g. `https://llmarkt.codehospital.com/api/v1` |
+   | `llmarkt_api_key` | `LLMARKT_API_KEY` | Bearer token |
+   | `app_base_url` | `APP_BASE_URL` | Public URL of **this** app, so llmarkt's webhook can reach it |
+   | `llmarkt_model_match` | `LLMARKT_MODEL_MATCH` | `family` (default) or `exact` |
+
+   ```bash
+   bin/rails credentials:edit
+   # llmarkt_api_url: https://llmarkt.codehospital.com/api/v1
+   # llmarkt_api_key: <token>
+   # app_base_url: https://news.example.com
+   ```
+
+   Each submitted job's `webhook_url` carries a signed token encoding the task id
+   and request key, so `POST /api/llm_callbacks` knows where to route the result
+   (not the worker bearer) and needs no job-mapping table. The webhook is **also**
+   verified against the grid's `X-Vibe-Signature` header (HMAC-SHA256 of the raw
+   body keyed with the API key, constant-time comparison) before it's trusted —
+   a missing or invalid signature is rejected with `401`. Multi-step tasks (e.g.
+   rewrite body → title) are run one job at a time, advancing on each callback.
+
+   When the three required values are absent, llmarkt is **disabled** and tasks
+   stay `pending` for the worker below — the app behaves exactly as before.
+
+2. **Ollama worker — fallback / self-hosted.** A separate **worker client**
+   claims `pending` tasks over a protected API, runs them against Ollama, and
+   posts the results back. Used automatically for any task llmarkt didn't take
+   (e.g. llmarkt disabled or a submission error).
 
 ```
  Rails app (task queue)  <──/api/tasks──>  worker  <──/api/chat──>  Ollama

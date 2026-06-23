@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Worker status server `log` ArgumentError
+
+- `handle_status_request` and `start_status_server` were calling `log(message)` with one argument, but `log` requires `level, message` — crashing the status-server thread with `ArgumentError: wrong number of arguments (given 1, expected 2)`. Changed both call sites to use the `error(msg)` convenience wrapper.
+
+### Added — llmarkt webhook signature verification (X-Vibe-Signature)
+
+- The llmarkt grid now signs every webhook with `X-Vibe-Signature: sha256=<HMAC-SHA256 of the raw body, keyed with the API key>`. `Api::LlmCallbacksController` now verifies this header (constant-time, `ActiveSupport::SecurityUtils.secure_compare`) **before** any processing and returns `401` on a missing/invalid/mismatched signature — so callbacks are authenticated both by the signed URL token (routing) and the HMAC (payload authenticity).
+- `Llmarkt.webhook_signature` / `Llmarkt.valid_webhook_signature?` implement the HMAC; rejected when the API key is absent.
+- Webhook tests extended: valid-signature path plus rejection for missing / wrong / body-mismatched signatures. 212 tests green.
+- (Other endpoints in the updated API doc — blob upload, list/cancel/retry jobs, models, usage — were intentionally not implemented; this integration only submits jobs and receives webhooks.)
+
+### Fixed — Worker status page missing after parallel-worker refactor
+
+- The status HTTP server (`TCPServer` on `STATUS_PORT`, default 4567) was accidentally dropped when the worker was refactored to the parallel multi-worker edition; the implementation was replaced with placeholder comments.
+- Restored the full status server — adapted for the new `CONFIG`/`STATE` structure: `CONFIG.status_bind/status_port/app_url/default_ollama_url/concurrency`, `snapshot[:active_tasks]` (keyed by worker id) instead of the old single `snapshot[:current]`, and `snapshot[:models_cache]` instead of the old flat models list.
+- Status page now shows an **Active workers** table (one row per in-flight task) and the history table gains a **Worker** column.
+- Both `/` and `/status.json` endpoints work again.
+
+### Added — llmarkt (vibeearning) LLM Grid as the primary LLM backend (webhook-based)
+
+- New integration that submits each enqueued `Task` to the **llmarkt** grid API (`llmarkt.codehospital.com`) and receives results via a **webhook**, replacing the polling Ollama worker as the *primary* execution path. The worker stays as a **fallback** for any task that can't be submitted.
+- **`Llmarkt`** (`app/services/llmarkt.rb`) — config + signed-token helpers. Reads `llmarkt_api_url` / `llmarkt_api_key` / `app_base_url` (+ optional `llmarkt_model_match`) from **Rails credentials**, falling back to the `LLMARKT_API_URL` / `LLMARKT_API_KEY` / `APP_BASE_URL` / `LLMARKT_MODEL_MATCH` env vars. `enabled?` is true only when url + key + app base url are all present.
+- **`LlmarktClient`** (`app/services/llmarkt_client.rb`) — thin HTTParty client for `POST {api_url}/jobs` (bearer auth, `model_match` default `family`), raising `LlmarktClient::Error` on any failure.
+- **`LlmarktSubmitter`** (`app/services/llmarkt_submitter.rb`) — runs a Task's multi-step request chain one job at a time. Each job's `webhook_url` carries a tamper-proof signed token (`Rails.application.message_verifier("llmarkt")`) encoding the task id + request key, so the callback needs no other auth and no job-mapping table. `{{key}}` placeholders are substituted from earlier outputs; system+user messages are flattened into a single prompt. Out-of-order / duplicate callbacks are ignored.
+- **`Api::LlmCallbacksController`** + route `POST /api/llm_callbacks` — public webhook (authenticated solely by the signed token, *not* the worker bearer). `completed` → record output and advance the chain (or `task.complete!`); `failed` → `task.fail!`; invalid token → 401; unknown task → 404.
+- **Auto-submit on enqueue** — `Task#after_create_commit :submit_to_llmarkt` submits the task as soon as it's created. On success the task is marked `claimed` (the worker won't pick it up); if llmarkt is disabled or submission fails, the task is left `pending` for the worker fallback. Errors never break enqueue.
+- **Schema** — migration `20260622000001` adds `tasks.external_job_id` (+ index) to track the in-flight llmarkt job id. NOTE: run `bin/rails db:migrate` on dev/prod (test DB prepared via `db:test:prepare`).
+- `.env.example` documents the new (credentials-preferred) settings. 211 tests green (14 new across `LlmarktClient`, `LlmarktSubmitter`, and the webhook controller).
+
 ### Fixed — Unpublishing an article from the Farsi portal no longer removes it from the English portal
 
 - "Unpublish from portal" on the article admin page previously called `Article#archive!` (setting `archived: true`), which hid the article from both the Farsi and English public portals.

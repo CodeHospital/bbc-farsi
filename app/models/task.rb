@@ -28,6 +28,12 @@ class Task < ApplicationRecord
   validates :model,    presence: true
   validates :priority, numericality: { only_integer: true }
 
+  # llmarkt is the primary backend: as soon as a task is enqueued, submit it to
+  # the llmarkt grid (which calls back via webhook). If llmarkt is disabled or
+  # submission fails, the task stays `pending` and the Ollama worker fallback
+  # claims it. Runs after commit so the target and requests are persisted.
+  after_create_commit :submit_to_llmarkt
+
   scope :pending, -> { where(status: "pending") }
 
   # Highest priority first, then oldest first — the order the worker claims in.
@@ -213,6 +219,15 @@ class Task < ApplicationRecord
   end
 
   private
+
+  # Hand the freshly-created task to the llmarkt grid. No-op when llmarkt is not
+  # configured (LlmarktSubmitter.submit_task returns false and the task is left
+  # pending for the Ollama worker). Errors never bubble up into enqueue.
+  def submit_to_llmarkt
+    LlmarktSubmitter.submit_task(self)
+  rescue StandardError => e
+    Rails.logger.error("Task#submit_to_llmarkt task=#{id}: #{e.class}: #{e.message}")
+  end
 
   def chain_translate!
     return unless chain_translate

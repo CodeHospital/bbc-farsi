@@ -81,6 +81,10 @@ Rails.application.routes.draw do
     get  "tasks/next",         to: "tasks#claim"
     post "tasks/:id/complete", to: "tasks#complete"
     post "tasks/:id/fail",     to: "tasks#mark_failed"
+
+    # Public webhook llmarkt (vibeearning) POSTs job results to. Auth is the
+    # signed token in the query string, not the worker bearer token.
+    post "llm_callbacks",      to: "llm_callbacks#create"
   end
 
   # Public-facing site (no auth): latest translated/refined news, magazine style.

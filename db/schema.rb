@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_21_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_22_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -115,6 +115,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_21_000001) do
     t.datetime "updated_at", null: false
     t.integer "priority", default: 0, null: false
     t.boolean "chain_refine", default: true, null: false
+    t.string "external_job_id"
+    t.index ["external_job_id"], name: "index_tasks_on_external_job_id"
     t.index ["ollama_server_id"], name: "index_tasks_on_ollama_server_id"
     t.index ["status", "created_at"], name: "index_tasks_on_status_and_created_at"
     t.index ["status", "priority", "created_at"], name: "index_tasks_on_status_and_priority_and_created_at"
