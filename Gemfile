@@ -59,7 +59,7 @@ group :development, :test do
   gem "sqlite3", ">= 2.1"
 
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
-  gem "minitest", "~> 5.0"
+  gem "minitest", "~> 6.0"
   gem "webmock", "~> 3.0"
 
   # Static analysis for security vulnerabilities [https://brakemanscanner.org/]
