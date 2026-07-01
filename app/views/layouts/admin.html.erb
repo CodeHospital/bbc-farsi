@@ -110,6 +110,11 @@
             <i class="bi bi-bar-chart-line"></i> Analytics
           <% end %>
         </li>
+        <li class="nav-item">
+          <%= link_to admin_ip_geolocations_path, class: "nav-link #{'active' if controller_name == 'ip_geolocations'}" do %>
+            <i class="bi bi-geo-alt"></i> IP Geolocations
+          <% end %>
+        </li>
       </ul>
       <div class="mt-auto pt-3 border-top border-secondary">
         <%= button_to admin_logout_path, method: :delete, class: "btn btn-sm btn-outline-danger w-100" do %>

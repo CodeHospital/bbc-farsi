@@ -1,0 +1,89 @@
+<%# Cached IP → country lookups populated by ArticleView.geolocate_ip. Each row
+    means one fewer HTTP call to the geolocation service on future visits. %>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2 class="mb-0">IP Geolocations</h2>
+  <%= form_with url: admin_ip_geolocations_path, method: :get, class: "d-flex gap-2" do %>
+    <%= text_field_tag :q, params[:q], class: "form-control form-control-sm",
+          placeholder: "Search IP or country", style: "width: 220px" %>
+    <button class="btn btn-sm btn-outline-secondary" type="submit">Search</button>
+  <% end %>
+</div>
+
+<% if @missing_migration %>
+  <div class="alert alert-warning">
+    <strong>Table not found.</strong>
+    Run <code>bin/rails db:migrate</code> to create the <code>ip_geolocations</code> table,
+    then reload this page.
+  </div>
+<% else %>
+
+  <%# ── Summary cards ──────────────────────────────────────────────────── %>
+  <div class="row g-3 mb-4">
+    <div class="col-sm-4">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold"><%= @cached_total %></div>
+          <div class="text-muted small">Cached IPs</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold"><%= @resolved_total %></div>
+          <div class="text-muted small">Resolved to a country</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card text-center h-100">
+        <div class="card-body">
+          <div class="fs-2 fw-bold"><%= @lookups_total %></div>
+          <div class="text-muted small">Total lookups served</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <% if @geolocations.any? %>
+    <table class="table table-hover table-sm">
+      <thead>
+        <tr>
+          <th><%= sort_link "ip", "IP address" %></th>
+          <th><%= sort_link "country", "Country" %></th>
+          <th class="text-end"><%= sort_link "lookups", "Lookups" %></th>
+          <th><%= sort_link "used", "Last used" %></th>
+          <th><%= sort_link "created", "Cached at" %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @geolocations.each do |geo| %>
+          <tr>
+            <td><code><%= geo.ip %></code></td>
+            <td>
+              <% if geo.country_code.present? %>
+                <%= country_flag(geo.country_code) %>
+                <strong><%= geo.country_code %></strong>
+                <small class="text-muted"><%= country_name(geo.country_code) %></small>
+              <% else %>
+                <span class="text-muted">—</span>
+              <% end %>
+            </td>
+            <td class="text-end fw-bold"><%= geo.lookups_count %></td>
+            <td><small><%= geo.last_used_at&.strftime("%b %d %H:%M") || "—" %></small></td>
+            <td><small><%= geo.created_at.strftime("%b %d %H:%M") %></small></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+
+    <%= render "admin/shared/pagination", pagy: @pagy %>
+  <% else %>
+    <div class="alert alert-info">
+      No cached IP geolocations yet. They are recorded automatically the first time
+      an IP without a CDN country header is resolved via the geolocation service.
+    </div>
+  <% end %>
+
+<% end %>

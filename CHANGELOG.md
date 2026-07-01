@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Local IP geolocation cache + admin listing
+
+- New `ip_geolocations` table + `IpGeolocation` model: a local cache of IP → country lookups. `ArticleView.geolocate_ip` now checks this cache first and only calls the geolocation HTTP service on a cache miss, storing the result (including "no country" resolutions) so a given IP is fetched at most once. Cache hits bump a `lookups_count` and refresh `last_used_at` via a single `UPDATE` (no validations/callbacks). Concurrent first-lookups of the same IP are handled by rescuing `RecordNotUnique`.
+- The HTTP call was extracted into `ArticleView.fetch_country_from_service`, which raises on transport/parse errors so a failed call is never cached as a spurious "no country" result.
+- New admin page **IP Geolocations** (`/admin/ip_geolocations`, sidebar link): sortable, paginated table of every cached IP with its country (flag + name), lookup count, last-used and cached-at timestamps, plus an IP/country search box and summary cards (cached IPs, resolved-to-country, total lookups served).
+- Migration `20260701000001_create_ip_geolocations`; `db/schema.rb` updated manually (version bumped to `2026_07_01_000001`) per project migration policy.
+
 ### Fixed — Worker status server `log` ArgumentError
 
 - `handle_status_request` and `start_status_server` were calling `log(message)` with one argument, but `log` requires `level, message` — crashing the status-server thread with `ArgumentError: wrong number of arguments (given 1, expected 2)`. Changed both call sites to use the `error(msg)` convenience wrapper.

@@ -37,7 +37,7 @@ class ArticleView < ApplicationRecord
     cdn_code = env[CF_COUNTRY_HEADER].presence ||
                env[CF_FRONT_HEADER].presence   ||
                env[GENERIC_COUNTRY_HDR].presence
-    return cdn_code.upcase.slice(0, 2) if cdn_code.present?
+    return cdn_code if cdn_code.present?
 
     # Fallback: geolocation service (skipped for local dev IPs)
     ip = request.remote_ip.to_s.strip
@@ -49,7 +49,30 @@ class ArticleView < ApplicationRecord
     nil
   end
 
+  # Resolve an IP to a country code, using a local cache so a given IP is only
+  # ever fetched from the geolocation service once. Cache hits (including ones
+  # that resolved to "no country") skip the HTTP call entirely.
   private_class_method def self.geolocate_ip(ip)
+    cached = IpGeolocation.find_by(ip: ip)
+    if cached
+      cached.record_hit!
+      return cached.country_name.presence
+    end
+
+    country, city = fetch_country_from_service(ip)
+    IpGeolocation.create!(ip: ip, country_name: country, city_name: city, lookups_count: 1, last_used_at: Time.current)
+    country
+  rescue ActiveRecord::RecordNotUnique
+    # Another request cached this IP first — just read it back.
+    IpGeolocation.find_by(ip: ip)&.country_name.presence
+  rescue => error
+    Rails.logger.warn("[ArticleView] geolocate_ip(#{ip}) failed: #{error.message}")
+    nil
+  end
+
+  # Perform the actual HTTP lookup. Raises on any transport/parse error so the
+  # caller can avoid caching a spurious "no country" result for a failed call.
+  private_class_method def self.fetch_country_from_service(ip)
     uri = URI(GEO_URL+ip)
     # uri.query = URI.encode_www_form(secret: geo_secret, action: "get_location", ip: ip)
 
@@ -62,9 +85,6 @@ class ArticleView < ApplicationRecord
 
     data = JSON.parse(response.body)
     country = data.dig("data", "country").to_s.strip
-    country.upcase.slice(0, 2).presence
-  rescue => error
-    Rails.logger.warn("[ArticleView] geolocate_ip(#{ip}) failed: #{error.message}")
-    nil
+    country
   end
 end

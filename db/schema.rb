@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_22_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_01_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -47,6 +47,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_22_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["url"], name: "index_feeds_on_url", unique: true
+  end
+
+  create_table "ip_geolocations", force: :cascade do |t|
+    t.string "ip", null: false
+    t.string "country_name"
+    t.string "city_name"
+    t.integer "lookups_count", default: 0, null: false
+    t.datetime "last_used_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["country_name"], name: "index_ip_geolocations_on_country_name"
+    t.index ["ip"], name: "index_ip_geolocations_on_ip", unique: true
   end
 
   create_table "ollama_servers", force: :cascade do |t|
