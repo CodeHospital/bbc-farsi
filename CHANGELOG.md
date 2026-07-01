@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Paginated page views on the admin article show page
+
+- `Article has_many :article_views, dependent: :destroy`. The admin article show page (`/admin/articles/:id`) now has a **Views** section below Translations: a paginated (30/page via the standard `Pagy::Method` + `admin/shared/pagination` partial), newest-first table of every recorded view with its viewed-at time, edition (FA/EN), country (flag + name), and city.
+- Added controller/view tests covering: rendering country/city, the "No views recorded yet." empty state, and pagination kicking in past the first page.
+
+### Added — `ArticleView` now stores country name, city name, and country code
+
+- `article_views` gains `country_name` and `city_name` columns (migration `20260701000002_add_country_name_and_city_name_to_article_views`; `db/schema.rb` updated manually, version bumped to `2026_07_01_000002`, per project migration policy). The existing `country_code` column is kept (still used by the Analytics group-by) but is now *derived*, not fetched directly.
+- `ArticleView.track!` now resolves an IP to `[country_name, city_name]` (via the `IpGeolocation` cache / geolocation service, unchanged) and derives `country_code` from the name via the new shared `Country.code_for_name` lookup, storing all three on the row.
+- Extracted the ISO-code ⟷ name table (previously duplicated as `ApplicationHelper::COUNTRY_NAMES`) into a plain `Country` model/module (`app/models/country.rb`) with `Country.name_for(code)` / `Country.code_for_name(name)`, since it's now needed by both a model (`ArticleView`) and a view helper. `ApplicationHelper#country_name` / `#code_for_country_name` now delegate to it; behavior and the existing `application_helper_test.rb` coverage are unchanged.
+- Full suite green (235 runs, 0 failures) after a manual smoke test confirming first-lookup vs. cache-hit paths both populate `country_name`/`city_name`/`country_code` correctly.
+
 ### Fixed — `ApplicationHelper#country_flag` reverse-lookup bug + full test coverage
 
 - `country_flag` called a non-existent `Hash#get_code_by_value` and then discarded its result, always falling through to the 🌐 fallback for anything that wasn't already a 2-letter code — broken by the switch to storing full `country_name` values (e.g. `"United States"`) in the new IP-geolocation cache instead of 2-letter codes.

@@ -166,6 +166,37 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", prioritize_admin_task_path(task), count: 0
   end
 
+  test "show lists page views for the article with country and city" do
+    article = create_article
+    ArticleView.create!(article:, edition: "fa", country_name: "Iran", city_name: "Tehran", country_code: "IR")
+
+    get admin_article_path(article)
+
+    assert_response :success
+    assert_select "td", text: "Tehran"
+  end
+
+  test "show says no views recorded yet when the article has none" do
+    article = create_article
+
+    get admin_article_path(article)
+
+    assert_response :success
+    assert_select "p.text-muted", text: "No views recorded yet."
+  end
+
+  test "show paginates page views" do
+    article = create_article
+    35.times { |i| ArticleView.create!(article:, edition: "fa", created_at: i.hours.ago) }
+
+    get admin_article_path(article)
+    assert_response :success
+    assert_select "ul.pagination"
+
+    get admin_article_path(article, page: 2)
+    assert_response :success
+  end
+
   private
 
   def log_in

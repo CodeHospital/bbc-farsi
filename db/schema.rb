@@ -10,13 +10,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_01_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_01_000002) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
     t.string "country_code", limit: 2
     t.string "edition", limit: 2, default: "fa", null: false
     t.datetime "created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.string "country_name"
+    t.string "city_name"
     t.index ["article_id", "created_at"], name: "index_article_views_on_article_id_and_created_at"
     t.index ["article_id"], name: "index_article_views_on_article_id"
     t.index ["country_code"], name: "index_article_views_on_country_code"

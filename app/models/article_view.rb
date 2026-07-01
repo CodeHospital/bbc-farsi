@@ -19,55 +19,49 @@ class ArticleView < ApplicationRecord
   # Record a page-view event. Silently swallows errors so a missing migration
   # or DB hiccup never surfaces to the reader.
   def self.track!(article:, translation: nil, edition: "fa", request:)
-    country_code = extract_country(request)
+    country_name, city_name = extract_location(request)
     create!(
       article_id:     article.id,
       translation_id: translation.is_a?(Translation) ? translation.id : nil,
-      country_code:   country_code,
+      country_name:   country_name,
+      city_name:      city_name,
+      country_code:   Country.code_for_name(country_name),
       edition:        edition
     )
   rescue => error
     Rails.logger.warn("[ArticleView] tracking failed: #{error.message}")
   end
 
-  private_class_method def self.extract_country(request)
-    env = request.env
-
-    # Fast path: CDN / proxy header (no network call)
-    cdn_code = env[CF_COUNTRY_HEADER].presence ||
-               env[CF_FRONT_HEADER].presence   ||
-               env[GENERIC_COUNTRY_HDR].presence
-    return cdn_code if cdn_code.present?
-
-    # Fallback: geolocation service (skipped for local dev IPs)
+  private_class_method def self.extract_location(request)
     ip = request.remote_ip.to_s.strip
-    return nil if ip.blank? || LOCAL_IPS.include?(ip)
+    return [ nil, nil ] if ip.blank? || LOCAL_IPS.include?(ip)
 
     geolocate_ip(ip)
   rescue => error
-    Rails.logger.warn("[ArticleView] extract_country failed: #{error.message}")
-    nil
+    Rails.logger.warn("[ArticleView] extract_location failed: #{error.message}")
+    [ nil, nil ]
   end
 
-  # Resolve an IP to a country code, using a local cache so a given IP is only
-  # ever fetched from the geolocation service once. Cache hits (including ones
-  # that resolved to "no country") skip the HTTP call entirely.
+  # Resolve an IP to a [country_name, city_name] pair, using a local cache so a
+  # given IP is only ever fetched from the geolocation service once. Cache hits
+  # (including ones that resolved to no location) skip the HTTP call entirely.
   private_class_method def self.geolocate_ip(ip)
     cached = IpGeolocation.find_by(ip: ip)
     if cached
       cached.record_hit!
-      return cached.country_name.presence
+      return [ cached.country_name.presence, cached.city_name.presence ]
     end
 
     country, city = fetch_country_from_service(ip)
     IpGeolocation.create!(ip: ip, country_name: country, city_name: city, lookups_count: 1, last_used_at: Time.current)
-    country
+    [ country.presence, city.presence ]
   rescue ActiveRecord::RecordNotUnique
     # Another request cached this IP first — just read it back.
-    IpGeolocation.find_by(ip: ip)&.country_name.presence
+    cached = IpGeolocation.find_by(ip: ip)
+    [ cached&.country_name.presence, cached&.city_name.presence ]
   rescue => error
     Rails.logger.warn("[ArticleView] geolocate_ip(#{ip}) failed: #{error.message}")
-    nil
+    [ nil, nil ]
   end
 
   # Perform the actual HTTP lookup. Raises on any transport/parse error so the

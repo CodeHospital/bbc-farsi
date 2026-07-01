@@ -75,6 +75,8 @@ class Admin::ArticlesController < Admin::BaseController
                                                      .transform_values { |rows| rows.map(&:last) }
 
     @task_by_target = queue_tasks_by_target
+
+    @pagy, @article_views = pagy(@article.article_views.order(created_at: :desc))
   end
 
   def rewrite
