@@ -22,10 +22,26 @@ module ApplicationHelper
     "VN" => "Vietnam",     "YE" => "Yemen"
   }.freeze
 
-  # Convert a 2-letter ISO code into a flag emoji (e.g. "US" → 🇺🇸).
-  def country_flag(code)
-    return "🌐" unless code.to_s.length == 2
-    code.upcase.chars.map { |c| (c.ord - 65 + 0x1F1E6).chr(Encoding::UTF_8) }.join
+  # Convert a country into a flag emoji. Accepts either a 2-letter ISO code
+  # (e.g. "US" → 🇺🇸) or a full country name (e.g. "United States" → 🇺🇸),
+  # falling back to 🌐 when the country can't be resolved.
+  def country_flag(country)
+    code = country.to_s.strip
+    code = code_for_country_name(code) if code.length != 2
+
+    if code.to_s.length == 2
+      code.upcase.chars.map { |c| (c.ord - 65 + 0x1F1E6).chr(Encoding::UTF_8) }.join
+    else
+      "🌐"
+    end
+  end
+
+  # Reverse lookup: full country name → 2-letter ISO code (case-insensitive),
+  # or nil when unknown.
+  def code_for_country_name(name)
+    @country_codes_by_name ||=
+      COUNTRY_NAMES.each_with_object({}) { |(code, country), map| map[country.downcase] = code }
+    @country_codes_by_name[name.to_s.strip.downcase]
   end
 
   # Human-readable country name for a 2-letter ISO code, or the code itself.

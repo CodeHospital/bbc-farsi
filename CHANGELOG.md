@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — `ApplicationHelper#country_flag` reverse-lookup bug + full test coverage
+
+- `country_flag` called a non-existent `Hash#get_code_by_value` and then discarded its result, always falling through to the 🌐 fallback for anything that wasn't already a 2-letter code — broken by the switch to storing full `country_name` values (e.g. `"United States"`) in the new IP-geolocation cache instead of 2-letter codes.
+- Replaced with a real reverse lookup: `country_flag` now accepts either a 2-letter ISO code or a full country name (case-insensitive, whitespace-tolerant) and resolves it to the correct flag emoji via a new memoized `code_for_country_name` helper.
+- Added `test/helpers/application_helper_test.rb`: full coverage of `country_flag`, `code_for_country_name`, `country_name`, and `sort_link` (23 tests) — codes vs. full names, case/whitespace handling, unknown/nil/blank inputs, and `sort_link`'s direction-toggle/indicator/query-param-preservation behavior. Full suite green (235 runs, 0 failures).
+
 ### Added — Local IP geolocation cache + admin listing
 
 - New `ip_geolocations` table + `IpGeolocation` model: a local cache of IP → country lookups. `ArticleView.geolocate_ip` now checks this cache first and only calls the geolocation HTTP service on a cache miss, storing the result (including "no country" resolutions) so a given IP is fetched at most once. Cache hits bump a `lookups_count` and refresh `last_used_at` via a single `UPDATE` (no validations/callbacks). Concurrent first-lookups of the same IP are handled by rescuing `RecordNotUnique`.

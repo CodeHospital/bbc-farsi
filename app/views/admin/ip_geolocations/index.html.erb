@@ -52,6 +52,7 @@
         <tr>
           <th><%= sort_link "ip", "IP address" %></th>
           <th><%= sort_link "country", "Country" %></th>
+          <th><%= sort_link "city", "City" %></th>
           <th class="text-end"><%= sort_link "lookups", "Lookups" %></th>
           <th><%= sort_link "used", "Last used" %></th>
           <th><%= sort_link "created", "Cached at" %></th>
@@ -62,14 +63,15 @@
           <tr>
             <td><code><%= geo.ip %></code></td>
             <td>
-              <% if geo.country_code.present? %>
-                <%= country_flag(geo.country_code) %>
-                <strong><%= geo.country_code %></strong>
-                <small class="text-muted"><%= country_name(geo.country_code) %></small>
+              <% if geo.country_name.present? %>
+                <%= country_flag(geo.country_name) %>
+                <strong><%= geo.country_name %></strong>
+                <small class="text-muted"><%= geo.country_name %></small>
               <% else %>
                 <span class="text-muted">—</span>
               <% end %>
             </td>
+            <td><%= geo.city_name %></td>
             <td class="text-end fw-bold"><%= geo.lookups_count %></td>
             <td><small><%= geo.last_used_at&.strftime("%b %d %H:%M") || "—" %></small></td>
             <td><small><%= geo.created_at.strftime("%b %d %H:%M") %></small></td>
