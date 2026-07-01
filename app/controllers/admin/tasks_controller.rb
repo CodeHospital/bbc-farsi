@@ -31,7 +31,7 @@ class Admin::TasksController < Admin::BaseController
   def show; end
 
   def retry
-    @task.requeue!
+    @task.retry!
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to admin_tasks_path, notice: "Task ##{@task.id} re-queued." }
@@ -54,19 +54,25 @@ class Admin::TasksController < Admin::BaseController
   end
 
   # Change priority for many tasks at once. Either step every selected task
-  # up/down (`direction`) or set them all to an exact value (`priority`).
+  # up/down (`direction`) or set them all to an exact value (`priority`). Goes
+  # through Task#reprioritize! / LlmarktSubmitter so each change is mirrored
+  # onto llmarkt's own job priority (best-effort) where applicable.
   def bulk_prioritize
     task_ids = Array(params[:task_ids]).reject(&:blank?)
     return redirect_back(fallback_location: admin_tasks_path, alert: "Select at least one task.") if task_ids.empty?
 
-    scope = Task.where(id: task_ids)
+    tasks = Task.where(id: task_ids)
     if params[:direction].present?
-      step = params[:direction] == "down" ? -1 : 1
-      scope.update_all("priority = priority + #{step}")
-      notice = "#{step.positive? ? 'Raised' : 'Lowered'} priority of #{task_ids.size} task(s)."
+      tasks.find_each { |task| task.reprioritize!(params[:direction]) }
+      notice = "#{params[:direction] == 'down' ? 'Lowered' : 'Raised'} priority of #{task_ids.size} task(s)."
     elsif params[:priority].present?
-      scope.update_all(priority: params[:priority].to_i)
-      notice = "Set priority of #{task_ids.size} task(s) to #{params[:priority].to_i}."
+      target_priority = params[:priority].to_i
+      tasks.find_each do |task|
+        delta = target_priority - task.priority
+        task.update!(priority: target_priority)
+        LlmarktSubmitter.update_priority(task, delta)
+      end
+      notice = "Set priority of #{task_ids.size} task(s) to #{target_priority}."
     else
       return redirect_back(fallback_location: admin_tasks_path, alert: "Choose a bulk priority action.")
     end

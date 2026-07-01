@@ -62,4 +62,63 @@ class LlmarktClientTest < ActiveSupport::TestCase
       end
     end
   end
+
+  # ── update_job_priority ─────────────────────────────────────────────────────
+
+  test "update_job_priority patches /jobs/:id/priority with the signed delta" do
+    captured = nil
+    stub_request(:patch, "https://llmarkt.test/api/v1/jobs/job-1/priority")
+      .with(headers: { "Authorization" => "Bearer secret-key" })
+      .to_return(status: 200, body: { priority: 10 }.to_json, headers: { "Content-Type" => "application/json" })
+
+    result = LlmarktClient.update_job_priority("job-1", 10)
+
+    assert_equal 10, result["priority"]
+    assert_requested :patch, "https://llmarkt.test/api/v1/jobs/job-1/priority" do |req|
+      captured = JSON.parse(req.body)
+      true
+    end
+    assert_equal 10, captured["priority"]
+  end
+
+  test "update_job_priority raises on a non-success response" do
+    stub_request(:patch, "https://llmarkt.test/api/v1/jobs/job-1/priority")
+      .to_return(status: 422, body: { error: "job not pending" }.to_json)
+
+    error = assert_raises(LlmarktClient::Error) { LlmarktClient.update_job_priority("job-1", -5) }
+    assert_match(/422/, error.message)
+  end
+
+  test "update_job_priority raises when llmarkt is not configured" do
+    with_llmarkt_disabled do
+      assert_raises(LlmarktClient::Error) { LlmarktClient.update_job_priority("job-1", 5) }
+    end
+  end
+
+  # ── retry_job ────────────────────────────────────────────────────────────────
+
+  test "retry_job posts to /jobs/:id/retry and returns the requeued job" do
+    stub_request(:post, "https://llmarkt.test/api/v1/jobs/job-1/retry")
+      .with(headers: { "Authorization" => "Bearer secret-key" })
+      .to_return(status: 200, body: { job_id: "job-1", status: "pending" }.to_json,
+                 headers: { "Content-Type" => "application/json" })
+
+    result = LlmarktClient.retry_job("job-1")
+
+    assert_equal "pending", result["status"]
+  end
+
+  test "retry_job raises on a non-success response" do
+    stub_request(:post, "https://llmarkt.test/api/v1/jobs/job-1/retry")
+      .to_return(status: 422, body: { error: "job not failed" }.to_json)
+
+    error = assert_raises(LlmarktClient::Error) { LlmarktClient.retry_job("job-1") }
+    assert_match(/422/, error.message)
+  end
+
+  test "retry_job raises when llmarkt is not configured" do
+    with_llmarkt_disabled do
+      assert_raises(LlmarktClient::Error) { LlmarktClient.retry_job("job-1") }
+    end
+  end
 end

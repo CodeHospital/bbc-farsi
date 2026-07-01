@@ -95,6 +95,29 @@ class Admin::TasksControllerTest < ActionDispatch::IntegrationTest
     assert_select "a[href=?]", admin_task_path(kept)
   end
 
+  test "retry requeues a failed task locally when it was never submitted to llmarkt" do
+    task = create_task(kind: "rewrite", status: "failed")
+
+    post retry_admin_task_path(task)
+
+    assert_equal "pending", task.reload.status
+  end
+
+  test "retry requeues the same job on llmarkt in place when it has an external job id" do
+    task = create_task(kind: "rewrite", status: "failed")
+    task.update_column(:external_job_id, "job-1")
+
+    stub_llmarkt_config
+    LlmarktClient.stub(:retry_job, ->(job_id) { { "status" => "pending" } }) do
+      post retry_admin_task_path(task)
+    end
+    restore_llmarkt_config
+
+    task.reload
+    assert_equal "claimed", task.status
+    assert_equal "job-1", task.external_job_id
+  end
+
   test "bulk_prioritize raises priority for only the selected tasks" do
     selected   = create_task(kind: "rewrite", status: "pending")
     also        = create_task(kind: "rewrite", status: "pending")

@@ -45,3 +45,4 @@ Thumbs.db
 *.swo
 db/sessions/*
 .playwright-mcp/
+worker-go

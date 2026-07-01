@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Task priority changes and retries are mirrored onto llmarkt
+
+- Pulled the live spec from https://llmarkt.codehospital.com/api-docs and implemented the two job-management endpoints it exposes beyond job submission: `PATCH /jobs/{id}/priority` (signed delta, only while the job is still `pending` on their side) and `POST /jobs/{id}/retry` (requeues a `failed` job in place — same `job_id`). Added `LlmarktClient.update_job_priority(job_id, delta)` / `LlmarktClient.retry_job(job_id)`, with their own request/error tests in `llmarkt_client_test.rb`.
+- Added `LlmarktSubmitter.update_priority(task, delta)` / `.retry_task(task)` — best-effort wrappers (same style as `submit_task`): no-op and return `false` when llmarkt is disabled, the task was never submitted there (`external_job_id` blank), or the remote call errors (e.g. the llmarkt-side job already moved past `pending`/`failed`); errors are logged, never raised.
+- `Task#reprioritize!` now also calls `LlmarktSubmitter.update_priority` with the same ±1 delta after saving the local `priority` column, so both the single-task priority arrows and `Admin::TasksController#bulk_prioritize` (now iterating tasks via `reprioritize!`/computed per-task deltas instead of a raw `update_all`) push the change to llmarkt when applicable.
+- Added `Task#retry!`: prefers requeuing the *same* llmarkt job in place (keeps `job_id`, keeps any responses already recorded for earlier steps in a chained request) when the task has an external job id and the retry call succeeds; falls back to the existing plain local `requeue!` (Ollama worker fallback) otherwise. `Admin::TasksController#retry` now calls this instead of `requeue!` directly.
+- `Task#mark_claimed!` now also clears `error_message` (on both the task and its target) since it's reused by `retry!` to bring a task back to `claimed` after a successful llmarkt retry.
+- Full suite green (259 runs, 0 failures) including new coverage in `task_test.rb`, `llmarkt_submitter_test.rb`, `llmarkt_client_test.rb`, and `tasks_controller_test.rb`.
+
 ### Added — Task list on the admin article show page
 
 - The admin article show page (`/admin/articles/:id`) now has a **Tasks** section listing every `Task` targeting one of the article's rewrites/translations: id (linked to `admin_task_path`), kind, server/model, status badge, external llmarkt job id (or "—"), created-at, and a Retry/Cancel button for failed/pending tasks.

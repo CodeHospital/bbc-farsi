@@ -103,6 +103,67 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal(-1, task.reload.priority)
   end
 
+  test "reprioritize! mirrors the delta onto llmarkt when the task has an external job id" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    task.update_column(:external_job_id, "job-1")
+    captured = nil
+
+    stub_llmarkt_config
+    LlmarktClient.stub(:update_job_priority, ->(job_id, delta) { captured = [ job_id, delta ]; { "priority" => 1 } }) do
+      task.reprioritize!("up")
+    end
+    assert_equal [ "job-1", 1 ], captured
+  ensure
+    restore_llmarkt_config
+  end
+
+  test "retry! requeues the same job on llmarkt in place when it was submitted there" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    task.update_column(:external_job_id, "job-1")
+    task.fail!("worker timeout")
+
+    stub_llmarkt_config
+    LlmarktClient.stub(:retry_job, ->(job_id) { { "status" => "pending" } }) do
+      task.retry!
+    end
+    restore_llmarkt_config
+
+    task.reload
+    assert_equal "claimed", task.status
+    assert_equal "job-1", task.external_job_id # unchanged — same llmarkt job
+    assert_nil task.error_message
+    assert_equal "running", task.target.reload.status
+  end
+
+  test "retry! falls back to a plain local requeue when llmarkt retry fails" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    task.update_column(:external_job_id, "job-1")
+    task.fail!("worker timeout")
+
+    stub_llmarkt_config
+    LlmarktClient.stub(:retry_job, ->(job_id) { raise LlmarktClient::Error, "not failed" }) do
+      task.retry!
+    end
+    restore_llmarkt_config
+
+    task.reload
+    assert_equal "pending", task.status
+    assert_nil task.error_message
+    assert_equal "pending", task.target.reload.status
+  end
+
+  test "retry! is a plain local requeue when the task was never submitted to llmarkt" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    task.fail!("worker timeout")
+
+    task.retry!
+
+    assert_equal "pending", task.reload.status
+  end
+
   test "completing a rewrite task stores content, activates it, and chains a translate task" do
     task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
     Task.claim_next!

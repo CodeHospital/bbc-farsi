@@ -86,6 +86,35 @@ class LlmarktSubmitter
     end
   end
 
+  # Best-effort mirror of a local priority change onto llmarkt's job (only
+  # meaningful while the job is still queued there — llmarkt 422s otherwise,
+  # which we treat the same as "nothing to sync"). Called from Task#reprioritize!
+  # after the local `priority` column is already updated. Returns true on success.
+  def self.update_priority(task, delta)
+    return false unless Llmarkt.enabled?
+    return false if task.external_job_id.blank? || delta.to_i.zero?
+
+    LlmarktClient.update_job_priority(task.external_job_id, delta)
+    true
+  rescue StandardError => e
+    Rails.logger.error("LlmarktSubmitter#update_priority task=#{task.id}: #{e.class}: #{e.message}")
+    false
+  end
+
+  # Best-effort retry of a failed task's job on llmarkt, in place (same job_id).
+  # Called from Task#retry!. Returns true on success; the caller falls back to
+  # the plain local requeue (Ollama worker fallback) when this returns false.
+  def self.retry_task(task)
+    return false unless Llmarkt.enabled?
+    return false if task.external_job_id.blank?
+
+    LlmarktClient.retry_job(task.external_job_id)
+    true
+  rescue StandardError => e
+    Rails.logger.error("LlmarktSubmitter#retry_task task=#{task.id}: #{e.class}: #{e.message}")
+    false
+  end
+
   # ── Helpers ────────────────────────────────────────────────────────────────
 
   # The first request key that has no recorded response yet — the one llmarkt

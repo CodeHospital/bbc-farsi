@@ -100,6 +100,75 @@ class LlmarktSubmitterTest < ActiveSupport::TestCase
     end
   end
 
+  # ── update_priority ────────────────────────────────────────────────────────
+
+  test "update_priority calls llmarkt when the task has an external job id" do
+    task = build_pending_rewrite_task
+    task.update_column(:external_job_id, "job-1")
+    captured = nil
+
+    LlmarktClient.stub(:update_job_priority, ->(job_id, delta) { captured = [ job_id, delta ]; { "priority" => 10 } }) do
+      assert LlmarktSubmitter.update_priority(task, 10)
+    end
+    assert_equal [ "job-1", 10 ], captured
+  end
+
+  test "update_priority is a no-op without an external job id" do
+    task = build_pending_rewrite_task
+
+    LlmarktClient.stub(:update_job_priority, ->(*) { raise "should not be called" }) do
+      assert_not LlmarktSubmitter.update_priority(task, 1)
+    end
+  end
+
+  test "update_priority is a no-op for a zero delta" do
+    task = build_pending_rewrite_task
+    task.update_column(:external_job_id, "job-1")
+
+    LlmarktClient.stub(:update_job_priority, ->(*) { raise "should not be called" }) do
+      assert_not LlmarktSubmitter.update_priority(task, 0)
+    end
+  end
+
+  test "update_priority swallows llmarkt errors and returns false" do
+    task = build_pending_rewrite_task
+    task.update_column(:external_job_id, "job-1")
+
+    LlmarktClient.stub(:update_job_priority, ->(*) { raise LlmarktClient::Error, "not pending" }) do
+      assert_not LlmarktSubmitter.update_priority(task, 1)
+    end
+  end
+
+  # ── retry_task ─────────────────────────────────────────────────────────────
+
+  test "retry_task calls llmarkt when the task has an external job id" do
+    task = build_pending_rewrite_task
+    task.update_column(:external_job_id, "job-1")
+    captured = nil
+
+    LlmarktClient.stub(:retry_job, ->(job_id) { captured = job_id; { "status" => "pending" } }) do
+      assert LlmarktSubmitter.retry_task(task)
+    end
+    assert_equal "job-1", captured
+  end
+
+  test "retry_task is a no-op without an external job id" do
+    task = build_pending_rewrite_task
+
+    LlmarktClient.stub(:retry_job, ->(*) { raise "should not be called" }) do
+      assert_not LlmarktSubmitter.retry_task(task)
+    end
+  end
+
+  test "retry_task swallows llmarkt errors and returns false" do
+    task = build_pending_rewrite_task
+    task.update_column(:external_job_id, "job-1")
+
+    LlmarktClient.stub(:retry_job, ->(*) { raise LlmarktClient::Error, "not failed" }) do
+      assert_not LlmarktSubmitter.retry_task(task)
+    end
+  end
+
   private
 
   # Create a plain pending task without triggering the after_create_commit

@@ -151,10 +151,10 @@ class Task < ApplicationRecord
   end
 
   def mark_claimed!
-    update!(status: "claimed", claimed_at: Time.current, attempts: attempts + 1)
+    update!(status: "claimed", claimed_at: Time.current, attempts: attempts + 1, error_message: nil)
     return if CACHE_RESULT_KINDS.include?(kind) # don't touch the (read-only) target
 
-    target.update!(status: "running")
+    target.update!(status: "running", error_message: nil)
     case kind
     when "rewrite"   then target.article.update!(status: "rewriting")
     when "translate" then target.article.update!(status: "translating")
@@ -205,10 +205,22 @@ class Task < ApplicationRecord
     broadcast_article_refresh
   end
 
-  # Admin queue ordering. "up" is claimed sooner (higher number).
+  # Admin queue ordering. "up" is claimed sooner (higher number). Mirrored onto
+  # llmarkt's own job priority (best-effort) when this task was submitted there.
   def reprioritize!(direction)
     step = { "up" => 1, "down" => -1 }.fetch(direction.to_s, 0)
     update!(priority: priority + step)
+    LlmarktSubmitter.update_priority(self, step)
+  end
+
+  # Retry a failed task. Prefers requeuing the same job in place on llmarkt
+  # (job_id unchanged, responses already recorded for earlier steps in the
+  # chain are kept) when the task was submitted there; falls back to a plain
+  # local requeue (picked up by the Ollama worker) otherwise.
+  def retry!
+    return requeue! unless LlmarktSubmitter.retry_task(self)
+
+    mark_claimed!
   end
 
   # Put a failed/stuck task back on the queue for another worker to claim.
