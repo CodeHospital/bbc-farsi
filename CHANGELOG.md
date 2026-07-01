@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Delete action for cached IP geolocations in admin
+
+- `admin/ip_geolocations` now supports `DELETE` (route added as `only: %i[index destroy]`, `admin_ip_geolocation_path`). Each row in the index table has a "Delete" button (`turbo_confirm` prompt) that removes the cached `IpGeolocation` row and redirects back with a notice.
+
 ### Added — Paginated page views on the admin article show page
 
 - `Article has_many :article_views, dependent: :destroy`. The admin article show page (`/admin/articles/:id`) now has a **Views** section below Translations: a paginated (30/page via the standard `Pagy::Method` + `admin/shared/pagination` partial), newest-first table of every recorded view with its viewed-at time, edition (FA/EN), country (flag + name), and city.

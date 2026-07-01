@@ -31,4 +31,9 @@ class Admin::IpGeolocationsController < Admin::BaseController
 
     @pagy, @geolocations = pagy(scope.order(Arel.sql("#{column} #{direction} NULLS LAST")))
   end
+
+  def destroy
+    IpGeolocation.find(params[:id]).destroy
+    redirect_to admin_ip_geolocations_path, notice: "IP geolocation entry deleted."
+  end
 end

@@ -76,7 +76,7 @@ Rails.application.routes.draw do
     resource :analytics, only: :show, controller: :analytics
 
     # Cached IP → country geolocation lookups.
-    resources :ip_geolocations, only: :index
+    resources :ip_geolocations, only: %i[index destroy]
   end
 
   # Worker-facing task queue API (bearer-token protected).
