@@ -85,6 +85,7 @@ class ArticleView < ApplicationRecord
 
     data = JSON.parse(response.body)
     country = data.dig("data", "country").to_s.strip
-    country
+    city = data.dig("data", "city").to_s.strip
+    return country, city
   end
 end

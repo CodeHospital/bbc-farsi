@@ -63,13 +63,8 @@
           <tr>
             <td><code><%= geo.ip %></code></td>
             <td>
-              <% if geo.country_name.present? %>
-                <%= country_flag(geo.country_name) %>
-                <strong><%= geo.country_name %></strong>
-                <small class="text-muted"><%= geo.country_name %></small>
-              <% else %>
-                <span class="text-muted">—</span>
-              <% end %>
+              <%= country_flag(geo.country_name) %>
+              <small class="text-muted"><%= geo.country_name %></small>
             </td>
             <td><%= geo.city_name %></td>
             <td class="text-end fw-bold"><%= geo.lookups_count %></td>
