@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Task list on the admin article show page
+
+- The admin article show page (`/admin/articles/:id`) now has a **Tasks** section listing every `Task` targeting one of the article's rewrites/translations: id (linked to `admin_task_path`), kind, server/model, status badge, external llmarkt job id (or "—"), created-at, and a Retry/Cancel button for failed/pending tasks.
+- `Admin::ArticlesController#show` now builds `@article_tasks` (all tasks, newest first) and derives `@task_by_target` from it, replacing the old single-purpose `queue_tasks_by_target` query (renamed `queue_tasks_for_article`) so both views share one query.
+- Added controller tests: kind/status/external-job-id rendering, and the "—" placeholder when a task has no external job id yet.
+
 ### Added — Delete action for cached IP geolocations in admin
 
 - `admin/ip_geolocations` now supports `DELETE` (route added as `only: %i[index destroy]`, `admin_ip_geolocation_path`). Each row in the index table has a "Delete" button (`turbo_confirm` prompt) that removes the cached `IpGeolocation` row and redirects back with a notice.

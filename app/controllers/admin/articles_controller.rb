@@ -74,7 +74,8 @@ class Admin::ArticlesController < Admin::BaseController
     @posted_channel_ids_by_translation = posted_rows.group_by(&:first)
                                                      .transform_values { |rows| rows.map(&:last) }
 
-    @task_by_target = queue_tasks_by_target
+    @article_tasks   = queue_tasks_for_article
+    @task_by_target  = @article_tasks.index_by { |task| [ task.target_type, task.target_id ] }
 
     @pagy, @article_views = pagy(@article.article_views.order(created_at: :desc))
   end
@@ -178,10 +179,14 @@ class Admin::ArticlesController < Admin::BaseController
   # The queue Task driving each rewrite/translation on the show page, keyed by
   # [target_type, target_id] so the view can show priority controls next to a
   # pending task. (One task per target; reruns reuse the same row.)
-  def queue_tasks_by_target
-    tasks = Task.where(target_type: "Rewrite",     target_id: @rewrites.map(&:id))
-            .or(Task.where(target_type: "Translation", target_id: @translations.map(&:id)))
-    tasks.index_by { |task| [ task.target_type, task.target_id ] }
+  # Every Task whose target is one of this article's rewrites/translations,
+  # newest first — powers both the full Tasks list and the inline
+  # pending-task controls on each rewrite/translation card.
+  def queue_tasks_for_article
+    Task.where(target_type: "Rewrite",     target_id: @rewrites.map(&:id))
+        .or(Task.where(target_type: "Translation", target_id: @translations.map(&:id)))
+        .order(created_at: :desc)
+        .to_a
   end
 
   def sort_clause

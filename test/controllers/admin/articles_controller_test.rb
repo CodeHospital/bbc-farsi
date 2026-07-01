@@ -166,6 +166,31 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_select "form[action=?]", prioritize_admin_task_path(task), count: 0
   end
 
+  test "show lists all tasks for the article with kind, status, and external job id" do
+    article  = create_article
+    rewrite  = create_rewrite(article:, attrs: { status: "completed" })
+    task     = Task.create!(kind: "rewrite", status: "claimed", target: rewrite,
+                             model: "qwen3:14b", external_job_id: "job-123")
+
+    get admin_article_path(article)
+
+    assert_response :success
+    assert_select "a[href=?]", admin_task_path(task), text: "##{task.id}"
+    assert_select "span.badge", text: "rewrite"
+    assert_select "td", text: "job-123"
+  end
+
+  test "show renders a placeholder for tasks without an external job id" do
+    article = create_article
+    rewrite = create_rewrite(article:, attrs: { status: "pending" })
+    Task.create!(kind: "rewrite", status: "pending", target: rewrite, model: "qwen3:14b")
+
+    get admin_article_path(article)
+
+    assert_response :success
+    assert_select "td", text: "—", minimum: 1
+  end
+
   test "show lists page views for the article with country and city" do
     article = create_article
     ArticleView.create!(article:, edition: "fa", country_name: "Iran", city_name: "Tehran", country_code: "IR")

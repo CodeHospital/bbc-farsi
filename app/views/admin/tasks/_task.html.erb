@@ -4,7 +4,12 @@
           id: "task_select_#{task.id}", form: "bulk_priority_form",
           class: "form-check-input task-select" %>
   </td>
-  <td><%= link_to "##{task.id}", admin_task_path(task) %></td>
+  <td>
+    <%= link_to "##{task.id}", admin_task_path(task) %>
+    <div class="text-muted small">
+      <%= task.external_job_id || "—" %>
+    </div>
+  </td>
   <td class="text-nowrap">
     <%= render "admin/tasks/priority_controls", task: task %>
   </td>
