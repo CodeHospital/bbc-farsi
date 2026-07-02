@@ -83,6 +83,32 @@ class Admin::TranslationsController < Admin::BaseController
       notice: "Refine task created (#{server.name} / #{model})."
   end
 
+  # Re-queue a translation task for every selected translation, reusing each
+  # one's own server/model — same as the single #rerun action.
+  def bulk_rerun
+    translation_ids = Array(params[:translation_ids]).reject(&:blank?)
+    return redirect_back(fallback_location: admin_translations_path, alert: "Select at least one translation.") if translation_ids.empty?
+
+    Translation.where(id: translation_ids).find_each do |translation|
+      Task.enqueue_translate(translation.rewrite, server: translation.ollama_server, model: translation.llm_model)
+    end
+    redirect_back fallback_location: admin_translations_path, notice: "Retranslation queued for #{translation_ids.size} translation(s)."
+  end
+
+  # Queue a refine task for every selected translation, mirroring the single
+  # #refine action's server/model selection.
+  def bulk_refine
+    translation_ids = Array(params[:translation_ids]).reject(&:blank?)
+    return redirect_back(fallback_location: admin_translations_path, alert: "Select at least one translation.") if translation_ids.empty?
+
+    server, model = OllamaServer.pick(:refine)
+    return redirect_back(fallback_location: admin_translations_path, alert: "No Ollama servers with refine models configured.") unless server
+
+    Translation.where(id: translation_ids).find_each { |translation| Task.enqueue_refine(translation, server:, model:) }
+    redirect_back fallback_location: admin_translations_path,
+                  notice: "Refine task created for #{translation_ids.size} translation(s) (#{server.name} / #{model})."
+  end
+
   def post_to_channel
     channel = TelegramChannel.find(params[:telegram_channel_id])
     post    = TelegramPost.find_or_initialize_by(translation: @translation, telegram_channel: channel)

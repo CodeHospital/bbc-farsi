@@ -19,9 +19,21 @@
 </div>
 <%= render "admin/shared/filter_search", placeholder: "Search article / Persian title…" %>
 
+<%= form_with url: bulk_rerun_admin_translations_path, method: :post, id: "bulk_translations_form",
+      class: "card card-body py-2 mb-3" do %>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="text-muted small">
+      Bulk actions for <strong><span data-bulk-count="translations">0</span></strong> selected translation(s):
+    </span>
+    <button type="submit" formaction="<%= bulk_rerun_admin_translations_path %>" class="btn btn-sm btn-outline-warning">Retranslate</button>
+    <button type="submit" formaction="<%= bulk_refine_admin_translations_path %>" class="btn btn-sm btn-outline-secondary">Refine</button>
+  </div>
+<% end %>
+
 <table class="table table-hover table-sm">
   <thead>
     <tr>
+      <th><input type="checkbox" data-bulk-select-all="translations" class="form-check-input" title="Select all"></th>
       <th><%= sort_link "article", "Article" %></th>
       <th><%= sort_link "title", "Persian Title" %></th>
       <th><%= sort_link "model", "Model" %></th>
@@ -34,6 +46,11 @@
   <tbody>
     <% @translations.each do |t| %>
       <tr class="<%= t.archived? ? 'table-secondary' : (t.active? ? 'table-success' : '') %>">
+        <td>
+          <%= check_box_tag "translation_ids[]", t.id, false,
+                id: "translation_select_#{t.id}", form: "bulk_translations_form",
+                class: "form-check-input bulk-select", data: { bulk_group: "translations" } %>
+        </td>
         <td><small class="<%= 'posted-title' if t.article&.status == 'posted' %>"><%= t.article&.title&.truncate(50) %></small></td>
         <td dir="rtl"><%= t.translated_title&.truncate(50) %></td>
         <td><small class="text-muted"><%= t.llm_model %></small></td>

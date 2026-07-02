@@ -25,6 +25,10 @@ Rails.application.routes.draw do
         post :unarchive
         post :bump_priority
       end
+      collection do
+        post :bulk_rewrite
+        post :bulk_translate
+      end
     end
 
     resources :rewrites, only: %i[index show edit update] do
@@ -32,6 +36,9 @@ Rails.application.routes.draw do
         post :rerun
         post :activate
         post :archive
+      end
+      collection do
+        post :bulk_rerun
       end
     end
 
@@ -43,6 +50,10 @@ Rails.application.routes.draw do
         post :post_to_channel
         post :archive
         post :unarchive
+      end
+      collection do
+        post :bulk_rerun
+        post :bulk_refine
       end
     end
 

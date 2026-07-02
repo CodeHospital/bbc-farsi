@@ -20,7 +20,7 @@
       class: "card card-body py-2 mb-3" do %>
   <div class="d-flex flex-wrap align-items-center gap-2">
     <span class="text-muted small">
-      Bulk priority for <strong><span id="selected_count">0</span></strong> selected:
+      Bulk priority for <strong><span data-bulk-count="tasks">0</span></strong> selected:
     </span>
     <button type="submit" name="direction" value="up" class="btn btn-sm btn-outline-secondary">
       <i class="bi bi-arrow-up"></i> Raise
@@ -39,7 +39,7 @@
 <table class="table table-hover table-sm align-middle">
   <thead>
     <tr>
-      <th><input type="checkbox" id="select_all_tasks" class="form-check-input" title="Select all"></th>
+      <th><input type="checkbox" data-bulk-select-all="tasks" class="form-check-input" title="Select all"></th>
       <th>#</th>
       <th><%= sort_link "priority", "Priority" %></th>
       <th><%= sort_link "kind", "Kind" %></th>
@@ -56,36 +56,3 @@
   </tbody>
 </table>
 <%= render "admin/shared/pagination", pagy: @pagy %>
-
-<script>
-  // Select-all + selected-count for bulk priority actions. Re-init on Turbo
-  // navigations; guarded so listeners are bound only once per element.
-  function initTaskBulkSelect() {
-    const selectAll = document.getElementById('select_all_tasks');
-    if (!selectAll || selectAll.dataset.bound) return;
-    selectAll.dataset.bound = '1';
-
-    const boxes   = () => Array.from(document.querySelectorAll('.task-select'));
-    const counter = document.getElementById('selected_count');
-
-    const refresh = () => {
-      const all     = boxes();
-      const checked = all.filter(b => b.checked).length;
-      if (counter) counter.textContent = checked;
-      selectAll.checked       = checked > 0 && checked === all.length;
-      selectAll.indeterminate = checked > 0 && checked < all.length;
-    };
-
-    selectAll.addEventListener('change', () => {
-      boxes().forEach(b => { b.checked = selectAll.checked; });
-      refresh();
-    });
-    document.addEventListener('change', (e) => {
-      if (e.target.classList.contains('task-select')) refresh();
-    });
-    refresh();
-  }
-
-  document.addEventListener('turbo:load', initTaskBulkSelect);
-  initTaskBulkSelect();
-</script>

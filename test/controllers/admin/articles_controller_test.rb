@@ -222,6 +222,56 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "bulk_rewrite creates a rewrite task for each selected article" do
+    OllamaServer.create!(name: "Local", url: "http://localhost:11434",
+                         rewrite_models: "qwen3:14b", translate_models: "aya-expanse:32b", refine_models: "qwen3:14b")
+    one = create_article
+    two = create_article
+
+    assert_difference -> { Task.where(kind: "rewrite").count }, 2 do
+      post bulk_rewrite_admin_articles_path, params: { article_ids: [ one.id, two.id ] }
+    end
+    assert_response :redirect
+  end
+
+  test "bulk_rewrite with no selection redirects with an alert" do
+    post bulk_rewrite_admin_articles_path, params: { article_ids: [] }
+    assert_response :redirect
+    follow_redirect!
+    assert_select ".alert-danger"
+  end
+
+  test "bulk_rewrite without a configured server redirects with an alert" do
+    article = create_article
+
+    assert_no_difference -> { Task.count } do
+      post bulk_rewrite_admin_articles_path, params: { article_ids: [ article.id ] }
+    end
+    assert_response :redirect
+    follow_redirect!
+    assert_select ".alert-danger"
+  end
+
+  test "bulk_translate creates a translation task for each selected article, falling back to the original when no rewrite exists" do
+    OllamaServer.create!(name: "Local", url: "http://localhost:11434",
+                         rewrite_models: "qwen3:14b", translate_models: "aya-expanse:32b", refine_models: "qwen3:14b")
+    with_rewrite    = create_article
+    create_rewrite(article: with_rewrite, attrs: { status: "completed" })
+    without_rewrite = create_article
+
+    assert_difference -> { Task.where(kind: "translate").count }, 2 do
+      post bulk_translate_admin_articles_path, params: { article_ids: [ with_rewrite.id, without_rewrite.id ] }
+    end
+    assert_response :redirect
+  end
+
+  test "bulk_translate with no selection redirects with an alert" do
+    post bulk_translate_admin_articles_path, params: { article_ids: [] }
+    assert_response :redirect
+    follow_redirect!
+    assert_select ".alert-danger"
+  end
+
   private
 
   def log_in

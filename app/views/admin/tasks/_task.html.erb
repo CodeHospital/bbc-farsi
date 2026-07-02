@@ -2,7 +2,7 @@
   <td>
     <%= check_box_tag "task_ids[]", task.id, false,
           id: "task_select_#{task.id}", form: "bulk_priority_form",
-          class: "form-check-input task-select" %>
+          class: "form-check-input bulk-select", data: { bulk_group: "tasks" } %>
   </td>
   <td>
     <%= link_to "##{task.id}", admin_task_path(task) %>

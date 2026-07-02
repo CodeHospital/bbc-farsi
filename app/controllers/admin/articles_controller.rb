@@ -147,6 +147,38 @@ class Admin::ArticlesController < Admin::BaseController
     redirect_to admin_article_path(@article), notice: "#{targets.size} translation task(s) created."
   end
 
+  # Queue a rewrite task for every selected article, mirroring the single
+  # #rewrite action's server/model selection.
+  def bulk_rewrite
+    article_ids = Array(params[:article_ids]).reject(&:blank?)
+    return redirect_back(fallback_location: admin_articles_path, alert: "Select at least one article.") if article_ids.empty?
+
+    server, model = OllamaServer.pick(:rewrite)
+    return redirect_back(fallback_location: admin_articles_path, alert: "No Ollama servers with rewrite models configured.") unless server
+
+    Article.where(id: article_ids).find_each { |article| Task.enqueue_rewrite(article, server:, model:) }
+    redirect_back fallback_location: admin_articles_path,
+                  notice: "Rewrite task created for #{article_ids.size} article(s) (#{server.name} / #{model})."
+  end
+
+  # Queue a translation task for every selected article, mirroring the single
+  # #translate action: uses each article's latest completed rewrite, falling
+  # back to a pass-through "original" rewrite when none exists yet.
+  def bulk_translate
+    article_ids = Array(params[:article_ids]).reject(&:blank?)
+    return redirect_back(fallback_location: admin_articles_path, alert: "Select at least one article.") if article_ids.empty?
+
+    server, model = OllamaServer.pick(:translate)
+    return redirect_back(fallback_location: admin_articles_path, alert: "No Ollama servers with translate models configured.") unless server
+
+    Article.where(id: article_ids).find_each do |article|
+      rewrite = article.rewrites.completed.last || article.original_rewrite!
+      Task.enqueue_translate(rewrite, server:, model:)
+    end
+    redirect_back fallback_location: admin_articles_path,
+                  notice: "Translation task created for #{article_ids.size} article(s) (#{server.name} / #{model})."
+  end
+
   def bump_priority
     rewrite_tasks     = Task.pending.where(target_type: "Rewrite",
                                            target_id: @article.rewrites.select(:id))

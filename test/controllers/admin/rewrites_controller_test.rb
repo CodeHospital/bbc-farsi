@@ -112,6 +112,23 @@ class Admin::RewritesControllerTest < ActionDispatch::IntegrationTest
     assert_select "thead a", text: /Model ▲/
   end
 
+  test "bulk_rerun re-creates a rewrite task for each selected rewrite using its own model" do
+    one = create_rewrite(attrs: { llm_model: "qwen3:14b" })
+    two = create_rewrite(attrs: { llm_model: "llama3:70b" })
+
+    assert_difference -> { Task.where(kind: "rewrite").count }, 2 do
+      post bulk_rerun_admin_rewrites_path, params: { rewrite_ids: [ one.id, two.id ] }
+    end
+    assert_response :redirect
+  end
+
+  test "bulk_rerun with no selection redirects with an alert" do
+    post bulk_rerun_admin_rewrites_path, params: { rewrite_ids: [] }
+    assert_response :redirect
+    follow_redirect!
+    assert_select ".alert-danger"
+  end
+
   private
 
   def log_in

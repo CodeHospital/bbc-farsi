@@ -178,6 +178,43 @@
       });
     }
   });
+
+  // Generic bulk-select checkboxes for listing pages (Tasks, Articles,
+  // Rewrites, Translations, …). A "select all" checkbox carries
+  // data-bulk-select-all="<group>"; each row checkbox carries class
+  // "bulk-select" + data-bulk-group="<group>"; an optional counter element
+  // carries data-bulk-count="<group>". Re-initializes on Turbo navigations;
+  // guarded so listeners are bound only once per "select all" element.
+  function initBulkSelectGroups() {
+    document.querySelectorAll('[data-bulk-select-all]').forEach((selectAll) => {
+      if (selectAll.dataset.bound) return;
+      selectAll.dataset.bound = '1';
+
+      const group   = selectAll.dataset.bulkSelectAll;
+      const boxes   = () => Array.from(document.querySelectorAll(`.bulk-select[data-bulk-group="${group}"]`));
+      const counter = document.querySelector(`[data-bulk-count="${group}"]`);
+
+      const refresh = () => {
+        const all     = boxes();
+        const checked = all.filter(b => b.checked).length;
+        if (counter) counter.textContent = checked;
+        selectAll.checked       = checked > 0 && checked === all.length;
+        selectAll.indeterminate = checked > 0 && checked < all.length;
+      };
+
+      selectAll.addEventListener('change', () => {
+        boxes().forEach(b => { b.checked = selectAll.checked; });
+        refresh();
+      });
+      document.addEventListener('change', (e) => {
+        if (e.target.matches(`.bulk-select[data-bulk-group="${group}"]`)) refresh();
+      });
+      refresh();
+    });
+  }
+
+  document.addEventListener('turbo:load', initBulkSelectGroups);
+  initBulkSelectGroups();
 </script>
 </body>
 </html>

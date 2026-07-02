@@ -52,6 +52,18 @@ class Admin::RewritesController < Admin::BaseController
     redirect_to admin_article_path(@rewrite.article), notice: "Rewrite ##{@rewrite.id} set as active."
   end
 
+  # Re-queue a rewrite task for every selected rewrite, reusing each one's
+  # own server/model — same as the single #rerun action.
+  def bulk_rerun
+    rewrite_ids = Array(params[:rewrite_ids]).reject(&:blank?)
+    return redirect_back(fallback_location: admin_rewrites_path, alert: "Select at least one rewrite.") if rewrite_ids.empty?
+
+    Rewrite.where(id: rewrite_ids).find_each do |rewrite|
+      Task.enqueue_rewrite(rewrite.article, server: rewrite.ollama_server, model: rewrite.llm_model)
+    end
+    redirect_back fallback_location: admin_rewrites_path, notice: "Rerun queued for #{rewrite_ids.size} rewrite(s)."
+  end
+
   def archive
     @rewrite.archive!
     redirect_to admin_article_path(@rewrite.article), notice: "Rewrite archived."

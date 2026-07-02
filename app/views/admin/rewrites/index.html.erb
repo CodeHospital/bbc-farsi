@@ -12,9 +12,20 @@
 </div>
 <%= render "admin/shared/filter_search", placeholder: "Search article title / content…" %>
 
+<%= form_with url: bulk_rerun_admin_rewrites_path, method: :post, id: "bulk_rewrites_form",
+      class: "card card-body py-2 mb-3" do %>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="text-muted small">
+      Bulk actions for <strong><span data-bulk-count="rewrites">0</span></strong> selected rewrite(s):
+    </span>
+    <button type="submit" class="btn btn-sm btn-outline-warning">Rerun</button>
+  </div>
+<% end %>
+
 <table class="table table-hover table-sm">
   <thead>
     <tr>
+      <th><input type="checkbox" data-bulk-select-all="rewrites" class="form-check-input" title="Select all"></th>
       <th><%= sort_link "article", "Article" %></th>
       <th><%= sort_link "model", "Model" %></th>
       <th><%= sort_link "status", "Status" %></th>
@@ -25,6 +36,11 @@
   <tbody>
     <% @rewrites.each do |rewrite| %>
       <tr>
+        <td>
+          <%= check_box_tag "rewrite_ids[]", rewrite.id, false,
+                id: "rewrite_select_#{rewrite.id}", form: "bulk_rewrites_form",
+                class: "form-check-input bulk-select", data: { bulk_group: "rewrites" } %>
+        </td>
         <td><%= link_to rewrite.article&.title&.truncate(70), admin_rewrite_path(rewrite),
                   class: ("posted-title" if rewrite.article&.status == "posted") %></td>
         <td><small class="text-muted"><%= rewrite.llm_model %></small></td>

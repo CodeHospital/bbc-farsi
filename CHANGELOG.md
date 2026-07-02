@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Bulk actions on Articles, Rewrites, and Translations listing pages
+
+- `/admin/articles`, `/admin/rewrites`, and `/admin/translations` each gain a row-checkbox column, a "select all" header checkbox, and a bulk-action bar above the table (mirroring the existing Task Queue bulk-priority UI):
+  - Articles: **Rewrite** (`bulk_rewrite`) and **Translate** (`bulk_translate`) — same server/model selection (`OllamaServer.pick`) and same rewrite-fallback logic (latest completed rewrite, else pass-through original) as the existing single-article actions.
+  - Rewrites: **Rerun** (`bulk_rerun`) — re-queues a rewrite task per selected row using that row's own server/model, same as the single Rerun button.
+  - Translations: **Retranslate** (`bulk_rerun`) and **Refine** (`bulk_refine`) — retranslate reuses each row's own server/model; refine uses `OllamaServer.pick(:refine)`.
+  - All six new controller actions are POST collection routes; each redirects back with a notice/alert (empty selection or no configured server → alert).
+- Extracted the per-page "select all + live counter" JavaScript (previously duplicated inline on the Tasks page) into one generic, data-attribute-driven function in the admin layout (`initBulkSelectGroups`): a `data-bulk-select-all="<group>"` checkbox drives any `.bulk-select[data-bulk-group="<group>"]` checkboxes and an optional `data-bulk-count="<group>"` counter. The Tasks page bulk-priority UI now runs on this shared script instead of its own copy (behavior unchanged).
+- Each bulk form uses one `form_with` per page with per-button `formaction` (Turbo respects the HTML `formaction` attribute) so a single checkbox selection can be routed to different actions (e.g. Translations' Retranslate vs. Refine) without duplicating the checkbox list.
+- Added controller test coverage for all six actions (selection required, server-required alerts, correct task counts created) plus a manual smoke test in the browser (login → select two articles → bulk Rewrite → notice + tasks created and visible on `/admin/tasks`). 271 tests green.
+
 ### Added — Task priority changes and retries are mirrored onto llmarkt
 
 - Pulled the live spec from https://llmarkt.codehospital.com/api-docs and implemented the two job-management endpoints it exposes beyond job submission: `PATCH /jobs/{id}/priority` (signed delta, only while the job is still `pending` on their side) and `POST /jobs/{id}/retry` (requeues a `failed` job in place — same `job_id`). Added `LlmarktClient.update_job_priority(job_id, delta)` / `LlmarktClient.retry_job(job_id)`, with their own request/error tests in `llmarkt_client_test.rb`.

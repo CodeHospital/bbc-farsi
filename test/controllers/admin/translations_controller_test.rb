@@ -155,6 +155,53 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "متن جدید", translation.translated_body
   end
 
+  test "bulk_rerun re-creates a translation task for each selected translation using its own model" do
+    one = translation_with(title: "Alpha", llm_model: "aya-expanse:32b")
+    two = translation_with(title: "Beta",  llm_model: "gemma2:27b")
+
+    assert_difference -> { Task.where(kind: "translate").count }, 2 do
+      post bulk_rerun_admin_translations_path, params: { translation_ids: [ one.id, two.id ] }
+    end
+    assert_response :redirect
+  end
+
+  test "bulk_rerun with no selection redirects with an alert" do
+    post bulk_rerun_admin_translations_path, params: { translation_ids: [] }
+    assert_response :redirect
+    follow_redirect!
+    assert_select ".alert-danger"
+  end
+
+  test "bulk_refine creates a refine task for each selected translation" do
+    OllamaServer.create!(name: "Local", url: "http://localhost:11434",
+                         rewrite_models: "qwen3:14b", translate_models: "aya-expanse:32b", refine_models: "qwen3:14b")
+    one = translation_with(title: "Alpha")
+    two = translation_with(title: "Beta")
+
+    assert_difference -> { Task.where(kind: "refine").count }, 2 do
+      post bulk_refine_admin_translations_path, params: { translation_ids: [ one.id, two.id ] }
+    end
+    assert_response :redirect
+  end
+
+  test "bulk_refine without a configured server redirects with an alert" do
+    translation = translation_with(title: "Alpha")
+
+    assert_no_difference -> { Task.where(kind: "refine").count } do
+      post bulk_refine_admin_translations_path, params: { translation_ids: [ translation.id ] }
+    end
+    assert_response :redirect
+    follow_redirect!
+    assert_select ".alert-danger"
+  end
+
+  test "bulk_refine with no selection redirects with an alert" do
+    post bulk_refine_admin_translations_path, params: { translation_ids: [] }
+    assert_response :redirect
+    follow_redirect!
+    assert_select ".alert-danger"
+  end
+
   private
 
   def log_in
