@@ -14,6 +14,10 @@
     <%= f.label :category, class: "form-label" %>
     <%= f.text_field :category, class: "form-control" %>
   </div>
+  <div class="mb-3">
+    <%= f.label :source, class: "form-label" %>
+    <%= f.select :source, Feed::SOURCES, {}, class: "form-select" %>
+  </div>
   <div class="form-check mb-3">
     <%= f.check_box :enabled, class: "form-check-input" %>
     <%= f.label :enabled, class: "form-check-label" %>

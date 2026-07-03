@@ -53,4 +53,34 @@ class BbcFeedFetcherTest < ActiveSupport::TestCase
     results = @fetcher.fetch(@feed)
     assert_equal [], results
   end
+
+  test "fetch_with_report includes every entry, tagging ignored ones with a reason" do
+    stub_request(:get, @feed.url).to_return(body: VALID_RSS, headers: { "Content-Type" => "application/rss+xml" })
+
+    result = @fetcher.fetch_with_report(@feed)
+    assert_nil result[:error]
+    assert_equal 1, result[:entries].size
+    assert_equal "UK election update", result[:entries].first[:title]
+    assert_equal 1, result[:ignored].size
+    assert_equal "Watch: something to skip", result[:ignored].first[:title]
+    assert_match(/Watch:/, result[:ignored].first[:reason])
+  end
+
+  test "fetch_with_report reports disallowed hosts as an error instead of raising" do
+    @feed.url = "https://evil.example.com/rss.xml"
+
+    result = @fetcher.fetch_with_report(@feed)
+    assert_equal [], result[:entries]
+    assert_equal [], result[:ignored]
+    assert_match(/not an allowed/, result[:error])
+  end
+
+  test "fetch_with_report reports HTTP errors instead of raising" do
+    stub_request(:get, @feed.url).to_raise(StandardError.new("timeout"))
+
+    result = @fetcher.fetch_with_report(@feed)
+    assert_equal [], result[:entries]
+    assert_equal [], result[:ignored]
+    assert_equal "timeout", result[:error]
+  end
 end

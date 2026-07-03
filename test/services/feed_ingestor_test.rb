@@ -44,6 +44,22 @@ class FeedIngestorTest < ActiveSupport::TestCase
     assert_not fetched, "fetcher should not be called for disabled feeds"
   end
 
+  test "routes NYT feeds to NytFeedFetcher and BBC feeds to BbcFeedFetcher" do
+    nyt_feed = create_feed(source: "nyt", url: "https://rss.nytimes.com/services/xml/rss/nyt/test-#{SecureRandom.hex(6)}.xml")
+
+    bbc_fake = Object.new
+    bbc_fake.define_singleton_method(:fetch) { |_feed| [] }
+    nyt_fake = Object.new
+    seen_feed_ids = []
+    nyt_fake.define_singleton_method(:fetch) { |feed| seen_feed_ids << feed.id; [] }
+
+    BbcFeedFetcher.stub(:new, bbc_fake) do
+      NytFeedFetcher.stub(:new, nyt_fake) { FeedIngestor.run }
+    end
+
+    assert_equal [ nyt_feed.id ], seen_feed_ids
+  end
+
   test "still ingests articles when no Ollama server is configured (no task)" do
     OllamaServer.delete_all
     new_articles = [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ]
@@ -55,11 +71,86 @@ class FeedIngestorTest < ActiveSupport::TestCase
     end
   end
 
+  test "run_one creates a new article, enqueues a task, and reports ignored entries" do
+    report = {
+      entries: [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ],
+      ignored: [ { title: "Watch: clip", url: "https://bbc.co.uk/news/watch-1", reason: "title starts with ignored prefix \"Watch:\"" } ],
+      error: nil
+    }
+
+    result = nil
+    stub_fetcher_report(returns: report) do
+      assert_difference([ "Article.count", "Task.count" ], 1) { result = FeedIngestor.run_one(@feed) }
+    end
+
+    assert_equal 1, result[:new_count]
+    assert_equal 0, result[:updated_count]
+    assert_equal 1, result[:skipped].size
+    assert_match(/Watch:/, result[:skipped].first[:reason])
+  end
+
+  test "run_one updates an existing article whose content changed" do
+    existing = create_article(feed: @feed, attrs: { title: "Old title", description: "old desc" })
+    report = {
+      entries: [ { title: "New title", url: existing.url, description: "old desc", published_at: existing.published_at, status: "pending" } ],
+      ignored: [],
+      error: nil
+    }
+
+    result = nil
+    stub_fetcher_report(returns: report) do
+      assert_no_difference("Article.count") { result = FeedIngestor.run_one(@feed) }
+    end
+
+    assert_equal 0, result[:new_count]
+    assert_equal 1, result[:updated_count]
+    assert_equal "New title", existing.reload.title
+  end
+
+  test "run_one skips an existing article with no changes and explains why" do
+    existing = create_article(feed: @feed, attrs: { title: "Same title", description: "same desc" })
+    report = {
+      entries: [ { title: "Same title", url: existing.url, description: "same desc", published_at: existing.published_at, status: "pending" } ],
+      ignored: [],
+      error: nil
+    }
+
+    result = nil
+    stub_fetcher_report(returns: report) do
+      assert_no_difference("Article.count") { result = FeedIngestor.run_one(@feed) }
+    end
+
+    assert_equal 0, result[:new_count]
+    assert_equal 0, result[:updated_count]
+    assert_equal 1, result[:skipped].size
+    assert_equal "already up to date", result[:skipped].first[:reason]
+  end
+
+  test "run_one surfaces a fetch error without touching articles" do
+    report = { entries: [], ignored: [], error: "timeout" }
+
+    result = nil
+    stub_fetcher_report(returns: report) do
+      assert_no_difference("Article.count") { result = FeedIngestor.run_one(@feed) }
+    end
+
+    assert_equal "timeout", result[:error]
+    assert_equal 0, result[:new_count]
+    assert_equal 0, result[:updated_count]
+    assert_equal [], result[:skipped]
+  end
+
   private
 
   def stub_fetcher(returns:, &block)
     fake = Object.new
     fake.define_singleton_method(:fetch) { |_feed| returns }
+    BbcFeedFetcher.stub(:new, fake, &block)
+  end
+
+  def stub_fetcher_report(returns:, &block)
+    fake = Object.new
+    fake.define_singleton_method(:fetch_with_report) { |_feed| returns }
     BbcFeedFetcher.stub(:new, fake, &block)
   end
 end

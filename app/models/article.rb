@@ -20,8 +20,19 @@ class Article < ApplicationRecord
   IGNORE_URL_KEYWORDS   = %w[iplayer programmes sounds].freeze
 
   def self.ignorable?(title, url)
-    IGNORE_TITLE_PREFIXES.any? { |p| title.to_s.include?(p) } ||
-      IGNORE_URL_KEYWORDS.any? { |k| url.to_s.include?(k) }
+    ignore_reason(title, url).present?
+  end
+
+  # nil when the entry should be ingested; otherwise a human-readable reason,
+  # used to explain skipped entries in a single-feed fetch report.
+  def self.ignore_reason(title, url)
+    matched_prefix = IGNORE_TITLE_PREFIXES.find { |prefix| title.to_s.include?(prefix) }
+    return "title starts with ignored prefix #{matched_prefix.inspect}" if matched_prefix
+
+    matched_keyword = IGNORE_URL_KEYWORDS.find { |keyword| url.to_s.include?(keyword) }
+    return "URL contains ignored keyword #{matched_keyword.inspect}" if matched_keyword
+
+    nil
   end
 
   def archive! = update!(archived: true)

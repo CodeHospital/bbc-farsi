@@ -42,6 +42,22 @@ class ArticleTest < ActiveSupport::TestCase
     assert_not Article.ignorable?("UK election update", "https://bbc.co.uk/news/uk-123")
   end
 
+  test "ignore_reason explains a matched title prefix" do
+    reason = Article.ignore_reason("Watch: something", "https://bbc.co.uk/news/a")
+    assert_match(/title starts with ignored prefix/, reason)
+    assert_match(/Watch:/, reason)
+  end
+
+  test "ignore_reason explains a matched url keyword" do
+    reason = Article.ignore_reason("Fine title", "https://bbc.co.uk/iplayer/episode/1")
+    assert_match(/URL contains ignored keyword/, reason)
+    assert_match(/iplayer/, reason)
+  end
+
+  test "ignore_reason is nil for normal articles" do
+    assert_nil Article.ignore_reason("UK election update", "https://bbc.co.uk/news/uk-123")
+  end
+
   test "latest_rewrite returns most recent rewrite" do
     article = create_article
     old_rewrite = Rewrite.create!(article:, llm_model: "qwen3:14b", status: "completed", content: "old", created_at: 1.hour.ago)
