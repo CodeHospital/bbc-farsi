@@ -59,7 +59,7 @@ module Llmarkt
     verifier.verify(token.to_s)
   end
 
-  # ── Incoming webhook signature (X-Vibe-Signature) ──────────────────────────
+  # ── Incoming webhook signature (X-LLMOnDemand-Signature) ───────────────────
   # llmarkt signs every webhook with HMAC-SHA256 of the raw JSON body, keyed with
   # our API key, sent as "sha256=<hex>". Verify it (constant-time) before trusting
   # a callback. See Api::LlmCallbacksController.

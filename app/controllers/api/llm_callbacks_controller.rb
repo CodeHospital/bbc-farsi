@@ -1,13 +1,15 @@
-# Public webhook endpoint that llmarkt (vibeearning) calls when an inference job
-# finishes. It is authenticated two ways, both required:
+# Public webhook endpoint that llmarkt (vibeearning / LLM On Demand) calls when
+# an inference job finishes. It is authenticated two ways, both required:
 #
-#   1. X-Vibe-Signature — HMAC-SHA256 of the raw body keyed with our API key, so
-#      we know the request genuinely came from llmarkt (verified constant-time).
+#   1. X-LLMOnDemand-Signature — HMAC-SHA256 of the raw body keyed with our API
+#      key, so we know the request genuinely came from llmarkt (verified
+#      constant-time). The older X-Vibe-Signature header name is also accepted
+#      for backward compatibility.
 #   2. A signed token in the URL encoding which Task + request key the result is
 #      for, so we know where to route it (and that WE issued this callback URL).
 #
 #   POST /api/llm_callbacks?token=<signed task_id+key>
-#   X-Vibe-Signature: sha256=<hmac>
+#   X-LLMOnDemand-Signature: sha256=<hmac>
 #   body: same payload as GET /v1/jobs/:id, e.g.
 #     { "job_id": "...", "status": "completed", "output": "...", ... }
 #
@@ -46,9 +48,9 @@ class Api::LlmCallbacksController < ActionController::API
   private
 
   def verify_webhook_signature!
-    provided = request.headers["X-Vibe-Signature"]
+    provided = request.headers["X-LLMOnDemand-Signature"] || request.headers["X-Vibe-Signature"]
     return if Llmarkt.valid_webhook_signature?(request.raw_post, provided)
 
-    raise InvalidSignature, "X-Vibe-Signature verification failed"
+    raise InvalidSignature, "webhook signature verification failed"
   end
 end

@@ -52,6 +52,30 @@ class LlmarktSubmitterTest < ActiveSupport::TestCase
     assert_equal "running", task.target.reload.status
   end
 
+  # Exercises the real LlmarktClient.submit_job (only the HTTP layer is stubbed,
+  # via WebMock, as in llmarkt_client_test.rb) rather than stubbing the method
+  # itself — a `LlmarktClient.stub(:submit_job, ->(**) { ... })` double would
+  # silently swallow a keyword-argument mismatch between this call site and the
+  # real method signature (as happened when `priority:`/`timeout_seconds:` were
+  # added here without updating LlmarktClient.submit_job to accept them).
+  test "submit_task posts priority and timeout_seconds through the real submit_job signature" do
+    task = build_pending_rewrite_task
+    captured = nil
+    stub_request(:post, "https://llmarkt.test/api/v1/jobs").to_return(
+      status: 201, body: { job_id: "job-real" }.to_json, headers: { "Content-Type" => "application/json" }
+    )
+
+    assert LlmarktSubmitter.submit_task(task)
+
+    assert_requested :post, "https://llmarkt.test/api/v1/jobs" do |req|
+      captured = JSON.parse(req.body)
+      true
+    end
+    assert_equal task.priority, captured["priority"]
+    assert_equal 20.minutes.to_i, captured["timeout_seconds"]
+    assert_equal "job-real", task.reload.external_job_id
+  end
+
   test "submit_task rolls back to pending when submission raises" do
     task = build_pending_rewrite_task
 

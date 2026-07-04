@@ -44,6 +44,41 @@ class LlmarktClientTest < ActiveSupport::TestCase
     assert_equal "https://app.test/cb", captured["webhook_url"]
   end
 
+  test "submit_job forwards priority and timeout_seconds when given" do
+    captured = nil
+    stub_request(:post, "https://llmarkt.test/api/v1/jobs").to_return(
+      status: 201, body: { job_id: "j" }.to_json, headers: { "Content-Type" => "application/json" }
+    )
+
+    LlmarktClient.submit_job(
+      model: "mistral", prompt: "translate this", webhook_url: "https://app.test/cb",
+      priority: 2, timeout_seconds: 1200
+    )
+
+    assert_requested :post, "https://llmarkt.test/api/v1/jobs" do |req|
+      captured = JSON.parse(req.body)
+      true
+    end
+    assert_equal 2, captured["priority"]
+    assert_equal 1200, captured["timeout_seconds"]
+  end
+
+  test "submit_job omits priority and timeout_seconds when not given" do
+    captured = nil
+    stub_request(:post, "https://llmarkt.test/api/v1/jobs").to_return(
+      status: 201, body: { job_id: "j" }.to_json, headers: { "Content-Type" => "application/json" }
+    )
+
+    LlmarktClient.submit_job(model: "mistral", prompt: "translate this", webhook_url: "https://app.test/cb")
+
+    assert_requested :post, "https://llmarkt.test/api/v1/jobs" do |req|
+      captured = JSON.parse(req.body)
+      true
+    end
+    assert_not captured.key?("priority")
+    assert_not captured.key?("timeout_seconds")
+  end
+
   test "submit_job raises on a non-success response" do
     stub_request(:post, "https://llmarkt.test/api/v1/jobs").to_return(
       status: 422, body: { error: "unsupported model" }.to_json

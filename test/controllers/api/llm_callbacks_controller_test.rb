@@ -49,15 +49,26 @@ class Api::LlmCallbacksControllerTest < ActionDispatch::IntegrationTest
 
     # Wrong signature.
     post "/api/llm_callbacks", params: body,
-                               headers: { "Content-Type" => "application/json", "X-Vibe-Signature" => "sha256=deadbeef" }
+                               headers: { "Content-Type" => "application/json", "X-LLMOnDemand-Signature" => "sha256=deadbeef" }
     assert_response :unauthorized
 
     # Signature computed over different bytes than the body.
     post "/api/llm_callbacks", params: body,
-                               headers: { "Content-Type" => "application/json", "X-Vibe-Signature" => vibe_signature("{}") }
+                               headers: { "Content-Type" => "application/json", "X-LLMOnDemand-Signature" => vibe_signature("{}") }
     assert_response :unauthorized
 
     assert_equal "claimed", @task.reload.status # untouched
+  end
+
+  test "the legacy X-Vibe-Signature header name is still accepted" do
+    token = Llmarkt.sign(task_id: @task.id, key: "body")
+    body  = { token: token, status: "failed", error: "grid error" }.to_json
+
+    post "/api/llm_callbacks", params: body,
+                               headers: { "Content-Type" => "application/json", "X-Vibe-Signature" => vibe_signature(body) }
+
+    assert_response :ok
+    assert_equal "failed", @task.reload.status
   end
 
   test "an invalid token (but valid signature) is rejected" do
@@ -77,10 +88,10 @@ class Api::LlmCallbacksControllerTest < ActionDispatch::IntegrationTest
 
   private
 
-  # POST a raw JSON body with a correct X-Vibe-Signature for it.
+  # POST a raw JSON body with a correct X-LLMOnDemand-Signature for it.
   def post_callback(body)
     post "/api/llm_callbacks", params: body,
-                               headers: { "Content-Type" => "application/json", "X-Vibe-Signature" => vibe_signature(body) }
+                               headers: { "Content-Type" => "application/json", "X-LLMOnDemand-Signature" => vibe_signature(body) }
   end
 
   def vibe_signature(body)

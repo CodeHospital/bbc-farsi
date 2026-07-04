@@ -17,7 +17,7 @@ class LlmarktClient
 
   # Submit a single-prompt inference job. Returns the parsed response hash,
   # e.g. { "job_id" => "uuid", "status" => "pending", "created_at" => "..." }.
-  def self.submit_job(model:, prompt:, webhook_url:, tag: nil, model_match: nil)
+  def self.submit_job(model:, prompt:, webhook_url:, tag: nil, model_match: nil, priority: nil, timeout_seconds: nil)
     raise Error, "llmarkt is not configured" unless Llmarkt.enabled?
 
     body = {
@@ -27,6 +27,8 @@ class LlmarktClient
       webhook_url: webhook_url
     }
     body[:tag] = tag if tag.present?
+    body[:priority] = priority if priority.present?
+    body[:timeout_seconds] = timeout_seconds if timeout_seconds.present?
 
     response = post(
       "#{Llmarkt.api_url}/jobs",
