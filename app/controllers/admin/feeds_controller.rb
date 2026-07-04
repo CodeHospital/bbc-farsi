@@ -1,4 +1,5 @@
 class Admin::FeedsController < Admin::BaseController
+  before_action :require_admin!
   before_action :set_feed, only: %i[edit update destroy toggle fetch]
 
   SORT_COLUMNS = {

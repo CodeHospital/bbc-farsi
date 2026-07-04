@@ -1,5 +1,7 @@
 # Admin maintenance actions (queue cleanup, etc.).
 class Admin::HousekeepingController < Admin::BaseController
+  before_action :require_admin!
+
   def show
     @pending_task_count = Task.pending.count
   end

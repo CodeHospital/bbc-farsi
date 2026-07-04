@@ -9,7 +9,8 @@ module ApplicationCable
     private
 
     def verify_admin_session!
-      if request.session[:admin_logged_in] == true
+      user_id = request.session[:user_id]
+      if user_id.present? && User.exists?(id: user_id)
         "admin"
       else
         reject_unauthorized_connection

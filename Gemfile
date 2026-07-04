@@ -31,7 +31,11 @@ gem "dotenv-rails", "~> 2.8"
 gem "pagy", "~> 43.5.6"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
-# gem "bcrypt", "~> 3.1.7"
+gem "bcrypt", "~> 3.1.7"
+
+# Tracks who changed what and keeps a full version history of edited records
+# (Rewrites, Translations, Feeds, Telegram channels, Ollama servers, Users).
+gem "paper_trail"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]

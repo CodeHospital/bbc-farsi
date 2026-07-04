@@ -1,4 +1,6 @@
 class Rewrite < ApplicationRecord
+  has_paper_trail
+
   belongs_to :article
   belongs_to :ollama_server, optional: true
   has_many :translations, dependent: :destroy

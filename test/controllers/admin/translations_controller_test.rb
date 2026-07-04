@@ -1,11 +1,7 @@
 require "test_helper"
 
 class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    ENV["ADMIN_USERNAME"] = "testadmin"
-    ENV["ADMIN_PASSWORD"] = "testpass"
-    log_in
-  end
+  setup { log_in_as }
 
   test "lists translations" do
     translation_with(title: "Anything")
@@ -136,6 +132,21 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
+  test "show renders edit history with the prior text and the editor's username" do
+    editor      = log_in_as(create_editor_user)
+    translation = translation_with(title: "Alpha", translated_title: "عنوان قدیمی", translated_body: "متن قدیمی")
+
+    patch admin_translation_path(translation), params: {
+      translation: { translated_title: "عنوان جدید", translated_body: "متن جدید" }
+    }
+    assert_response :redirect
+
+    get admin_translation_path(translation)
+    assert_response :success
+    assert_select "p", text: "متن قدیمی"
+    assert_select ".list-group-item", text: /#{editor.username}/
+  end
+
   test "edits and saves a translation" do
     translation = translation_with(title: "Alpha", translated_title: "عنوان قدیمی", translated_body: "متن قدیمی")
 
@@ -203,10 +214,6 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
-
-  def log_in
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
-  end
 
   def translation_with(title:, article_status: "pending", **attrs)
     article = create_article(attrs: { title: title, status: article_status })

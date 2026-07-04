@@ -9,14 +9,10 @@ class Admin::SessionsController < ApplicationController
   end
 
   def create
-    expected_user = ENV.fetch("ADMIN_USERNAME")
-    expected_pass = ENV.fetch("ADMIN_PASSWORD")
+    user = User.authenticate(params[:username], params[:password])
 
-    username_ok = ActiveSupport::SecurityUtils.secure_compare(params[:username].to_s, expected_user)
-    password_ok = ActiveSupport::SecurityUtils.secure_compare(params[:password].to_s, expected_pass)
-
-    if username_ok & password_ok
-      session[:admin_logged_in] = true
+    if user
+      session[:user_id] = user.id
       redirect_to admin_root_path, notice: "Welcome back."
     else
       flash.now[:alert] = "Invalid username or password."
@@ -25,13 +21,13 @@ class Admin::SessionsController < ApplicationController
   end
 
   def destroy
-    session.delete(:admin_logged_in)
+    session.delete(:user_id)
     redirect_to admin_login_path, notice: "Logged out."
   end
 
   private
 
   def logged_in?
-    session[:admin_logged_in] == true
+    session[:user_id].present? && User.exists?(id: session[:user_id])
   end
 end

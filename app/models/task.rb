@@ -49,6 +49,7 @@ class Task < ApplicationRecord
       llm_model: model, ollama_server_id: server&.id, status: "pending"
     )
     create!(
+      priority: 0,
       kind: "rewrite", target: rewrite, ollama_server: server, model:,
       requests: ArticleRewriter.requests(article), chain_translate:
     )
@@ -60,6 +61,7 @@ class Task < ApplicationRecord
       prompt_name: "prompt", status: "pending"
     )
     create!(
+      priority: 1,
       kind: "translate", target: translation, ollama_server: server, model:,
       requests: ArticleTranslator.requests(rewrite), chain_refine:
     )
@@ -71,6 +73,7 @@ class Task < ApplicationRecord
       ollama_server_id: server&.id, prompt_name: "refine", status: "pending"
     )
     create!(
+      priority: 2,
       kind: "refine", target: new_translation, ollama_server: server, model:,
       requests: TranslationRefiner.requests(source_translation), chain_autopost:
     )

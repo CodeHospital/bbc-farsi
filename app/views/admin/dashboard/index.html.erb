@@ -1,14 +1,16 @@
 <h2 class="mb-4">Dashboard</h2>
 
 <div class="row g-3 mb-4">
-  <% [
-    ["Feeds",        @counts[:feeds],            admin_feeds_path,            "rss",           "primary"],
+  <% cards = [
+    ["Feeds",        @counts[:feeds],            admin_feeds_path,            "rss",           "primary",  :admin_only],
     ["Articles",     @counts[:articles],          admin_articles_path,         "newspaper",     "secondary"],
     ["Rewrites",     @counts[:rewrites],          admin_rewrites_path,         "pencil-square", "info"],
     ["Translations", @counts[:translations],      admin_translations_path,     "translate",     "success"],
-    ["Channels",     @counts[:telegram_channels], admin_telegram_channels_path,"telegram",      "warning"],
+    ["Channels",     @counts[:telegram_channels], admin_telegram_channels_path,"telegram",      "warning", :admin_only],
     ["Posts sent",   @counts[:telegram_posts],    admin_telegram_posts_path,   "send-check",    "dark"]
-  ].each do |label, count, path, icon, color| %>
+  ]
+  cards = cards.reject { |_, _, _, _, _, admin_only| admin_only } unless current_user&.admin?
+  cards.each do |label, count, path, icon, color| %>
     <div class="col-md-2">
       <%= link_to path, class: "text-decoration-none" do %>
         <div class="card text-center border-<%= color %>">

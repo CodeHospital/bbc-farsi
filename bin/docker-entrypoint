@@ -9,6 +9,10 @@ fi
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
   ./bin/rails db:prepare
+  # Idempotent: only seeds feeds that don't exist yet and only creates the
+  # bootstrap admin user (from ADMIN_USERNAME/ADMIN_PASSWORD) when the users
+  # table is empty — safe to run on every boot.
+  ./bin/rails db:seed
 fi
 
 exec "${@}"

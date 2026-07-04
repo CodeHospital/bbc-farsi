@@ -1,11 +1,7 @@
 require "test_helper"
 
 class Admin::TasksControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    ENV["ADMIN_USERNAME"] = "testadmin"
-    ENV["ADMIN_PASSWORD"] = "testpass"
-    log_in
-  end
+  setup { log_in_as }
 
   test "lists tasks" do
     create_task(kind: "rewrite")
@@ -176,10 +172,6 @@ class Admin::TasksControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
-
-  def log_in
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
-  end
 
   def create_task(kind:, status: "pending")
     target =

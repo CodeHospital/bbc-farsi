@@ -2,10 +2,8 @@ require "test_helper"
 
 class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
   setup do
-    ENV["ADMIN_USERNAME"] = "testadmin"
-    ENV["ADMIN_PASSWORD"] = "testpass"
     @feed = create_feed
-    log_in
+    log_in_as
   end
 
   test "lists feeds" do
@@ -68,9 +66,11 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_match "Fetch failed", response.body
   end
 
-  private
+  test "editors are redirected away from feeds (admin-only)" do
+    post admin_logout_path
+    log_in_as(create_editor_user)
 
-  def log_in
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
+    get admin_feeds_path
+    assert_redirected_to admin_root_path
   end
 end

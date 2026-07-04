@@ -1,11 +1,7 @@
 require "test_helper"
 
 class Admin::RewritesControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    ENV["ADMIN_USERNAME"] = "testadmin"
-    ENV["ADMIN_PASSWORD"] = "testpass"
-    log_in
-  end
+  setup { log_in_as }
 
   test "lists rewrites with filter controls" do
     create_rewrite
@@ -122,16 +118,23 @@ class Admin::RewritesControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
   end
 
+  test "show renders edit history with the prior text and the editor's username" do
+    editor  = log_in_as(create_editor_user)
+    rewrite = create_rewrite(attrs: { content: "Original text" })
+
+    patch admin_rewrite_path(rewrite), params: { rewrite: { content: "Updated text" } }
+    assert_response :redirect
+
+    get admin_rewrite_path(rewrite)
+    assert_response :success
+    assert_select "pre", text: "Original text"
+    assert_select ".list-group-item", text: /#{editor.username}/
+  end
+
   test "bulk_rerun with no selection redirects with an alert" do
     post bulk_rerun_admin_rewrites_path, params: { rewrite_ids: [] }
     assert_response :redirect
     follow_redirect!
     assert_select ".alert-danger"
-  end
-
-  private
-
-  def log_in
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
   end
 end

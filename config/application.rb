@@ -7,7 +7,7 @@ require "active_job/railtie"
 require "active_record/railtie"
 # require "active_storage/engine"
 require "action_controller/railtie"
-# require "action_mailer/railtie"
+require "action_mailer/railtie"
 # require "action_mailbox/engine"
 # require "action_text/engine"
 require "action_view/railtie"
@@ -38,5 +38,12 @@ module Bbcfarsi
 
     # Don't generate system test files.
     config.generators.system_tests = nil
+
+    # PaperTrail (`has_paper_trail`) stores each version's prior attributes as
+    # YAML in `versions.object`; reifying a version needs these non-primitive
+    # classes (timestamps) allow-listed for Rails' safe YAML loader.
+    config.active_record.yaml_column_permitted_classes = [
+      Symbol, Date, Time, ActiveSupport::TimeWithZone, ActiveSupport::TimeZone
+    ]
   end
 end

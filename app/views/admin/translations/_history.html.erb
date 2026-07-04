@@ -1,0 +1,29 @@
+<% if versions.any? %>
+  <div class="card mb-4">
+    <div class="card-header"><i class="bi bi-clock-history"></i> Edit history</div>
+    <div class="list-group list-group-flush">
+      <% versions.each do |version| %>
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="badge bg-<%= { "create" => "success", "update" => "primary", "destroy" => "danger" }[version.event] || "secondary" %>">
+                <%= version.event %>
+              </span>
+              <span class="ms-1">by <strong><%= version_actor(version) %></strong></span>
+            </div>
+            <small class="text-muted text-nowrap"><%= version.created_at.strftime("%b %d, %Y %H:%M") %></small>
+          </div>
+          <% if version.event == "update" && (previous = version.reify) %>
+            <details class="mt-2">
+              <summary class="small text-muted">View text before this change</summary>
+              <div class="mt-1" dir="rtl" lang="fa">
+                <strong><%= previous.translated_title %></strong>
+                <p class="small mb-0"><%= previous.translated_body %></p>
+              </div>
+            </details>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>

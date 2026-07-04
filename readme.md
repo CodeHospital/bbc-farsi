@@ -52,15 +52,25 @@ cp .env.example .env
 | `WORKER_API_TOKEN` | Shared bearer token for the worker API (`/api/tasks`). Must match the worker's env. |
 | `TELEGRAM_BOT_TOKEN` | Your Telegram bot token |
 | `TELEGRAM_CHANNEL` | Default Telegram channel (e.g. `@YourChannel`) |
-| `ADMIN_USERNAME` | Admin login username for `/admin` |
-| `ADMIN_PASSWORD` | Admin login password for `/admin` |
+| `ADMIN_USERNAME` | Bootstrap admin username (or Rails credentials `admin_username`, preferred) — used once by `bin/rails db:seed` to create the first admin `User` row (if no users exist yet). After that, log in with users managed at `/admin/users`. |
+| `ADMIN_PASSWORD` | Bootstrap admin password (or credentials `admin_password`, see above) |
+| `ADMIN_EMAIL` | Bootstrap admin email (or credentials `admin_email`, see above) — also where their password-reset emails would go |
 | `OLLAMA_URL` | Only used for the admin "debug curl" panels now — the app itself never calls Ollama (default `http://localhost:11434`) |
+| `RESEND_API_KEY` | Optional — [Resend](https://resend.com) API key, used as the SMTP password for outgoing mail (password resets). Prefer Rails credentials (`resend_api_key`) instead. |
+| `SENDER_EMAIL` | Optional — the `From:` address for outgoing mail, e.g. `BBC Farsi <noreply@yourdomain.com>`. Prefer Rails credentials (`sender_email`) instead. Without this + `RESEND_API_KEY`, mail sending is a no-op. |
 
 ### 3. Set up the database
 
 ```bash
 bin/rails db:prepare
+bin/rails db:seed
 ```
+
+`db:seed` also creates the first admin account (username/password/email from
+`ADMIN_USERNAME`/`ADMIN_PASSWORD`/`ADMIN_EMAIL`) — but only if the `users`
+table is empty. Once at least one admin exists, manage everyone (including
+yourself) from `/admin/users` instead; the env vars are no longer read at
+login time.
 
 ### 4. Start the server
 
@@ -76,7 +86,7 @@ enqueues tasks — to actually process them you also need to run the
 WORKER_API_TOKEN=your-shared-secret ruby worker/worker.rb
 ```
 
-Visit `http://localhost:3000/admin` and log in with your `ADMIN_USERNAME` / `ADMIN_PASSWORD`.
+Visit `http://localhost:3000/admin` and log in with the admin account seeded above.
 
 ---
 
@@ -238,22 +248,80 @@ translation task also auto-posts inline.)
 
 ## Admin Interface
 
-All admin routes are under `/admin` and protected by HTTP Basic Auth.
+All admin routes are under `/admin`, behind a session-based login backed by
+the `User` model (`/admin/login`).
+
+### Roles
+
+| Role | Can access |
+|---|---|
+| `admin` | Everything, including infrastructure/config pages and `/admin/users` |
+| `editor` | The editorial workflow: Dashboard, Articles, Rewrites, Translations, Task queue, Analytics, Telegram Posts (read-only log) |
+
+Editors are redirected away from infrastructure/config pages (Feeds, Telegram
+Channels, Ollama Servers, House Keeping, IP Geolocations, Users, Activity
+Log) — those stay admin-only. Manage accounts at `/admin/users` (admin-only):
+create an editor, change roles, reset passwords, or disable an account. A
+built-in safeguard blocks removing/demoting the last active admin so nobody
+can lock everyone out.
+
+### Forgot password?
+
+Every user has an email (used only for this). "Forgot password?" on the
+login page (`/admin/password_resets/new`) emails a time-limited reset link
+(20 minutes, via Rails' built-in `generates_token_for` — no separate tokens
+table) using [`UserMailer`](app/mailers/user_mailer.rb). The response is
+identical whether or not the email matches an account, so the flow can't be
+used to enumerate registered users. See **Outgoing mail** below to configure
+where those emails actually get sent.
+
+### Who changed what
+
+Every edit to a Rewrite's or Translation's text (and to Articles, Feeds,
+Telegram Channels, Ollama Servers, and Users) is tracked via
+[PaperTrail](https://github.com/paper-trail-gem/paper_trail): each Rewrite/
+Translation show page has an **Edit history** panel listing every past
+version with who made the change and the prior text; `/admin/activity_logs`
+(admin-only) is a system-wide "who did what" log across all tracked models,
+filterable by model type or user.
 
 | Route | Description |
 |---|---|
 | `/admin` | Dashboard — counts and recent activity |
-| `/admin/feeds` | Manage RSS feeds |
+| `/admin/feeds` | Manage RSS feeds *(admin-only)* |
 | `/admin/articles` | Browse articles, trigger rewrite |
-| `/admin/rewrites` | View/edit rewrites, activate versions |
-| `/admin/translations` | View/edit translations, post to Telegram |
-| `/admin/telegram_channels` | Manage Telegram channels and autopost settings |
-| `/admin/ollama_servers` | Manage Ollama servers and their model lists |
+| `/admin/rewrites` | View/edit rewrites, activate versions, edit history |
+| `/admin/translations` | View/edit translations, post to Telegram, edit history |
+| `/admin/telegram_channels` | Manage Telegram channels and autopost settings *(admin-only)* |
+| `/admin/ollama_servers` | Manage Ollama servers and their model lists *(admin-only)* |
 | `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |
+| `/admin/users` | Manage admin/editor accounts *(admin-only)* |
+| `/admin/activity_logs` | System-wide audit log of who changed what *(admin-only)* |
 
 ### Multi-server comparison
 
 Each article's show page has two collapsible panels — **Run Rewrites on Targets** and **Run Translations on Targets** — that display every enabled server and its configured models as checkboxes. Selecting multiple server/model combos and clicking submit creates one task per selection. All results appear on the same page so you can compare outputs and activate the best version for posting.
+
+---
+
+## Outgoing Mail (Resend)
+
+Password reset emails are the only mail this app sends, delivered through
+[Resend](https://resend.com)'s SMTP relay (`smtp.resend.com`) via
+`ActionMailer`'s built-in `:smtp` delivery method — no extra gem required.
+
+1. Create a Resend account, verify a sending domain, and grab an API key.
+2. Set `RESEND_API_KEY` and `SENDER_EMAIL` (env or, preferred, Rails
+   credentials as `resend_api_key` / `sender_email`) — see
+   `app/services/mailer_config.rb`.
+3. Set `APP_BASE_URL` (env or credentials — the same value used for llmarkt
+   webhooks) so reset links point at the right host.
+
+Without `RESEND_API_KEY`/`SENDER_EMAIL` configured, `perform_deliveries`
+is off (see `config/initializers/action_mailer.rb`) — the forgot-password flow
+still runs end to end, it just doesn't actually send anything. In tests,
+`config/environments/test.rb` sets the `:test` delivery method, so specs
+assert against `ActionMailer::Base.deliveries` instead of hitting the network.
 
 ---
 
@@ -273,9 +341,14 @@ docker run -d -p 80:80 \
   -e DATABASE_URL=postgres://user:password@db-host:5432/bbcfarsi_production \
   -e ADMIN_USERNAME=admin \
   -e ADMIN_PASSWORD=secret \
+  -e ADMIN_EMAIL=admin@yourdomain.com \
   -e WORKER_API_TOKEN=your-shared-secret \
   --name bbcfarsi bbcfarsi
 ```
+
+`ADMIN_USERNAME`/`ADMIN_PASSWORD`/`ADMIN_EMAIL` only matter on the very first
+boot — the entrypoint runs `db:seed`, which creates that one admin account if
+the `users` table is empty. After that, manage accounts at `/admin/users`.
 
 > The web container does **not** need to reach Ollama. Run the
 > [worker client](worker/README.md) separately (e.g. on the GPU host) with the

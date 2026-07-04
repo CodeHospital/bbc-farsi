@@ -1,4 +1,6 @@
 class Feed < ApplicationRecord
+  has_paper_trail
+
   has_many :articles, dependent: :destroy
 
   SOURCES = %w[bbc nyt].freeze

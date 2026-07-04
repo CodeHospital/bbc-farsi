@@ -9,6 +9,8 @@ Rails.application.routes.draw do
     post "login",  to: "sessions#create"
     delete "logout", to: "sessions#destroy", as: :logout
 
+    resources :password_resets, only: %i[new create edit update], param: :token
+
     resources :feeds, only: %i[index new create edit update destroy] do
       member     { patch :toggle; post :fetch }
       collection { post :seed }
@@ -88,6 +90,14 @@ Rails.application.routes.draw do
 
     # Cached IP → country geolocation lookups.
     resources :ip_geolocations, only: %i[index destroy]
+
+    # Admin/editor accounts (admin-only).
+    resources :users, only: %i[index new create edit update] do
+      member { patch :toggle }
+    end
+
+    # System-wide "who did what" audit log (admin-only).
+    resources :activity_logs, only: :index
   end
 
   # Worker-facing task queue API (bearer-token protected).

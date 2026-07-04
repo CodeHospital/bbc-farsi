@@ -1,0 +1,49 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Activity Log</h2>
+</div>
+
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <%= form_with url: admin_activity_logs_path, method: :get, class: "d-flex gap-2 flex-wrap" do %>
+    <%= select_tag :item_type,
+          options_for_select([["All models", nil]] + @item_types.map { |t| [t, t] }, params[:item_type]),
+          class: "form-select form-select-sm", onchange: "this.form.requestSubmit()" %>
+    <%= select_tag :whodunnit,
+          options_for_select([["All users", nil]] + @users.map { |u| [u.username, u.id] }, params[:whodunnit]),
+          class: "form-select form-select-sm", onchange: "this.form.requestSubmit()" %>
+  <% end %>
+</div>
+
+<table class="table table-hover table-sm">
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>Actor</th>
+      <th>Model</th>
+      <th>Event</th>
+      <th>Record</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @versions.each do |version| %>
+      <tr>
+        <td class="text-nowrap"><%= version.created_at.strftime("%b %d, %Y %H:%M") %></td>
+        <td><%= version_actor(version) %></td>
+        <td><%= version.item_type %></td>
+        <td>
+          <span class="badge bg-<%= { "create" => "success", "update" => "primary", "destroy" => "danger" }[version.event] || "secondary" %>">
+            <%= version.event %>
+          </span>
+        </td>
+        <td>
+          <% if (path = version_record_path(version)) %>
+            <%= link_to "##{version.item_id}", path %>
+          <% else %>
+            <span class="text-muted">#<%= version.item_id %> (deleted)</span>
+          <% end %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<%= render "admin/shared/pagination", pagy: @pagy %>

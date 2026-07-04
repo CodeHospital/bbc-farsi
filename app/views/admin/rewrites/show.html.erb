@@ -28,3 +28,5 @@
     <%= button_to "↺ Rerun", rerun_admin_rewrite_path(@rewrite), method: :post, class: "btn btn-outline-warning" %>
   </div>
 </div>
+
+<%= render "history", versions: @versions %>

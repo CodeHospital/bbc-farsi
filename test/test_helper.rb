@@ -65,6 +65,30 @@ module ActiveSupport
 
     ADMIN_CREDENTIALS = ActionController::HttpAuthentication::Basic.encode_credentials("testadmin", "testpass")
 
+    # ── Auth helpers ─────────────────────────────────────────────────────────
+    # Unique username per call (parallel workers + repeated calls in one test).
+
+    TEST_USER_PASSWORD = "testpass123".freeze
+
+    def create_admin_user(attrs = {})
+      key = SecureRandom.hex(4)
+      User.create!({ username: "admin-#{key}", email: "admin-#{key}@test.example", password: TEST_USER_PASSWORD, role: "admin" }.merge(attrs))
+    end
+
+    def create_editor_user(attrs = {})
+      key = SecureRandom.hex(4)
+      User.create!({ username: "editor-#{key}", email: "editor-#{key}@test.example", password: TEST_USER_PASSWORD, role: "editor" }.merge(attrs))
+    end
+
+    # Logs in as the given user (or a freshly created admin) via the real
+    # login form/session, so controller tests exercise the same path a
+    # browser would. Returns the user that was signed in.
+    def log_in_as(user = nil)
+      user ||= create_admin_user
+      post admin_login_path, params: { username: user.username, password: TEST_USER_PASSWORD }
+      user
+    end
+
     # ── llmarkt test helpers ──────────────────────────────────────────────────
     # Override Llmarkt's config deterministically so tests never depend on (or
     # reach) the real grid configured in Rails credentials / ENV. Tests still

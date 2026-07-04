@@ -1,16 +1,20 @@
 require "test_helper"
 
 class Admin::HousekeepingControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    ENV["ADMIN_USERNAME"] = "testadmin"
-    ENV["ADMIN_PASSWORD"] = "testpass"
-    log_in
-  end
+  setup { log_in_as }
 
   test "requires login" do
     reset!
     get admin_housekeeping_path
     assert_redirected_to admin_login_path
+  end
+
+  test "editors are redirected away from housekeeping (admin-only)" do
+    post admin_logout_path
+    log_in_as(create_editor_user)
+
+    get admin_housekeeping_path
+    assert_redirected_to admin_root_path
   end
 
   test "show reports the pending task count" do
@@ -59,10 +63,6 @@ class Admin::HousekeepingControllerTest < ActionDispatch::IntegrationTest
   end
 
   private
-
-  def log_in
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
-  end
 
   def create_task(kind:, status: "pending")
     target =

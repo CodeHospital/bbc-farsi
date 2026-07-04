@@ -1,4 +1,5 @@
 class Admin::OllamaServersController < Admin::BaseController
+  before_action :require_admin!
   before_action :set_server, only: %i[edit update destroy toggle]
 
   SORT_COLUMNS = {

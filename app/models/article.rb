@@ -1,4 +1,6 @@
 class Article < ApplicationRecord
+  has_paper_trail
+
   belongs_to :feed
   has_many :rewrites, dependent: :destroy
   has_many :translations, dependent: :destroy

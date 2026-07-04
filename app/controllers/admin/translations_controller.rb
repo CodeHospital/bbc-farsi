@@ -36,6 +36,7 @@ class Admin::TranslationsController < Admin::BaseController
   def show
     @telegram_channels  = TelegramChannel.enabled.order(:name)
     @posted_channel_ids = @translation.telegram_posts.where(status: "posted").pluck(:telegram_channel_id)
+    @versions           = @translation.versions.order(created_at: :desc)
   end
 
   def edit; end

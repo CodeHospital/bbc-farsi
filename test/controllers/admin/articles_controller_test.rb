@@ -1,11 +1,7 @@
 require "test_helper"
 
 class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    ENV["ADMIN_USERNAME"] = "testadmin"
-    ENV["ADMIN_PASSWORD"] = "testpass"
-    log_in
-  end
+  setup { log_in_as }
 
   test "lists articles with filter controls" do
     create_article
@@ -270,11 +266,5 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_response :redirect
     follow_redirect!
     assert_select ".alert-danger"
-  end
-
-  private
-
-  def log_in
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
   end
 end

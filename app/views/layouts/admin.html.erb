@@ -57,11 +57,13 @@
             <i class="bi bi-speedometer2"></i> Dashboard
           <% end %>
         </li>
-        <li class="nav-item">
-          <%= link_to admin_feeds_path, class: "nav-link #{'active' if controller_name == 'feeds'}" do %>
-            <i class="bi bi-rss"></i> Feeds
-          <% end %>
-        </li>
+        <% if current_user&.admin? %>
+          <li class="nav-item">
+            <%= link_to admin_feeds_path, class: "nav-link #{'active' if controller_name == 'feeds'}" do %>
+              <i class="bi bi-rss"></i> Feeds
+            <% end %>
+          </li>
+        <% end %>
         <li class="nav-item">
           <%= link_to admin_articles_path, class: "nav-link #{'active' if controller_name == 'articles'}" do %>
             <i class="bi bi-newspaper"></i> Articles
@@ -77,22 +79,16 @@
             <i class="bi bi-translate"></i> Translations
           <% end %>
         </li>
-        <li class="nav-item">
-          <%= link_to admin_telegram_channels_path, class: "nav-link #{'active' if controller_name == 'telegram_channels'}" do %>
-            <i class="bi bi-telegram"></i> Channels
-          <% end %>
-        </li>
+        <% if current_user&.admin? %>
+          <li class="nav-item">
+            <%= link_to admin_telegram_channels_path, class: "nav-link #{'active' if controller_name == 'telegram_channels'}" do %>
+              <i class="bi bi-telegram"></i> Channels
+            <% end %>
+          </li>
+        <% end %>
         <li class="nav-item">
           <%= link_to admin_telegram_posts_path, class: "nav-link #{'active' if controller_name == 'telegram_posts'}" do %>
             <i class="bi bi-send-check"></i> Posts
-          <% end %>
-        </li>
-        <li class="nav-item mt-2">
-          <div class="text-secondary small px-2 mb-1" style="font-size:.7rem;letter-spacing:.05em;text-transform:uppercase">Infrastructure</div>
-        </li>
-        <li class="nav-item">
-          <%= link_to admin_ollama_servers_path, class: "nav-link #{'active' if controller_name == 'ollama_servers'}" do %>
-            <i class="bi bi-hdd-rack"></i> Ollama Servers
           <% end %>
         </li>
         <li class="nav-item">
@@ -101,22 +97,51 @@
           <% end %>
         </li>
         <li class="nav-item">
-          <%= link_to admin_housekeeping_path, class: "nav-link #{'active' if controller_name == 'housekeeping'}" do %>
-            <i class="bi bi-tools"></i> House Keeping
-          <% end %>
-        </li>
-        <li class="nav-item">
           <%= link_to admin_analytics_path, class: "nav-link #{'active' if controller_name == 'analytics'}" do %>
             <i class="bi bi-bar-chart-line"></i> Analytics
           <% end %>
         </li>
-        <li class="nav-item">
-          <%= link_to admin_ip_geolocations_path, class: "nav-link #{'active' if controller_name == 'ip_geolocations'}" do %>
-            <i class="bi bi-geo-alt"></i> IP Geolocations
-          <% end %>
-        </li>
+        <% if current_user&.admin? %>
+          <li class="nav-item mt-2">
+            <div class="text-secondary small px-2 mb-1" style="font-size:.7rem;letter-spacing:.05em;text-transform:uppercase">Infrastructure</div>
+          </li>
+          <li class="nav-item">
+            <%= link_to admin_ollama_servers_path, class: "nav-link #{'active' if controller_name == 'ollama_servers'}" do %>
+              <i class="bi bi-hdd-rack"></i> Ollama Servers
+            <% end %>
+          </li>
+          <li class="nav-item">
+            <%= link_to admin_housekeeping_path, class: "nav-link #{'active' if controller_name == 'housekeeping'}" do %>
+              <i class="bi bi-tools"></i> House Keeping
+            <% end %>
+          </li>
+          <li class="nav-item">
+            <%= link_to admin_ip_geolocations_path, class: "nav-link #{'active' if controller_name == 'ip_geolocations'}" do %>
+              <i class="bi bi-geo-alt"></i> IP Geolocations
+            <% end %>
+          </li>
+          <li class="nav-item mt-2">
+            <div class="text-secondary small px-2 mb-1" style="font-size:.7rem;letter-spacing:.05em;text-transform:uppercase">Admin</div>
+          </li>
+          <li class="nav-item">
+            <%= link_to admin_users_path, class: "nav-link #{'active' if controller_name == 'users'}" do %>
+              <i class="bi bi-people"></i> Users
+            <% end %>
+          </li>
+          <li class="nav-item">
+            <%= link_to admin_activity_logs_path, class: "nav-link #{'active' if controller_name == 'activity_logs'}" do %>
+              <i class="bi bi-clock-history"></i> Activity Log
+            <% end %>
+          </li>
+        <% end %>
       </ul>
       <div class="mt-auto pt-3 border-top border-secondary">
+        <% if current_user %>
+          <div class="text-secondary small mb-2 px-1">
+            Signed in as <strong class="text-white-50"><%= current_user.username %></strong>
+            (<%= current_user.role %>)
+          </div>
+        <% end %>
         <%= button_to admin_logout_path, method: :delete, class: "btn btn-sm btn-outline-danger w-100" do %>
           <i class="bi bi-box-arrow-left"></i> Log out
         <% end %>

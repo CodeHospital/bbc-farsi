@@ -1,4 +1,6 @@
 class OllamaServer < ApplicationRecord
+  has_paper_trail
+
   has_many :rewrites,     foreign_key: :ollama_server_id, dependent: :nullify
   has_many :translations, foreign_key: :ollama_server_id, dependent: :nullify
 

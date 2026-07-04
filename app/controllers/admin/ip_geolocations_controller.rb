@@ -1,4 +1,5 @@
 class Admin::IpGeolocationsController < Admin::BaseController
+  before_action :require_admin!
   include Pagy::Method
 
   SORT_COLUMNS = {

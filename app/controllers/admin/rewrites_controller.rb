@@ -26,7 +26,9 @@ class Admin::RewritesController < Admin::BaseController
     @pagy, @rewrites = pagy(rewrites.order(sort_clause))
   end
 
-  def show; end
+  def show
+    @versions = @rewrite.versions.order(created_at: :desc)
+  end
 
   def edit; end
 

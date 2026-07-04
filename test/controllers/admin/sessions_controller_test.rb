@@ -1,10 +1,7 @@
 require "test_helper"
 
 class Admin::SessionsControllerTest < ActionDispatch::IntegrationTest
-  setup do
-    ENV["ADMIN_USERNAME"] = "testadmin"
-    ENV["ADMIN_PASSWORD"] = "testpass"
-  end
+  setup { @user = create_admin_user }
 
   test "renders login page" do
     get admin_login_path
@@ -19,22 +16,28 @@ class Admin::SessionsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "redirects to dashboard on valid credentials" do
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
+    post admin_login_path, params: { username: @user.username, password: TEST_USER_PASSWORD }
     assert_redirected_to admin_root_path
   end
 
   test "re-renders login on wrong password" do
-    post admin_login_path, params: { username: "testadmin", password: "wrong" }
+    post admin_login_path, params: { username: @user.username, password: "wrong" }
     assert_response :unprocessable_entity
   end
 
   test "re-renders login on wrong username" do
-    post admin_login_path, params: { username: "hacker", password: "testpass" }
+    post admin_login_path, params: { username: "hacker", password: TEST_USER_PASSWORD }
+    assert_response :unprocessable_entity
+  end
+
+  test "rejects a disabled user's credentials" do
+    editor = create_editor_user(active: false)
+    post admin_login_path, params: { username: editor.username, password: TEST_USER_PASSWORD }
     assert_response :unprocessable_entity
   end
 
   test "logout clears session and redirects to login" do
-    post admin_login_path, params: { username: "testadmin", password: "testpass" }
+    post admin_login_path, params: { username: @user.username, password: TEST_USER_PASSWORD }
     delete admin_logout_path
     assert_redirected_to admin_login_path
 

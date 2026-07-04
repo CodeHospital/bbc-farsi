@@ -1,0 +1,42 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Users</h2>
+  <%= link_to "New User", new_admin_user_path, class: "btn btn-primary" %>
+</div>
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Username</th>
+      <th>Email</th>
+      <th>Name</th>
+      <th>Role</th>
+      <th>Active</th>
+      <th>Created</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @users.each do |user| %>
+      <tr>
+        <td>
+          <%= user.username %>
+          <% if user == current_user %><span class="badge bg-secondary">you</span><% end %>
+        </td>
+        <td><%= user.email %></td>
+        <td><%= user.name %></td>
+        <td>
+          <span class="badge <%= user.admin? ? 'bg-primary' : 'bg-info text-dark' %>"><%= user.role %></span>
+        </td>
+        <td>
+          <%= button_to user.active? ? "✓ Active" : "Disabled",
+                toggle_admin_user_path(user), method: :patch,
+                class: "btn btn-sm #{user.active? ? 'btn-success' : 'btn-outline-secondary'}" %>
+        </td>
+        <td><%= user.created_at.strftime("%b %d, %Y") %></td>
+        <td>
+          <%= link_to "Edit", edit_admin_user_path(user), class: "btn btn-sm btn-outline-primary" %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

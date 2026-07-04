@@ -1,4 +1,5 @@
 class Admin::TelegramChannelsController < Admin::BaseController
+  before_action :require_admin!
   before_action :set_channel, only: %i[edit update destroy toggle]
 
   SORT_COLUMNS = {
