@@ -6,6 +6,7 @@ class Translation < ApplicationRecord
   belongs_to :ollama_server, optional: true
   has_many :telegram_posts, dependent: :destroy
   has_many :telegram_admin_notifications, dependent: :destroy
+  has_many :tasks, as: :target
 
   STATUSES = %w[pending running completed error].freeze
   validates :status, inclusion: { in: STATUSES }
@@ -51,6 +52,12 @@ class Translation < ApplicationRecord
     article.translations.where.not(id: id).update_all(active: false)
     update!(active: true)
   end
+
+  # The Task whose LLM requests produced this translation — used to show
+  # which prompt version(s) created it (see PromptVersionUsage). Excludes
+  # read-only "tag" tasks, which annotate an already-completed translation
+  # rather than generating one.
+  def generating_task = tasks.where(kind: %w[translate refine]).order(:created_at).last
 
   private
 

@@ -7,19 +7,17 @@ class TagGenerator
   CACHE_TTL  = 30.days
   MAX_TAGS   = 6
 
-  SYSTEM_PROMPT = <<~PROMPT.strip
-    You are a Persian (Farsi) news editor assigning topic tags to an article.
-    Produce #{MAX_TAGS} or fewer short Persian tags (one or two words each) that
-    capture the article's main people, places, and topics. Respond with ONLY the
-    tags separated by commas (for example: ایران, اقتصاد, تحریم). No other text.
-  PROMPT
-
+  # Prompt text is DB-backed (see Prompt) so admins/editors can edit it; the
+  # request always uses the current version, and embeds its prompt_version_id
+  # so Task can record which version produced the result.
   def self.requests(translation)
+    version = Prompt.current_version("tag")
     [
       {
         key: "tags",
+        prompt_version_id: version.id,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: version.content },
           { role: "user",   content: "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}" }
         ]
       }

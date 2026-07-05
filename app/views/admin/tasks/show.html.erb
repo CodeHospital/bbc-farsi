@@ -29,6 +29,8 @@
   <%= button_to "Retry task", retry_admin_task_path(@task), method: :post, class: "btn btn-sm btn-warning mb-3" %>
 <% end %>
 
+<%= render "admin/shared/prompt_usages", task: @task %>
+
 <h5 class="mt-4">Requests (sent to worker)</h5>
 <pre class="bg-light border rounded p-3" style="white-space:pre-wrap"><%= JSON.pretty_generate(@task.requests) %></pre>
 

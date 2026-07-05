@@ -27,6 +27,12 @@ module ActiveSupport
   class TestCase
     parallelize(workers: :number_of_processors)
 
+    # Request-builder services (ArticleRewriter, ArticleTranslator, ...) read
+    # their prompt text from the DB (see Prompt.current_version); every test
+    # needs the default prompts present, same as production/dev get them via
+    # db/seeds.rb. Idempotent, so safe to run before every test.
+    setup { Prompt.seed_defaults! }
+
     # ── Fixture helpers ──────────────────────────────────────────────────────
 
     def build_feed(attrs = {})

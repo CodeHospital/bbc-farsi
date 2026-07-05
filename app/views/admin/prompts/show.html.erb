@@ -1,0 +1,27 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>
+    <%= @prompt.name %>
+    <% if @prompt.current_prompt_version %>
+      <span class="badge bg-secondary">v<%= @prompt.current_prompt_version.number %></span>
+    <% end %>
+  </h2>
+  <%= link_to "← Prompts", admin_prompts_path, class: "btn btn-outline-secondary btn-sm" %>
+</div>
+
+<p class="text-muted"><code><%= @prompt.key %></code> &mdash; <%= @prompt.description %></p>
+
+<div class="card mb-4">
+  <div class="card-header">Current content</div>
+  <div class="card-body">
+    <% if @prompt.current_prompt_version %>
+      <pre class="mb-0" style="white-space:pre-wrap"><%= @prompt.current_prompt_version.content %></pre>
+    <% else %>
+      <p class="text-muted mb-0">No version yet — run <code>Prompt.seed_defaults!</code>.</p>
+    <% end %>
+  </div>
+  <div class="card-footer">
+    <%= link_to "Edit", edit_admin_prompt_path(@prompt), class: "btn btn-outline-primary btn-sm" %>
+  </div>
+</div>
+
+<%= render "history", prompt: @prompt, versions: @versions %>

@@ -1,34 +1,28 @@
 # Builds the LLM chat requests for refining an existing Persian translation and
 # post-processes the worker's responses. No longer calls Ollama directly.
+# Prompt text is DB-backed (see Prompt) so admins/editors can edit it; each
+# request always uses the current version, and embeds its prompt_version_id
+# so Task can record which version produced the result.
 class TranslationRefiner
-  TITLE_PROMPT = <<~PROMPT.strip
-    You are a professional Persian (Farsi) news editor refining a news headline.
-    Improve the headline for clarity, naturalness, and conciseness, use the body as context. Keep it as a
-    single short headline — do not add a body, explanation, or extra sentences.
-    Output only the refined Persian headline — no commentary, no labels.
-  PROMPT
-
-  BODY_PROMPT = <<~PROMPT.strip
-    You are a professional Persian (Farsi) news editor refining the body of a news article.
-    Improve the text for clarity, naturalness, and readability, use the title as context. Fix any awkward phrasing,
-    improve vocabulary, and ensure it reads like professionally written Persian journalism.
-    Output only the refined Persian body text — no title, no commentary, no explanations.
-  PROMPT
-
   # `translation` is the SOURCE translation whose text is being refined.
   def self.requests(translation)
+    title_version = Prompt.current_version("refine_title")
+    body_version  = Prompt.current_version("refine_body")
+
     [
       {
         key: "title",
+        prompt_version_id: title_version.id,
         messages: [
-          { role: "system", content: TITLE_PROMPT },
+          { role: "system", content: title_version.content },
           { role: "user",   content: "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}" }
         ]
       },
       {
         key: "body",
+        prompt_version_id: body_version.id,
         messages: [
-          { role: "system", content: BODY_PROMPT },
+          { role: "system", content: body_version.content },
           { role: "user",   content: "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}" }
         ]
       }
@@ -49,7 +43,7 @@ class TranslationRefiner
   def self.debug_curl_title(translation, server: nil, model:)
     OllamaClient.curl_command(
       model:,
-      system_prompt: TITLE_PROMPT,
+      system_prompt: Prompt.content_for("refine_title"),
       user_text:     "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}",
       url:           server&.url
     )
@@ -58,7 +52,7 @@ class TranslationRefiner
   def self.debug_curl_body(translation, server: nil, model:)
     OllamaClient.curl_command(
       model:,
-      system_prompt: BODY_PROMPT,
+      system_prompt: Prompt.content_for("refine_body"),
       user_text:     "Title: #{translation.translated_title}\n\nBody: #{translation.translated_body}",
       url:           server&.url
     )

@@ -1,0 +1,15 @@
+<% usages = task&.prompt_version_usages&.includes(prompt_version: :prompt) %>
+<% if usages.present? %>
+  <div class="card mb-4">
+    <div class="card-header"><i class="bi bi-chat-square-text"></i> Generated using</div>
+    <ul class="list-group list-group-flush">
+      <% usages.each do |usage| %>
+        <% version = usage.prompt_version %>
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <span><code><%= usage.request_key %></code> &rarr; <%= version.prompt.name %></span>
+          <%= link_to "v#{version.number}", admin_prompt_path(version.prompt), class: "badge bg-secondary text-decoration-none" %>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+<% end %>

@@ -18,13 +18,6 @@ class FeaturedSelector
   CATEGORY_RANK = { "top" => 0, "world" => 1, "business" => 2, "uk" => 3,
                     "technology" => 4, "science" => 5, "health" => 6 }.freeze
 
-  SYSTEM_PROMPT = <<~PROMPT.strip
-    You are a senior Persian news editor choosing which stories to feature at the
-    top of a news homepage. Pick the stories with the broadest public interest and
-    the greatest impact. Respond with ONLY the chosen ID numbers separated by
-    commas (for example: 12, 7, 30). Output no other text.
-  PROMPT
-
   # ── Selection used by the public homepage ────────────────────────────────
 
   # Returns [featured_stories, remaining_stories]. Uses the AI-cached IDs when
@@ -62,13 +55,18 @@ class FeaturedSelector
 
   # ── LLM request / response (run through the worker queue) ──────────────────
 
+  # Prompt text is DB-backed (see Prompt) so admins/editors can edit it; the
+  # request always uses the current version, and embeds its prompt_version_id
+  # so Task can record which version produced the result.
   def self.requests(candidates, limit: DEFAULT_LIMIT)
+    version = Prompt.current_version("feature")
     listing = candidates.map { |t| "ID #{t.article_id}: #{t.translated_title}" }.join("\n")
     [
       {
         key: "featured",
+        prompt_version_id: version.id,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: version.content },
           { role: "user",   content: "Choose the #{limit} most newsworthy stories:\n\n#{listing}" }
         ]
       }

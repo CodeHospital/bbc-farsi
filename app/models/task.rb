@@ -10,6 +10,8 @@
 class Task < ApplicationRecord
   belongs_to :target, polymorphic: true
   belongs_to :ollama_server, optional: true
+  has_many :prompt_version_usages, dependent: :destroy
+  has_many :prompt_versions, through: :prompt_version_usages
 
   KINDS    = %w[rewrite translate refine feature tag].freeze
   STATUSES = %w[pending claimed completed failed].freeze
@@ -27,6 +29,12 @@ class Task < ApplicationRecord
   validates :status,   inclusion: { in: STATUSES }
   validates :model,    presence: true
   validates :priority, numericality: { only_integer: true }
+
+  # Each request built by the *Rewriter/*Translator/*Refiner/*Generator/*Selector
+  # services carries a `prompt_version_id` for the Prompt it was built from
+  # (see Prompt.current_version). Record that link so the Task — and the
+  # target it produces — can always show which prompt version created it.
+  after_create :record_prompt_version_usages
 
   # llmarkt is the primary backend: as soon as a task is enqueued, submit it to
   # the llmarkt grid (which calls back via webhook). If llmarkt is disabled or
@@ -236,6 +244,16 @@ class Task < ApplicationRecord
   end
 
   private
+
+  def record_prompt_version_usages
+    Array(requests).each do |request|
+      version_id = request["prompt_version_id"] || request[:prompt_version_id]
+      next unless version_id
+
+      key = request["key"] || request[:key]
+      prompt_version_usages.create!(prompt_version_id: version_id, request_key: key)
+    end
+  end
 
   # Hand the freshly-created task to the llmarkt grid. No-op when llmarkt is not
   # configured (LlmarktSubmitter.submit_task returns false and the task is left

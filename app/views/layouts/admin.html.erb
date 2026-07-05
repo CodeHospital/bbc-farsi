@@ -79,6 +79,11 @@
             <i class="bi bi-translate"></i> Translations
           <% end %>
         </li>
+        <li class="nav-item">
+          <%= link_to admin_prompts_path, class: "nav-link #{'active' if controller_name == 'prompts'}" do %>
+            <i class="bi bi-chat-square-text"></i> Prompts
+          <% end %>
+        </li>
         <% if current_user&.admin? %>
           <li class="nav-item">
             <%= link_to admin_telegram_channels_path, class: "nav-link #{'active' if controller_name == 'telegram_channels'}" do %>

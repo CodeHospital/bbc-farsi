@@ -44,6 +44,10 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :prompts, only: %i[index show edit update] do
+      member { post :revert }
+    end
+
     resources :translations, only: %i[index show edit update] do
       member do
         post :rerun

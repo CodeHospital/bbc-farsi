@@ -1,0 +1,21 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Edit Prompt</h2>
+  <%= link_to "← Back", admin_prompt_path(@prompt), class: "btn btn-outline-secondary btn-sm" %>
+</div>
+
+<%= form_with model: @prompt, url: admin_prompt_path(@prompt), method: :patch do |f| %>
+  <div class="mb-3">
+    <%= f.label :name, class: "form-label" %>
+    <%= f.text_field :name, class: "form-control" %>
+  </div>
+  <div class="mb-3">
+    <%= f.label :description, class: "form-label" %>
+    <%= f.text_area :description, class: "form-control", rows: 2 %>
+  </div>
+  <div class="mb-3">
+    <%= label_tag "prompt_content", "Content", class: "form-label" %>
+    <%= text_area_tag "prompt[content]", @prompt.current_prompt_version&.content, class: "form-control font-monospace", rows: 16 %>
+    <div class="form-text">Saving with changed text creates a new version (v<%= (@prompt.current_prompt_version&.number || 0) + 1 %>) — older versions stay available to revert to.</div>
+  </div>
+  <%= f.submit "Save", class: "btn btn-primary" %>
+<% end %>

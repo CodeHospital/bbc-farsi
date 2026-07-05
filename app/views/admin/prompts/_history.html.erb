@@ -1,0 +1,28 @@
+<div class="card mb-4">
+  <div class="card-header"><i class="bi bi-clock-history"></i> Version history</div>
+  <div class="list-group list-group-flush">
+    <% versions.each do |version| %>
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <span class="badge bg-<%= version.current? ? "success" : "secondary" %>">v<%= version.number %></span>
+            <span class="ms-1">by <strong><%= prompt_version_actor(version) %></strong></span>
+            <% if version.change_note.present? %>
+              <span class="text-muted small">&mdash; <%= version.change_note %></span>
+            <% end %>
+          </div>
+          <small class="text-muted text-nowrap"><%= version.created_at.strftime("%b %d, %Y %H:%M") %></small>
+        </div>
+        <details class="mt-2">
+          <summary class="small text-muted">View this version's text</summary>
+          <pre class="small mt-1 mb-2" style="white-space:pre-wrap"><%= version.content %></pre>
+        </details>
+        <% unless version.current? %>
+          <%= button_to "Revert to this version", revert_admin_prompt_path(prompt, version_id: version.id),
+                method: :post, class: "btn btn-xs btn-outline-warning",
+                data: { turbo_confirm: "Revert #{prompt.name} to version #{version.number}?" } %>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

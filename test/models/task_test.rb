@@ -23,6 +23,18 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal "title", task.requests.second["key"]
   end
 
+  test "enqueue_rewrite records which prompt versions produced the task and its target" do
+    task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
+
+    usages = task.prompt_version_usages.includes(prompt_version: :prompt)
+    assert_equal 2, usages.size
+    assert_equal %w[body title], usages.map(&:request_key).sort
+    assert_equal %w[rewrite_body rewrite_title], usages.map { |u| u.prompt_version.prompt.key }.sort
+    usages.each { |u| assert u.prompt_version.current? }
+
+    assert_equal task, task.target.generating_task
+  end
+
   test "claim_next! claims the oldest task and moves target + article to running" do
     task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
 

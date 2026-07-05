@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_05_000002) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_05_000003) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -73,6 +73,41 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_05_000002) do
     t.text "refine_models"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "prompt_version_usages", force: :cascade do |t|
+    t.integer "prompt_version_id", null: false
+    t.integer "task_id", null: false
+    t.string "request_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["prompt_version_id"], name: "index_prompt_version_usages_on_prompt_version_id"
+    t.index ["task_id", "request_key"], name: "index_prompt_version_usages_on_task_id_and_request_key", unique: true
+    t.index ["task_id"], name: "index_prompt_version_usages_on_task_id"
+  end
+
+  create_table "prompt_versions", force: :cascade do |t|
+    t.integer "prompt_id", null: false
+    t.integer "number", null: false
+    t.text "content", null: false
+    t.integer "user_id"
+    t.string "change_note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["prompt_id", "number"], name: "index_prompt_versions_on_prompt_id_and_number", unique: true
+    t.index ["prompt_id"], name: "index_prompt_versions_on_prompt_id"
+    t.index ["user_id"], name: "index_prompt_versions_on_user_id"
+  end
+
+  create_table "prompts", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "current_prompt_version_id"
+    t.index ["current_prompt_version_id"], name: "index_prompts_on_current_prompt_version_id"
+    t.index ["key"], name: "index_prompts_on_key", unique: true
   end
 
   create_table "rewrites", force: :cascade do |t|
@@ -221,6 +256,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_05_000002) do
 
   add_foreign_key "article_views", "articles"
   add_foreign_key "articles", "feeds"
+  add_foreign_key "prompt_version_usages", "prompt_versions"
+  add_foreign_key "prompt_version_usages", "tasks"
+  add_foreign_key "prompt_versions", "prompts"
+  add_foreign_key "prompt_versions", "users"
+  add_foreign_key "prompts", "prompt_versions", column: "current_prompt_version_id"
   add_foreign_key "rewrites", "articles"
   add_foreign_key "telegram_admin_notifications", "translations"
   add_foreign_key "telegram_posts", "telegram_channels"

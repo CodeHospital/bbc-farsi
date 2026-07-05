@@ -1,0 +1,34 @@
+<h2 class="mb-3">Prompts</h2>
+<p class="text-muted small">
+  Text sent to the LLM for each step of the pipeline. Editing a prompt creates a new version —
+  the next task generated for that step uses it; older versions stay available to revert to.
+</p>
+
+<table class="table table-hover table-sm">
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Name</th>
+      <th>Version</th>
+      <th>Last updated</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @prompts.each do |prompt| %>
+      <tr>
+        <td><code><%= prompt.key %></code></td>
+        <td><%= link_to prompt.name, admin_prompt_path(prompt) %></td>
+        <td>
+          <% if prompt.current_prompt_version %>
+            <span class="badge bg-secondary">v<%= prompt.current_prompt_version.number %></span>
+          <% else %>
+            <span class="text-muted">— not seeded —</span>
+          <% end %>
+        </td>
+        <td><small class="text-muted"><%= prompt.current_prompt_version&.created_at&.strftime("%b %d, %Y %H:%M") || "—" %></small></td>
+        <td><%= link_to "Edit", edit_admin_prompt_path(prompt), class: "btn btn-xs btn-outline-primary" %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

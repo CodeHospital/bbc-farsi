@@ -132,4 +132,6 @@
   <% end %>
 </div>
 
+<%= render "admin/shared/prompt_usages", task: @translation.generating_task %>
+
 <%= render "history", versions: @versions %>
