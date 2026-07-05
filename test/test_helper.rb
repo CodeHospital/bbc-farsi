@@ -15,6 +15,14 @@ WebMock.disable_net_connect!(allow_localhost: true)
   Llmarkt.define_singleton_method(llmarkt_config_method) { nil }
 end
 
+# Never read the real Telegram admin-bot credentials/ENV in tests. With them
+# set, every translate/refine Task#complete! in the suite would try to DM the
+# real bot. Default it OFF here; tests that exercise it opt in explicitly via
+# `stub_telegram_admin_bot_config`.
+%i[bot_token chat_id webhook_secret].each do |telegram_admin_bot_config_method|
+  TelegramAdminBot.define_singleton_method(telegram_admin_bot_config_method) { nil }
+end
+
 module ActiveSupport
   class TestCase
     parallelize(workers: :number_of_processors)
@@ -61,6 +69,28 @@ module ActiveSupport
 
     def create_channel(attrs = {})
       TelegramChannel.create!({ name: "Test Channel", token: "123:abc", channel_id: "@testchannel" }.merge(attrs))
+    end
+
+    # ── Telegram admin bot test helpers ────────────────────────────────────────
+    # Override TelegramAdminBot's config deterministically so tests never depend
+    # on (or reach) real credentials/ENV. Tests still stub Telegram::Bot::Client
+    # for the actual HTTP (see TelegramPosterTest for the established pattern).
+
+    TELEGRAM_ADMIN_BOT_TEST_CONFIG = {
+      bot_token: "admin-bot-token", chat_id: "12345", webhook_secret: "test-webhook-secret"
+    }.freeze
+
+    def stub_telegram_admin_bot_config(**overrides)
+      @telegram_admin_bot_config_originals ||= {}
+      TELEGRAM_ADMIN_BOT_TEST_CONFIG.merge(overrides).each do |name, value|
+        @telegram_admin_bot_config_originals[name] ||= TelegramAdminBot.method(name)
+        TelegramAdminBot.define_singleton_method(name) { value }
+      end
+    end
+
+    def restore_telegram_admin_bot_config
+      @telegram_admin_bot_config_originals&.each { |name, meth| TelegramAdminBot.define_singleton_method(name, meth) }
+      @telegram_admin_bot_config_originals = nil
     end
 
     ADMIN_CREDENTIALS = ActionController::HttpAuthentication::Basic.encode_credentials("testadmin", "testpass")

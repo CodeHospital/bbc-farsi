@@ -52,6 +52,7 @@ Rails.application.routes.draw do
         post :post_to_channel
         post :archive
         post :unarchive
+        post :toggle_manual_edit
       end
       collection do
         post :bulk_rerun
@@ -109,6 +110,10 @@ Rails.application.routes.draw do
     # Public webhook llmarkt (vibeearning) POSTs job results to. Auth is the
     # signed token in the query string, not the worker bearer token.
     post "llm_callbacks",      to: "llm_callbacks#create"
+
+    # Public webhook Telegram POSTs admin-bot button taps to. Auth is the
+    # X-Telegram-Bot-Api-Secret-Token header, not the worker bearer token.
+    post "telegram_admin/webhook", to: "telegram_admin#webhook"
   end
 
   # Public-facing site (no auth): latest translated/refined news, magazine style.

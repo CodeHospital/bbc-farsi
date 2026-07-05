@@ -13,9 +13,10 @@
 <% end %>
 <div class="mb-2">
   <span class="text-muted small me-1">Other:</span>
-  <%= render "admin/shared/filter_toggle", param: :active,      label: "Active only" %>
-  <%= render "admin/shared/filter_toggle", param: :hide_posted, label: "Hide posted" %>
-  <%= render "admin/shared/filter_toggle", param: :archived,    label: "Show archived" %>
+  <%= render "admin/shared/filter_toggle", param: :active,            label: "Active only" %>
+  <%= render "admin/shared/filter_toggle", param: :hide_posted,       label: "Hide posted" %>
+  <%= render "admin/shared/filter_toggle", param: :needs_manual_edit, label: "Needs edit" %>
+  <%= render "admin/shared/filter_toggle", param: :archived,          label: "Show archived" %>
 </div>
 <%= render "admin/shared/filter_search", placeholder: "Search article / Persian title…" %>
 
@@ -52,7 +53,10 @@
                 class: "form-check-input bulk-select", data: { bulk_group: "translations" } %>
         </td>
         <td><small class="<%= 'posted-title' if t.article&.status == 'posted' %>"><%= t.article&.title&.truncate(50) %></small></td>
-        <td dir="rtl"><%= t.translated_title&.truncate(50) %></td>
+        <td dir="rtl">
+          <%= t.translated_title&.truncate(50) %>
+          <% if t.needs_manual_edit? %><span class="badge bg-warning text-dark">Needs edit</span><% end %>
+        </td>
         <td><small class="text-muted"><%= t.llm_model %></small></td>
         <td>
           <% if t.archived? %>

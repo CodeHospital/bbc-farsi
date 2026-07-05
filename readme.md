@@ -246,6 +246,66 @@ translation task also auto-posts inline.)
 
 ---
 
+## Telegram Admin Notification Bot
+
+A separate Telegram bot (distinct from the per-channel publishing bots managed
+at `/admin/telegram_channels`) DMs an admin/editor chat whenever a translation
+finishes processing and becomes the active version — i.e. news that's ready
+for a human decision. The message carries inline buttons so the admin can act
+without opening the web admin at all:
+
+1. 🔁 Request rewrite
+2. 🌐 Request retranslation
+3. ✨ Request refine
+4. 📤 Publish to a Telegram channel (opens a channel-picker submenu)
+5. 🌍 Publish / unpublish on the news portal
+6. ✋ Mark for manual edit by editors
+
+```
+ Task#complete! ──sendMessage──▶ Telegram ──tap──▶ callback_query
+                                     │                    │
+                                     ▼                    ▼
+                          admin's Telegram app   POST /api/telegram_admin/webhook
+                                                          │
+                                                          ▼
+                                              TelegramAdminNotifier (edits the
+                                              message in place + performs the
+                                              action — same code paths as the
+                                              equivalent admin-UI buttons)
+```
+
+Configure it in **Rails credentials** (preferred) or env vars — credentials win
+when both are set:
+
+| Credential key | Env fallback | Purpose |
+|---|---|---|
+| `telegram_admin_bot_token` | `TELEGRAM_ADMIN_BOT_TOKEN` | The admin bot's token (from [@BotFather](https://t.me/BotFather)) |
+| `telegram_admin_chat_id` | `TELEGRAM_ADMIN_CHAT_ID` | The user/group chat id to notify |
+| `telegram_admin_webhook_secret` | `TELEGRAM_ADMIN_WEBHOOK_SECRET` | Random secret Telegram echoes back on every webhook call, verified before trusting it |
+
+```bash
+bin/rails credentials:edit
+# telegram_admin_bot_token: <token>
+# telegram_admin_chat_id: <chat id>
+# telegram_admin_webhook_secret: <long random string>
+```
+
+Then register the webhook once (needs `app_base_url`/`APP_BASE_URL` set — the
+same value used by llmarkt — so Telegram can reach this app):
+
+```bash
+bin/rails telegram_admin:set_webhook   # POST setWebhook, secret_token included
+bin/rails telegram_admin:delete_webhook # to unregister
+```
+
+When `telegram_admin_bot_token`/`telegram_admin_chat_id` are absent, the
+notifier is a no-op — no message is sent and nothing else changes. A flagged
+"needs manual edit" translation shows a badge on `/admin/translations` and a
+banner on its show page (filterable via the "Needs edit" toggle), whether it
+was set from Telegram or from the web admin.
+
+---
+
 ## Admin Interface
 
 All admin routes are under `/admin`, behind a session-based login backed by
@@ -291,7 +351,7 @@ filterable by model type or user.
 | `/admin/feeds` | Manage RSS feeds *(admin-only)* |
 | `/admin/articles` | Browse articles, trigger rewrite |
 | `/admin/rewrites` | View/edit rewrites, activate versions, edit history |
-| `/admin/translations` | View/edit translations, post to Telegram, edit history |
+| `/admin/translations` | View/edit translations, post to Telegram, flag for manual edit, edit history |
 | `/admin/telegram_channels` | Manage Telegram channels and autopost settings *(admin-only)* |
 | `/admin/ollama_servers` | Manage Ollama servers and their model lists *(admin-only)* |
 | `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |

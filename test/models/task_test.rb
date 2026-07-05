@@ -215,6 +215,44 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal rewrite, refine_task.target.rewrite
   end
 
+  test "completing a translate task notifies the Telegram admin bot" do
+    rewrite = create_rewrite(article: @article)
+    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b", chain_refine: false)
+    Task.claim_next!
+
+    notified = nil
+    TelegramAdminNotifier.stub(:notify, ->(translation) { notified = translation }) do
+      task.complete!("title" => "عنوان", "body" => "متن")
+    end
+
+    assert_equal task.target, notified
+  end
+
+  test "completing a refine task notifies the Telegram admin bot" do
+    translation = create_translation(rewrite: create_rewrite(article: @article))
+    task = Task.enqueue_refine(translation, server: @server, model: "qwen3:14b", chain_autopost: false)
+    Task.claim_next!
+
+    notified = nil
+    TelegramAdminNotifier.stub(:notify, ->(translation) { notified = translation }) do
+      task.complete!("title" => "عنوان اصلاح‌شده", "body" => "متن اصلاح‌شده")
+    end
+
+    assert_equal task.target, notified
+  end
+
+  test "a Telegram admin bot notify failure does not raise or block task completion" do
+    rewrite = create_rewrite(article: @article)
+    task = Task.enqueue_translate(rewrite, server: @server, model: "aya-expanse:32b", chain_refine: false)
+    Task.claim_next!
+
+    TelegramAdminNotifier.stub(:notify, ->(_translation) { raise "boom" }) do
+      task.complete!("title" => "عنوان", "body" => "متن")
+    end
+
+    assert_equal "completed", task.reload.status
+  end
+
   test "fail! marks the target and article as errored" do
     task = Task.enqueue_rewrite(@article, server: @server, model: "qwen3:14b")
     Task.claim_next!

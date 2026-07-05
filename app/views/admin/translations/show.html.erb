@@ -51,6 +51,15 @@
   </div>
 <% end %>
 
+<% if @translation.needs_manual_edit? %>
+  <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
+    <i class="bi bi-pencil-fill"></i>
+    <span>This translation is <strong>flagged for manual editor review</strong>.</span>
+    <%= button_to "Clear flag", toggle_manual_edit_admin_translation_path(@translation), method: :post,
+          class: "btn btn-sm btn-outline-warning ms-auto" %>
+  </div>
+<% end %>
+
 <div class="d-flex gap-2 mb-3 flex-wrap">
   <%= link_to "Edit", edit_admin_translation_path(@translation), class: "btn btn-outline-primary" %>
   <% unless @translation.archived? %>
@@ -63,6 +72,10 @@
       <%= button_to "Unpublish from portal", archive_admin_translation_path(@translation), method: :post,
             class: "btn btn-outline-danger",
             data: { turbo_confirm: "Unpublish this translation? The previous version will be shown on the portal." } %>
+    <% end %>
+    <% unless @translation.needs_manual_edit? %>
+      <%= button_to "✋ Flag for manual edit", toggle_manual_edit_admin_translation_path(@translation), method: :post,
+            class: "btn btn-outline-warning" %>
     <% end %>
   <% end %>
   <% if @translation.article %>

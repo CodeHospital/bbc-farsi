@@ -53,4 +53,22 @@ class TranslationTest < ActiveSupport::TestCase
     translation = create_translation
     assert_includes Translation.completed.unposted_for(channel), translation
   end
+
+  test "mark_for_manual_edit! and clear_manual_edit! toggle the flag" do
+    translation = create_translation(attrs: { needs_manual_edit: false })
+
+    translation.mark_for_manual_edit!
+    assert translation.reload.needs_manual_edit?
+
+    translation.clear_manual_edit!
+    assert_not translation.reload.needs_manual_edit?
+  end
+
+  test "needs_manual_edit scope returns only flagged translations" do
+    flagged   = create_translation(attrs: { needs_manual_edit: true })
+    unflagged = create_translation(attrs: { needs_manual_edit: false })
+
+    assert_includes Translation.needs_manual_edit, flagged
+    assert_not_includes Translation.needs_manual_edit, unflagged
+  end
 end

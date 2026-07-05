@@ -181,10 +181,12 @@ class Task < ApplicationRecord
       target.activate!
       target.article.update!(status: "translated")
       chain_refine!
+      notify_admin_bot!
     when "refine"
       target.update!(TranslationRefiner.process(responses).merge(status: "completed"))
       target.activate!
       chain_autopost!
+      notify_admin_bot!
     when "feature"
       FeaturedSelector.store(FeaturedSelector.process(responses))
       return update!(status: "completed", completed_at: Time.current)
@@ -273,6 +275,15 @@ class Task < ApplicationRecord
     Autoposter.post_translation(target)
   rescue StandardError => e
     Rails.logger.error "Autopost after task #{id} failed: #{e.message}"
+  end
+
+  # DM an admin/editor via the Telegram admin bot with rewrite/retranslate/
+  # refine/publish/manual-edit buttons. No-op when TelegramAdminBot isn't
+  # configured (see TelegramAdminNotifier.notify).
+  def notify_admin_bot!
+    TelegramAdminNotifier.notify(target)
+  rescue StandardError => e
+    Rails.logger.error "Admin bot notify after task #{id} failed: #{e.message}"
   end
 
   def broadcast_article_refresh

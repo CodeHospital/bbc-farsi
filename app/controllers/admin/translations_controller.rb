@@ -2,7 +2,7 @@ class Admin::TranslationsController < Admin::BaseController
   include Pagy::Method
   protect_from_forgery with: :null_session
 
-  before_action :set_translation, only: %i[show edit update rerun activate refine post_to_channel archive unarchive]
+  before_action :set_translation, only: %i[show edit update rerun activate refine post_to_channel archive unarchive toggle_manual_edit]
 
   # Whitelisted sort keys -> SQL column expressions (guards against injection).
   SORT_COLUMNS = {
@@ -25,6 +25,7 @@ class Admin::TranslationsController < Admin::BaseController
     translations = translations.where(llm_model: params[:model])           if params[:model].present?
     translations = translations.where(active: true)                        if params[:active] == "1"
     translations = translations.where.not(articles: { status: "posted" }) if params[:hide_posted] == "1"
+    translations = translations.where(needs_manual_edit: true)             if params[:needs_manual_edit] == "1"
     if params[:q].present?
       like = "%#{params[:q]}%"
       translations = translations.where("LOWER(articles.title) LIKE LOWER(:q) OR LOWER(translations.translated_title) LIKE LOWER(:q)", q: like)
@@ -72,6 +73,16 @@ class Admin::TranslationsController < Admin::BaseController
     @translation.unarchive!
     redirect_back fallback_location: admin_article_path(@translation.article),
                   notice: "Translation republished to portal."
+  end
+
+  def toggle_manual_edit
+    if @translation.needs_manual_edit?
+      @translation.clear_manual_edit!
+      redirect_back fallback_location: admin_translation_path(@translation), notice: "Manual-edit flag cleared."
+    else
+      @translation.mark_for_manual_edit!
+      redirect_back fallback_location: admin_translation_path(@translation), notice: "Flagged for manual editor review."
+    end
   end
 
   def refine

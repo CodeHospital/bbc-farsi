@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_05_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_05_000002) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -138,6 +138,19 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_05_000001) do
     t.index ["target_type", "target_id"], name: "index_tasks_on_target_type_and_target_id"
   end
 
+  create_table "telegram_admin_notifications", force: :cascade do |t|
+    t.integer "translation_id", null: false
+    t.string "chat_id", null: false
+    t.bigint "message_id", null: false
+    t.string "status", default: "sent", null: false
+    t.string "last_action"
+    t.string "actioned_by"
+    t.datetime "actioned_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["translation_id"], name: "index_telegram_admin_notifications_on_translation_id"
+  end
+
   create_table "telegram_channels", force: :cascade do |t|
     t.string "name"
     t.string "token"
@@ -175,6 +188,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_05_000001) do
     t.boolean "archived", default: false, null: false
     t.integer "ollama_server_id"
     t.string "slug"
+    t.boolean "needs_manual_edit", default: false, null: false
     t.index ["article_id"], name: "index_translations_on_article_id"
     t.index ["ollama_server_id"], name: "index_translations_on_ollama_server_id"
     t.index ["rewrite_id"], name: "index_translations_on_rewrite_id"
@@ -208,6 +222,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_05_000001) do
   add_foreign_key "article_views", "articles"
   add_foreign_key "articles", "feeds"
   add_foreign_key "rewrites", "articles"
+  add_foreign_key "telegram_admin_notifications", "translations"
   add_foreign_key "telegram_posts", "telegram_channels"
   add_foreign_key "telegram_posts", "translations"
   add_foreign_key "translations", "articles"
