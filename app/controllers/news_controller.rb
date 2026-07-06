@@ -13,6 +13,13 @@ class NewsController < ApplicationController
   before_action :set_news_lang
   before_action :load_chrome, only: %i[index show search]
 
+  # A bad/old slug and an archived (unpublished) translation both raise this —
+  # `published_translations`/`Article.not_archived` already exclude archived
+  # rows from the lookup scope, so "not found" and "unpublished" collapse into
+  # the same case. Rendered in-app (not Rails' generic public/404.html) so it
+  # keeps the site's chrome (nav/sidebar/footer), fonts and bilingual copy.
+  rescue_from ActiveRecord::RecordNotFound, with: :render_story_not_found
+
   def index
     stories = @category ? @all_stories.select { |s| s.article.feed&.category == @category } : @all_stories
     @featured, @rest = FeaturedSelector.select(stories)
@@ -210,6 +217,12 @@ class NewsController < ApplicationController
   # Exposed to views/helpers via the `@news_lang` assign.
   def set_news_lang
     @news_lang = LANGUAGES.include?(params[:lang]) ? params[:lang] : "fa"
+  end
+
+  # `load_chrome` (nav/sidebar data) has already run by the time any action
+  # raises RecordNotFound, so the 404 view renders with the full site chrome.
+  def render_story_not_found
+    render "news/not_found", status: :not_found
   end
 
   # Shared page chrome: the active category, the full story pool, and the

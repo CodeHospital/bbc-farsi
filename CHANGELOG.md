@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — "Needs Edit" sidebar menu: manual-edit queue in one place, with a live count badge
+
+- Manual-edit-flagged translations were only reachable by opening `/admin/translations` and manually toggling the "Needs edit" filter — nothing surfaced them proactively. Added a dedicated **"Needs Edit"** item to the admin sidebar ([layouts/admin.html.erb](app/views/layouts/admin.html.erb), right under "Translations") that links straight to the pre-filtered queue (`admin_translations_path(needs_manual_edit: "1")`), reusing the existing filter/sort/pagination and the per-row "Needs edit" badge rather than duplicating a list view.
+- The menu item carries a **live count badge** (yellow, hidden when zero) of how many translations are currently flagged, via a new memoized `ApplicationHelper#manual_edit_review_count` (`Translation.needs_manual_edit.count`, at most one COUNT per page load). Refined the "Translations" vs. "Needs Edit" active-state so exactly one highlights (keyed on `params[:needs_manual_edit]`).
+- Visible to **both editors and admins** (placed outside the admin-only nav block), since the manual-edit workflow is primarily the editors' — consistent with Translations/Articles being available to both roles.
+- 391 tests green (5 new in `Admin::TranslationsControllerTest`: the `needs_manual_edit` filter, the menu link, and the badge count showing/hiding). `rubocop`/`zeitwerk:check` clean. No migrations.
+
+### Added — cute in-app "story not found" page for bad/unpublished news links
+
+- A bad slug and an archived (unpublished) translation both raised an unhandled `ActiveRecord::RecordNotFound`, which Rails answered with the generic static `public/404.html` — no site chrome, no bilingual copy, not even the right font. `NewsController` now has `rescue_from ActiveRecord::RecordNotFound, with: :render_story_not_found`, rendering a new `news/not_found` view (HTTP 404) inside the normal `news` layout — nav, "Latest News"/categories sidebar, and footer all still render, since `load_chrome` has already populated them by the time any action's lookup fails. "Not found" and "unpublished" are the same case by construction: `published_translations`/`Article.not_archived` already exclude archived rows from the lookup scope.
+- The page itself: a newspaper icon with a dizzy-face badge (Bootstrap Icons, no new assets), a friendly bilingual headline/body (new `not_found_*` keys in `NewsHelper::UI_STRINGS`), and two buttons — back to the homepage, or to search. Tagged `noindex, follow` (new `content_for(:robots)` override point in `layouts/news.html.erb`, previously hardcoded) so error pages don't get indexed.
+- 387 tests green (3 new: unknown slug, archived translation, English edition — all assert `:not_found` status and the rendered copy).
+
 ### Changed — Telegram admin bot: notify only after refine, add source/portal link buttons
 
 - `Task#complete!` used to call `TelegramAdminNotifier.notify` for both the `"translate"` and `"refine"` kinds — an editor got DMed on the raw machine translation *and again* after the smart-edit refine pass. Removed the notify call from the `"translate"` case; the admin bot now only fires once `TranslationRefiner` has produced the refined version (or never, if a translation's refine step is skipped/fails), so editors see one message per story instead of two.

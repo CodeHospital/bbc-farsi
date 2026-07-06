@@ -202,6 +202,31 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to news_path(id: translation.seo_param)
   end
 
+  test "show renders the cute not-found page for an unknown slug" do
+    get news_path(id: "no-such-story")
+
+    assert_response :not_found
+    assert_select "meta[name=robots][content=?]", "noindex, follow"
+    assert_match(/پیدا نشد/, @response.body)
+  end
+
+  test "show renders the not-found page for an archived (unpublished) translation" do
+    translation = create_translation(attrs: { translated_title: "خبر آرشیو شده", archived: true })
+
+    get news_path(id: translation.seo_param)
+
+    assert_response :not_found
+    assert_match(/پیدا نشد/, @response.body)
+  end
+
+  test "show renders the not-found page in english with home/search links" do
+    get news_path(id: "missing", lang: "en")
+
+    assert_response :not_found
+    assert_match(/Story not found/, @response.body)
+    assert_select "a[href=?]", en_root_path
+  end
+
   test "show emits canonical link, description meta and NewsArticle JSON-LD" do
     translation = create_translation(attrs: { translated_title: "تیتر", translated_body: "متن خبر برای توضیحات" })
     stub_request(:get, translation.article.url).to_return(body: "<html></html>")

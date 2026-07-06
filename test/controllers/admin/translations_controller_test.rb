@@ -52,6 +52,36 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "small.posted-title"
   end
 
+  test "needs_manual_edit filter shows only flagged translations" do
+    flagged  = translation_with(title: "Flagged one",   needs_manual_edit: true)
+    ordinary = translation_with(title: "Ordinary one",  needs_manual_edit: false)
+
+    get admin_translations_path(needs_manual_edit: "1")
+    assert_select "a[href=?]", admin_translation_path(flagged)
+    assert_select "a[href=?]", admin_translation_path(ordinary), count: 0
+  end
+
+  test "sidebar shows a Needs Edit menu item linking to the flagged queue" do
+    get admin_translations_path
+    assert_select ".sidebar a[href=?]", admin_translations_path(needs_manual_edit: "1"), text: /Needs Edit/
+  end
+
+  test "sidebar Needs Edit badge counts translations flagged for manual edit" do
+    translation_with(title: "Flagged A", needs_manual_edit: true)
+    translation_with(title: "Flagged B", needs_manual_edit: true)
+    translation_with(title: "Not flagged", needs_manual_edit: false)
+
+    get admin_translations_path
+    assert_select ".sidebar a[href=?] .badge", admin_translations_path(needs_manual_edit: "1"), text: "2"
+  end
+
+  test "sidebar hides the Needs Edit badge when nothing is flagged" do
+    translation_with(title: "Not flagged", needs_manual_edit: false)
+
+    get admin_translations_path
+    assert_select ".sidebar a[href=?] .badge", admin_translations_path(needs_manual_edit: "1"), count: 0
+  end
+
   test "search matches the article title" do
     match = translation_with(title: "Quantum leap")
     other = translation_with(title: "Sports roundup")

@@ -74,9 +74,19 @@
             <i class="bi bi-pencil-square"></i> Rewrites
           <% end %>
         </li>
+        <% on_translations   = controller_name == 'translations' %>
+        <% on_needs_edit_view = on_translations && params[:needs_manual_edit] == '1' %>
         <li class="nav-item">
-          <%= link_to admin_translations_path, class: "nav-link #{'active' if controller_name == 'translations'}" do %>
+          <%= link_to admin_translations_path, class: "nav-link #{'active' if on_translations && !on_needs_edit_view}" do %>
             <i class="bi bi-translate"></i> Translations
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_translations_path(needs_manual_edit: "1"), class: "nav-link d-flex align-items-center #{'active' if on_needs_edit_view}" do %>
+            <span><i class="bi bi-pencil-fill"></i> Needs Edit</span>
+            <% if manual_edit_review_count.positive? %>
+              <span class="badge bg-warning text-dark ms-auto"><%= manual_edit_review_count %></span>
+            <% end %>
           <% end %>
         </li>
         <li class="nav-item">

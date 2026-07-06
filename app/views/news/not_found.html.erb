@@ -1,0 +1,20 @@
+<% content_for :title,       "#{news_ui(:not_found_title)} — #{news_ui(:site_name)}" %>
+<% content_for :description, news_ui(:not_found_body) %>
+<% content_for :robots,      "noindex, follow" %>
+
+<div class="not-found text-center py-5">
+  <span class="not-found-icon">
+    <i class="bi bi-newspaper"></i>
+    <i class="bi bi-emoji-dizzy"></i>
+  </span>
+  <h1 class="not-found-title"><%= news_ui(:not_found_title) %></h1>
+  <p class="not-found-body"><%= news_ui(:not_found_body) %></p>
+  <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
+    <%= link_to home_path, class: "btn btn-danger fw-bold px-4" do %>
+      <i class="bi bi-house-door me-1"></i><%= news_ui(:not_found_home) %>
+    <% end %>
+    <%= link_to news_search_path, class: "btn btn-outline-dark fw-bold px-4" do %>
+      <i class="bi bi-search me-1"></i><%= news_ui(:not_found_search) %>
+    <% end %>
+  </div>
+</div>

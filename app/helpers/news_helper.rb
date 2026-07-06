@@ -95,7 +95,11 @@ module NewsHelper
       search_title:   "نتایج جستجو",
       search_results: "نتیجه برای",
       search_empty:   "نتیجه‌ای یافت نشد.",
-      switch_label:   "English"
+      switch_label:   "English",
+      not_found_title:  "این خبر پیدا نشد!",
+      not_found_body:   "شاید لینک اشتباه بود یا این خبر دیگر منتشر نیست. نگران نباشید، خبرهای تازه همین نزدیکی‌ها منتظرتان هستند.",
+      not_found_home:   "بازگشت به خانه",
+      not_found_search: "جستجوی خبر دیگر"
     },
     "en" => {
       site_name:    "BBC Persian",
@@ -116,7 +120,11 @@ module NewsHelper
       search_title:       "Search results",
       search_results:     "results for",
       search_empty:       "No results found.",
-      switch_label:       "فارسی"
+      switch_label:       "فارسی",
+      not_found_title:  "Story not found!",
+      not_found_body:   "The link might be off, or this story isn't published anymore. Don't worry — plenty of fresh news is waiting nearby.",
+      not_found_home:   "Back to homepage",
+      not_found_search: "Search for something else"
     }
   }.freeze
 

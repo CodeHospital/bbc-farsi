@@ -20,6 +20,13 @@ module ApplicationHelper
   # Human-readable country name for a 2-letter ISO code, or the code itself.
   def country_name(code) = Country.name_for(code)
 
+  # Number of translations currently flagged for manual editor review, used to
+  # badge the "Needs Edit" sidebar menu item. Memoized per request so rendering
+  # the (globally-shown) admin sidebar costs at most one COUNT per page load.
+  def manual_edit_review_count
+    @manual_edit_review_count ||= Translation.needs_manual_edit.count
+  end
+
   # Generic sortable column header link.
   # Preserves all current query params, toggles direction for the active column,
   # and resets pagination. Uses ▲/▼ to indicate the active sort direction.
