@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — expanded news portal categories to cover NYT topical sections
+
+- `NewsHelper::CATEGORY_NAMES_FA`/`CATEGORY_NAMES_EN`/`CATEGORY_COLORS` only had the 7 BBC categories; every NYT feed category outside that set (`Feed::NYT_FEEDS`) fell back to its raw English slug (e.g. "sports", "arts") in nav, homepage sections, and the sidebar category list, with no accent color.
+- Added 9 curated NYT topical categories with proper FA/EN names and accent colors: `us`, `politics`, `sports`, `arts`, `style`, `travel`, `education`, `climate`, `opinion`. Deliberately excluded the classifieds-like/meta NYT feed categories (`jobs`, `realestate`, `autos`, `obituaries`, `nyregion`, `wire`, `trending`) — their articles still ingest and display, just without a dedicated nav/section entry for now.
+- Nav, homepage magazine sections, and the sidebar category list all derive from `CATEGORY_NAMES_FA`'s key order, so no other code changed — they picked up the 9 new categories automatically. `llms.txt`'s category list is now generated from `CATEGORY_NAMES_EN` instead of a hardcoded string.
+
+### Fixed — article page hardcoded "BBC News"/`bbc.com` regardless of the story's actual feed source
+
+- `NewsHelper::UI_STRINGS[:read_source]` and the article `show.html.erb` structured data (`meta[name=author]` and the JSON-LD `author`) always said "BBC News" / linked `bbc.com`, even for NYT-sourced stories (`Feed#source == "nyt"`).
+- Added `NewsHelper::SOURCE_INFO` (name/domain/url per `Feed#source`, `bbc` and `nyt`) plus `source_name`/`source_domain`/`source_url`/`read_source_label` helpers. `read_source` UI strings are now `%{domain}`-templated and filled in from the article's own feed, so the "read the original" link and the article's structured metadata correctly reflect BBC vs. NYT per story.
+
+### Fixed — `ArticleImageFetcher` never fetched images for NYT articles
+
+- `ArticleImageFetcher::ALLOWED_HOSTS` (the SSRF allow-list gating which article source URLs may be fetched for their `og:image`) only listed BBC hosts, even though the app has ingested NYT articles (`www.nytimes.com`) since `NytFeedFetcher`/`Feed::NYT_FEEDS` were added. Every NYT article's `fetch_og_image` call hit the host-allow-list guard and returned `nil` before ever attempting the HTTP fetch, and that miss was then cached as `""` for a full week (`CACHE_TTL`), so NYT stories never showed a hero image.
+- Added `www.nytimes.com`/`nytimes.com` to `ALLOWED_HOSTS`. Existing NYT articles that already have a cached empty-string miss will keep showing no image until their week-long cache entry expires — clear the `article_og_image/<id>` cache keys (or wait it out) to see images immediately.
+
 ### Added — Prompts moved to the database, with versioning and revert (migration `20260705000003`)
 
 - **New `Prompt`/`PromptVersion`/`PromptVersionUsage` models** replace the hardcoded prompt-text constants that used to live in `ArticleRewriter`, `ArticleTranslator` (which read the root `prompt` file), `TranslationRefiner`, `TagGenerator`, and `FeaturedSelector`. `Prompt` is a named slot (`rewrite_body`, `rewrite_title`, `translate`, `refine_title`, `refine_body`, `tag`, `feature`); its actual text lives on immutable `PromptVersion` rows (`number`, `content`, `user`, `change_note`) so every edit is kept as history. `Prompt#current_prompt_version` is what a fresh request is always built from (`Prompt.current_version(key)` / `Prompt.content_for(key)`) — editing a prompt never overwrites content in place, it creates a new version and repoints `current_prompt_version` at it (`Prompt#add_version!`); reverting (`Prompt#revert_to!`) creates a **new** version copying an older one's content rather than rewinding, so history stays a simple append-only timeline. `Prompt.seed_defaults!` (called from `db/seeds.rb` and from `test_helper.rb`'s global `setup`) seeds the 7 slots with their original wording as v1, and is idempotent — safe to call repeatedly without touching a prompt an admin/editor has already edited.

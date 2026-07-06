@@ -4,25 +4,52 @@ module NewsHelper
     مهر آبان آذر دی بهمن اسفند
   ].freeze
 
+  # Canonical category order — BBC's original 7 plus the NYT topical sections
+  # (nav/homepage/sidebar all derive their category list and order from this).
   CATEGORY_NAMES_FA = {
     "top"        => "خبر فوری",
     "world"      => "جهان",
+    "us"         => "آمریکا",
     "uk"         => "بریتانیا",
+    "politics"   => "سیاست",
     "business"   => "اقتصاد",
     "technology" => "فناوری",
     "science"    => "علم و محیط زیست",
-    "health"     => "سلامت"
+    "health"     => "سلامت",
+    "sports"     => "ورزش",
+    "arts"       => "هنر و فرهنگ",
+    "style"      => "سبک زندگی",
+    "travel"     => "سفر",
+    "education"  => "آموزش",
+    "climate"    => "اقلیم",
+    "opinion"    => "دیدگاه"
   }.freeze
 
   # English labels for the original-language edition, in the same canonical order.
   CATEGORY_NAMES_EN = {
     "top"        => "Breaking",
     "world"      => "World",
+    "us"         => "U.S.",
     "uk"         => "UK",
+    "politics"   => "Politics",
     "business"   => "Business",
     "technology" => "Technology",
     "science"    => "Science & Environment",
-    "health"     => "Health"
+    "health"     => "Health",
+    "sports"     => "Sports",
+    "arts"       => "Arts",
+    "style"      => "Style",
+    "travel"     => "Travel",
+    "education"  => "Education",
+    "climate"    => "Climate",
+    "opinion"    => "Opinion"
+  }.freeze
+
+  # Publisher metadata per Feed#source, used for the "read original" link and
+  # article structured data so both stay correct for non-BBC feeds (e.g. NYT).
+  SOURCE_INFO = {
+    "bbc" => { name: "BBC News", domain: "bbc.com", url: "https://www.bbc.com/news" },
+    "nyt" => { name: "The New York Times", domain: "nytimes.com", url: "https://www.nytimes.com" }
   }.freeze
 
   # Per-category accent colors — the signature tagDiv "Newspaper" look, where
@@ -30,11 +57,20 @@ module NewsHelper
   CATEGORY_COLORS = {
     "top"        => "#dd3333",
     "world"      => "#4caf50",
+    "us"         => "#34495e",
     "uk"         => "#1abc9c",
+    "politics"   => "#95a5a6",
     "business"   => "#e67e22",
     "technology" => "#2980b9",
     "science"    => "#8e44ad",
-    "health"     => "#e84393"
+    "health"     => "#e84393",
+    "sports"     => "#f39c12",
+    "arts"       => "#6c5ce7",
+    "style"      => "#d63384",
+    "travel"     => "#00b894",
+    "education"  => "#0f4c81",
+    "climate"    => "#27ae60",
+    "opinion"    => "#636e72"
   }.freeze
 
   # UI chrome strings per edition (kept here rather than in I18n yml so the whole
@@ -50,7 +86,7 @@ module NewsHelper
       follow:       "دنبال کنید",
       more:         "بیشتر ›",
       tags_label:   "برچسب‌ها:",
-      read_source:  "مشاهدهٔ خبر اصلی در bbc.com ↗",
+      read_source:  "مشاهدهٔ خبر اصلی در %{domain} ↗",
       empty_title:  "هنوز خبری برای نمایش وجود ندارد.",
       empty_body:   "به محض آماده‌شدن ترجمه‌ها، اینجا نمایش داده می‌شوند.",
       empty_cat:      "خبر دیگری در این دسته نیست.",
@@ -71,7 +107,7 @@ module NewsHelper
       follow:       "Follow",
       more:         "More ›",
       tags_label:   "Tags:",
-      read_source:  "Read the original on bbc.com ↗",
+      read_source:  "Read the original on %{domain} ↗",
       empty_title:  "There is no news to show yet.",
       empty_body:   "Stories will appear here as soon as translations are ready.",
       empty_cat:          "No other stories in this category.",
@@ -136,6 +172,15 @@ module NewsHelper
   def category_name_fa(category)
     CATEGORY_NAMES_FA[category.to_s] || category.to_s
   end
+
+  # Publisher name/domain/url for a feed's source (falls back to the raw
+  # source code if it's not in SOURCE_INFO, e.g. a newly added feed source).
+  def source_name(feed)   = SOURCE_INFO.dig(feed&.source, :name)   || feed&.source.to_s
+  def source_domain(feed) = SOURCE_INFO.dig(feed&.source, :domain) || ""
+  def source_url(feed)    = SOURCE_INFO.dig(feed&.source, :url)    || ""
+
+  # "Read the original on <domain>" link text, localized and feed-aware.
+  def read_source_label(feed) = format(news_ui(:read_source), domain: source_domain(feed))
 
   # Accent colour for a category (used to colour labels and section headers).
   def category_color(category) = CATEGORY_COLORS[category.to_s] || "#dd3333"

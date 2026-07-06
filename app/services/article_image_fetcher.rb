@@ -1,14 +1,14 @@
 # Resolves the main image for an article by reading the `og:image` meta tag
-# from its original BBC source page. Result is cached (Rails.cache / Solid Cache)
-# so the source page is fetched at most once per article, and only from
-# allow-listed BBC hosts (SSRF guard). Returns the image URL string, or nil.
+# from its original source page (BBC or NYT). Result is cached (Rails.cache /
+# Solid Cache) so the source page is fetched at most once per article, and
+# only from allow-listed hosts (SSRF guard). Returns the image URL string, or nil.
 #
 # No schema change: the image is looked up on demand at render time rather than
 # stored on the article.
 require "open-uri"
 
 class ArticleImageFetcher
-  ALLOWED_HOSTS = %w[www.bbc.com www.bbc.co.uk bbc.com bbc.co.uk].freeze
+  ALLOWED_HOSTS = %w[www.bbc.com www.bbc.co.uk bbc.com bbc.co.uk www.nytimes.com nytimes.com].freeze
   CACHE_TTL     = 1.week
   READ_LIMIT    = 300_000 # bytes — enough to reach <head> meta tags
   OG_IMAGE_RE   = %r{<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']}i

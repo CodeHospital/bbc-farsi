@@ -170,7 +170,7 @@ class NewsController < ApplicationController
       - Persian-language news articles (automatically translated from BBC sources)
       - English-language originals (accessible via the /en/ URL prefix)
       - AI-generated topic tags per article
-      - Category sections: World, UK, Business, Technology, Science, Health, Breaking
+      - Category sections: #{NewsHelper::CATEGORY_NAMES_EN.values.join(', ')}
 
       ## Editions and URLs
       - Persian edition (default): #{base}/

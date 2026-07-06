@@ -14,7 +14,7 @@
   <meta property="article:published_time" content="<%= published_at&.iso8601 %>">
   <meta property="article:modified_time"  content="<%= @translation.updated_at.iso8601 %>">
   <meta property="article:section"        content="<%= article_section %>">
-  <meta name="author"                     content="BBC News">
+  <meta name="author"                     content="<%= source_name(@article.feed) %>">
   <% @tags.each do |tag| %>
     <meta property="article:tag" content="<%= tag %>">
   <% end %>
@@ -40,7 +40,7 @@
           dateModified: @translation.updated_at.iso8601,
           keywords: (@tags.presence&.join(", ")),
           articleSection: article_section,
-          author: { "@type": "Organization", name: "BBC News", url: "https://www.bbc.com/news" },
+          author: { "@type": "Organization", name: source_name(@article.feed), url: source_url(@article.feed) },
           mainEntityOfPage: { "@type": "WebPage", "@id": news_story_url(@translation) },
           publisher: {
             "@type": "Organization",
@@ -108,7 +108,7 @@
     <% end %>
 
     <div class="mt-4 pt-3 border-top">
-      <%= link_to news_ui(:read_source), @article.url,
+      <%= link_to read_source_label(@article.feed), @article.url,
             target: "_blank", rel: "noopener", class: "cat-label flat fw-bold" %>
     </div>
   </article>
