@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Telegram admin bot: notify only after refine, add source/portal link buttons
+
+- `Task#complete!` used to call `TelegramAdminNotifier.notify` for both the `"translate"` and `"refine"` kinds — an editor got DMed on the raw machine translation *and again* after the smart-edit refine pass. Removed the notify call from the `"translate"` case; the admin bot now only fires once `TranslationRefiner` has produced the refined version (or never, if a translation's refine step is skipped/fails), so editors see one message per story instead of two.
+- `TelegramAdminNotifier#main_menu` gains three read-only link buttons (plain Telegram `url` buttons, no callback round-trip): the source article (`translation.article.url`), the story's English portal page (`/en/news/:slug`), and its Persian portal page (`/news/:slug`), built from `Llmarkt.app_base_url` (the same "public URL of this app" config already used for webhook URLs/mailer). The two portal buttons are skipped entirely when `app_base_url` isn't configured (a relative URL would be rejected by Telegram); the source-article button always shows since `Article#url` is required.
+- 384 tests green (task_test.rb updated to assert `"translate"` no longer notifies and moved the notify-failure-is-swallowed test onto a `"refine"` task; telegram_admin_notifier_test.rb has new coverage for the link buttons, with/without `app_base_url`). `rubocop`/`zeitwerk:check` clean.
+
 ### Added — expanded news portal categories to cover NYT topical sections
 
 - `NewsHelper::CATEGORY_NAMES_FA`/`CATEGORY_NAMES_EN`/`CATEGORY_COLORS` only had the 7 BBC categories; every NYT feed category outside that set (`Feed::NYT_FEEDS`) fell back to its raw English slug (e.g. "sports", "arts") in nav, homepage sections, and the sidebar category list, with no accent color.

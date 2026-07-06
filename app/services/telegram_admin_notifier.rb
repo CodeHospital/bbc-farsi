@@ -1,14 +1,20 @@
 require "telegram/bot"
 
 # Notifies an admin/editor over Telegram (the separate "admin bot" configured
-# via TelegramAdminBot) whenever a translation finishes processing and becomes
-# the active version — i.e. news that is ready for a human decision. The
-# notification carries an inline keyboard so the admin can act directly from
-# Telegram without opening the web admin:
+# via TelegramAdminBot) whenever a translation has been through its "refine"
+# (smart-edit) pass and becomes the active version — i.e. news that is ready
+# for a human decision. A plain machine translation never triggers this on its
+# own; only once TranslationRefiner has run does the result get DMed (see
+# Task#complete!). The notification carries an inline keyboard so the admin
+# can act directly from Telegram without opening the web admin:
 #
 #   1. request rewrite        4. publish to a Telegram channel
 #   2. request retranslation  5. publish / unpublish on the news portal
 #   3. request refine         6. mark for manual edit by editors
+#
+# It also includes plain link buttons out to the source article and to the
+# story's English/Persian portal pages, so the admin can read it in context
+# before deciding.
 #
 # Telegram POSTs the resulting button taps to Api::TelegramAdminController,
 # which hands the raw callback_query payload to `handle_callback` below.
@@ -175,14 +181,35 @@ class TelegramAdminNotifier
 
   def main_menu(translation)
     id = translation.id
-    keyboard_markup([
+    rows = [
       [ button("🔁 درخواست بازنویسی", "rewrite:#{id}"), button("🌐 درخواست ترجمه مجدد", "retranslate:#{id}") ],
       [ button("✨ درخواست ویرایش هوشمند", "refine:#{id}"),
         button(translation.needs_manual_edit? ? "✅ رفع نشانه ویرایش دستی" : "✋ نشانه‌گذاری برای ویرایش دستی", "manual_edit:#{id}") ],
       [ button("📤 انتشار در کانال تلگرام", "channels:#{id}"),
         button(translation.archived? ? "🌍 انتشار در پورتال" : "🚫 لغو انتشار از پورتال", "portal:#{id}") ]
-    ])
+    ]
+    rows.concat(link_rows(translation))
+    keyboard_markup(rows)
   end
+
+  # Plain URL buttons (no callback, no notification round-trip) out to the
+  # source article and this story's two portal editions — reading context for
+  # the admin, not actions. Skips the portal row entirely when the app's
+  # public base URL isn't configured (Llmarkt.app_base_url), since a relative
+  # URL would be rejected by Telegram.
+  def link_rows(translation)
+    rows = [ [ link_button("🔗 خبر در منبع اصلی", translation.article.url) ] ]
+    if Llmarkt.app_base_url.present?
+      rows << [
+        link_button("🇬🇧 خبر در پورتال انگلیسی", english_portal_url(translation)),
+        link_button("🇮🇷 خبر در پورتال فارسی", persian_portal_url(translation))
+      ]
+    end
+    rows
+  end
+
+  def english_portal_url(translation) = "#{Llmarkt.app_base_url}/en/news/#{translation.seo_param}"
+  def persian_portal_url(translation) = "#{Llmarkt.app_base_url}/news/#{translation.seo_param}"
 
   def channel_menu(translation)
     id = translation.id
@@ -196,6 +223,7 @@ class TelegramAdminNotifier
 
   def keyboard_markup(rows) = Telegram::Bot::Types::InlineKeyboardMarkup.new(inline_keyboard: rows)
   def button(text, callback_data) = Telegram::Bot::Types::InlineKeyboardButton.new(text:, callback_data:)
+  def link_button(text, url) = Telegram::Bot::Types::InlineKeyboardButton.new(text:, url:)
 
   def actor_label(callback_query)
     from = callback_query["from"] || {}

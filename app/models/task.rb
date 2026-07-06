@@ -189,7 +189,6 @@ class Task < ApplicationRecord
       target.activate!
       target.article.update!(status: "translated")
       chain_refine!
-      notify_admin_bot!
     when "refine"
       target.update!(TranslationRefiner.process(responses).merge(status: "completed"))
       target.activate!
@@ -296,8 +295,10 @@ class Task < ApplicationRecord
   end
 
   # DM an admin/editor via the Telegram admin bot with rewrite/retranslate/
-  # refine/publish/manual-edit buttons. No-op when TelegramAdminBot isn't
-  # configured (see TelegramAdminNotifier.notify).
+  # refine/publish/manual-edit buttons. Only fired once a translation has been
+  # through the "refine" (smart-edit) pass — a freshly machine-translated
+  # draft is not yet worth interrupting an editor for. No-op when
+  # TelegramAdminBot isn't configured (see TelegramAdminNotifier.notify).
   def notify_admin_bot!
     TelegramAdminNotifier.notify(target)
   rescue StandardError => e

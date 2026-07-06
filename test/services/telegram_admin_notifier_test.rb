@@ -41,6 +41,33 @@ class TelegramAdminNotifierTest < ActiveSupport::TestCase
     assert_equal "sent", notification.status
   end
 
+  test "notify includes a source link button but not portal links when app_base_url isn't configured" do
+    translation = create_translation
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.notify(translation)
+    end
+
+    buttons = @sent[:reply_markup].inline_keyboard.flatten
+    link_buttons = buttons.select { |b| b.url.present? }
+    assert_equal [ translation.article.url ], link_buttons.map(&:url)
+  end
+
+  test "notify includes English and Persian portal link buttons when app_base_url is configured" do
+    stub_llmarkt_config
+    translation = create_translation
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.notify(translation)
+    end
+
+    buttons = @sent[:reply_markup].inline_keyboard.flatten
+    assert(buttons.any? { |b| b.url == "https://app.test/en/news/#{translation.seo_param}" })
+    assert(buttons.any? { |b| b.url == "https://app.test/news/#{translation.seo_param}" })
+  ensure
+    restore_llmarkt_config
+  end
+
   test "handle_callback rewrite enqueues a rewrite task and records the action" do
     create_rewrite_server
     translation  = create_translation
