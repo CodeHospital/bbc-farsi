@@ -19,7 +19,7 @@ gem "jbuilder"
 
 # BBC news fetching
 gem "feedjira", "~> 4.0"
-gem "httparty", "~> 0.24.0"
+gem "httparty", "~> 0.24"
 
 # Telegram bot
 gem "telegram-bot-ruby", "~> 2.4"
@@ -28,7 +28,7 @@ gem "telegram-bot-ruby", "~> 2.4"
 gem "dotenv-rails", "~> 2.8"
 
 # Pagination
-gem "pagy", "~> 43.5.6"
+gem "pagy", "~> 43.5"
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 gem "bcrypt", "~> 3.1.7"

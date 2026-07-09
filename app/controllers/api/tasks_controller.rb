@@ -46,7 +46,12 @@ class Api::TasksController < Api::BaseController
     }
   end
 
+  # Every *.requests builder (ArticleRewriter, ArticleTranslator,
+  # TranslationRefiner, FeaturedSelector, TagGenerator) keys its requests with
+  # one of these; a given task only reads the ones relevant to its kind.
+  RESPONSE_KEYS = %w[title body featured tags].freeze
+
   def responses_param
-    params.require(:responses).permit!.to_h
+    params.require(:responses).permit(*RESPONSE_KEYS).to_h
   end
 end

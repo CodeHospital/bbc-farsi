@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — worker task-completion API no longer blanket-permits response params
+
+- `Api::TasksController#responses_param` used `params.require(:responses).permit!`, which allows any key through mass assignment (flagged by Brakeman as a `MassAssignment` risk). Every `*.requests` builder (`ArticleRewriter`, `ArticleTranslator`, `TranslationRefiner`, `FeaturedSelector`, `TagGenerator`) only ever reads `responses["title"]`, `["body"]`, `["featured"]`, or `["tags"]`, so swapped in an explicit `RESPONSE_KEYS` allow-list (`app/controllers/api/tasks_controller.rb`) instead. Reviewed the paired Brakeman finding on `Admin::UsersController#user_params` permitting `:role`/`:active` — that's the intended admin-only user-management function (the controller has `before_action :require_admin!`), so left as-is.
+
 ### Added — "Needs Edit" sidebar menu: manual-edit queue in one place, with a live count badge
 
 - Manual-edit-flagged translations were only reachable by opening `/admin/translations` and manually toggling the "Needs edit" filter — nothing surfaced them proactively. Added a dedicated **"Needs Edit"** item to the admin sidebar ([layouts/admin.html.erb](app/views/layouts/admin.html.erb), right under "Translations") that links straight to the pre-filtered queue (`admin_translations_path(needs_manual_edit: "1")`), reusing the existing filter/sort/pagination and the per-row "Needs edit" badge rather than duplicating a list view.
