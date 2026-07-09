@@ -25,7 +25,7 @@ gem "httparty", "~> 0.24"
 gem "telegram-bot-ruby", "~> 2.4"
 
 # Env vars
-gem "dotenv-rails", "~> 2.8"
+gem "dotenv-rails", "~> 3.2"
 
 # Pagination
 gem "pagy", "~> 43.5"
