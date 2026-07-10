@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Telegram admin bot: auto-publish when only one channel is enabled, no admin tap required
+
+- The admin bot's "📤 انتشار در کانال تلگرام" (publish to a Telegram channel) button always opened a channel-picker submenu — pointless friction when the site has just one channel to post to. Fixed properly (an earlier pass in this same session only shortened the submenu into a one-tap button; the actual ask was zero taps): `TelegramAdminNotifier#notify` now calls a new `#auto_publish_to_sole_channel!(translation)` *before* sending the DM whenever **exactly one** `TelegramChannel` is enabled — it posts straight to that channel (reusing the existing `post_to_channel`, error handling included) with no admin interaction at all, unless it's already been posted (e.g. a re-sent notification). The main-menu button (`#publish_button`) then just reflects that state ("✅ ارسال شد به <channel name>", still tappable to re-post) instead of asking. With **zero or several** enabled channels, behavior is unchanged: the button opens the picker submenu (`channels:<id>`).
+- 394 tests green (`telegram_admin_notifier_test.rb`: auto-publish + button state with one enabled channel; no auto-publish with several enabled channels). `zeitwerk:check` clean. No migrations.
+
 ### Fixed — worker task-completion API no longer blanket-permits response params
 
 - `Api::TasksController#responses_param` used `params.require(:responses).permit!`, which allows any key through mass assignment (flagged by Brakeman as a `MassAssignment` risk). Every `*.requests` builder (`ArticleRewriter`, `ArticleTranslator`, `TranslationRefiner`, `FeaturedSelector`, `TagGenerator`) only ever reads `responses["title"]`, `["body"]`, `["featured"]`, or `["tags"]`, so swapped in an explicit `RESPONSE_KEYS` allow-list (`app/controllers/api/tasks_controller.rb`) instead. Reviewed the paired Brakeman finding on `Admin::UsersController#user_params` permitting `:role`/`:active` — that's the intended admin-only user-management function (the controller has `before_action :require_admin!`), so left as-is.
