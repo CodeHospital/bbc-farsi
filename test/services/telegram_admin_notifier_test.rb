@@ -208,40 +208,36 @@ class TelegramAdminNotifierTest < ActiveSupport::TestCase
     assert_equal "📤 انتشار در کانال تلگرام", publish.text
   end
 
-  test "notify auto-publishes to the only enabled channel with no admin interaction" do
+  test "publish button posts straight to the only enabled channel without a submenu, and does not auto-publish" do
     channel     = create_channel(name: "Only Channel")
     create_channel(name: "Disabled", channel_id: "@disabled", enabled: false)
-    translation = create_translation
-
-    poster_fake_api = Object.new
-    poster_fake_api.define_singleton_method(:send_message) { |_opts| FakeMessage.new(1) }
-    poster_fake_bot = Object.new
-    poster_fake_bot.define_singleton_method(:api) { poster_fake_api }
-
-    dispatch = ->(token) { token == channel.token ? poster_fake_bot : @fake_bot }
-    ::Telegram::Bot::Client.stub(:new, dispatch) do
-      TelegramAdminNotifier.notify(translation)
-    end
-
-    post = TelegramPost.find_by(translation:, telegram_channel: channel)
-    assert_equal "posted", post.status
-    assert_equal "posted", translation.article.reload.status
-
-    publish = @sent[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data.to_s.start_with?("channels:", "post:") }
-    assert_equal "post:#{translation.id}:#{channel.id}", publish.callback_data
-    assert_equal "✅ ارسال شد به Only Channel", publish.text
-  end
-
-  test "notify does not auto-publish when several channels are enabled" do
-    create_channel(name: "Channel A")
-    create_channel(name: "Channel B", channel_id: "@channelb")
     translation = create_translation
 
     ::Telegram::Bot::Client.stub(:new, @fake_bot) do
       TelegramAdminNotifier.notify(translation)
     end
 
+    # Nothing is posted just by notifying — the admin still confirms with a tap.
     assert_equal 0, TelegramPost.count
+
+    publish = @sent[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data.to_s.start_with?("channels:", "post:") }
+    assert_equal "post:#{translation.id}:#{channel.id}", publish.callback_data
+    assert_equal "📤 انتشار در Only Channel", publish.text
+  end
+
+  test "publish button opens the channel submenu and does not auto-publish when several channels are enabled" do
+    translation = create_translation
+    create_channel(name: "Channel A")
+    create_channel(name: "Channel B", channel_id: "@channelb")
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.notify(translation)
+    end
+
+    assert_equal 0, TelegramPost.count
+
+    publish = @sent[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data.to_s.start_with?("channels:", "post:") }
+    assert_equal "channels:#{translation.id}", publish.callback_data
   end
 
   test "handle_callback for a translation that no longer exists answers without raising" do

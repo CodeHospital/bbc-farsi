@@ -16,11 +16,12 @@ require "telegram/bot"
 # story's English/Persian portal pages, so the admin can read it in context
 # before deciding.
 #
-# When exactly one TelegramChannel is enabled, option 4 is skipped entirely —
-# there's nothing to pick, so the story is auto-published to that channel the
-# moment this notification is sent (see `auto_publish_to_sole_channel!`); the
-# button just shows the already-posted state and re-posts if tapped again.
-# With zero or several enabled channels, option 4 opens the channel picker.
+# When exactly one TelegramChannel is enabled, option 4's channel picker is
+# skipped — there's nothing to choose, so the button posts straight to that one
+# channel in a single tap (callback post:<id>:<channel_id>) instead of opening a
+# submenu. It does NOT auto-publish: the admin still taps once to send, keeping
+# the human review gate. With zero or several enabled channels, option 4 opens
+# the channel picker submenu.
 #
 # Telegram POSTs the resulting button taps to Api::TelegramAdminController,
 # which hands the raw callback_query payload to `handle_callback` below.
@@ -40,8 +41,6 @@ class TelegramAdminNotifier
   end
 
   def notify(translation)
-    auto_publish_to_sole_channel!(translation)
-
     message = TelegramAdminBot.client.api.send_message(
       chat_id: TelegramAdminBot.chat_id,
       text: notification_text(translation),
@@ -200,28 +199,13 @@ class TelegramAdminNotifier
     keyboard_markup(rows)
   end
 
-  # When exactly one TelegramChannel is enabled there is nothing for an admin
-  # to choose, so skip asking entirely: auto-publish to it as soon as the
-  # notification is sent (called from `notify`, before the message goes out,
-  # so the button below already reflects the posted state). No-op when there
-  # are zero or several enabled channels (nothing to pick automatically) or
-  # when it's already posted (e.g. a re-sent notification after a retry).
-  def auto_publish_to_sole_channel!(translation)
-    enabled_channels = TelegramChannel.enabled.order(:name).to_a
-    return unless enabled_channels.one?
-
-    channel = enabled_channels.first
-    return if TelegramPost.exists?(translation:, telegram_channel: channel, status: "posted")
-
-    result = post_to_channel(translation, channel.id)
-    Rails.logger.error "TelegramAdminNotifier#auto_publish_to_sole_channel! translation=#{translation.id} channel=#{channel.id}: #{result}" unless result.start_with?("Posted to")
-  end
-
   # The "publish to a Telegram channel" entry in the main menu. With exactly
-  # one enabled channel it's already been auto-published by the time this
-  # renders (see `auto_publish_to_sole_channel!`) — the button just shows that
-  # and re-posts if tapped again. With zero or several enabled channels, keep
-  # the picker submenu (`channels:<id>`).
+  # one enabled channel there's nothing to choose, so this is a direct one-tap
+  # post button (`post:<id>:<channel_id>`) — no submenu, and no auto-publish, so
+  # the admin still confirms with a single tap. Once posted (or on a re-sent
+  # notification) it shows the "✅ ارسال شد" state and re-posts if tapped again.
+  # With zero or several enabled channels, keep the picker submenu
+  # (`channels:<id>`).
   def publish_button(translation)
     enabled_channels = TelegramChannel.enabled.order(:name).to_a
     if enabled_channels.one?

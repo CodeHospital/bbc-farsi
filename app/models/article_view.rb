@@ -67,19 +67,13 @@ class ArticleView < ApplicationRecord
   # Perform the actual HTTP lookup. Raises on any transport/parse error so the
   # caller can avoid caching a spurious "no country" result for a failed call.
   private_class_method def self.fetch_country_from_service(ip)
-    uri = URI(GEO_URL+ip)
-    # uri.query = URI.encode_www_form(secret: geo_secret, action: "get_location", ip: ip)
+    url = "https://ipwho.is/#{ip}?fields=success,city,country"
+    response = Net::HTTP.get(URI.parse(url))
+    location_data = JSON.parse(response)
+    return [ nil, nil ] unless location_data["success"]
 
-    response = Net::HTTP.start(uri.host, uri.port,
-                               use_ssl: uri.scheme == "https",
-                               open_timeout: GEO_TIMEOUT[:open],
-                               read_timeout: GEO_TIMEOUT[:read]) do |http|
-      http.get(uri.request_uri)
-    end
-
-    data = JSON.parse(response.body)
-    country = data.dig("data", "country").to_s.strip
-    city = data.dig("data", "city").to_s.strip
+    city = location_data["city"],
+    country = location_data["country"]
     return country, city
   end
 end
