@@ -4,5 +4,13 @@ development:
 test:
   adapter: test
 
+# Solid Cable (H-11 from plan2.md): DB-backed broadcasts instead of the
+# in-process-only `async` adapter, which silently dropped broadcasts fired
+# from rake tasks/console and would break with more than one web process.
+# No `connects_to` key -> SolidCable::Record uses the default ActiveRecord
+# connection (the primary PostgreSQL database), the same "no separate
+# database" pattern already used for Solid Cache (see config/cache.yml).
 production:
-  adapter: async
+  adapter: solid_cable
+  polling_interval: 0.5.seconds
+  message_retention: 1.day

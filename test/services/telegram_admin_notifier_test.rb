@@ -23,15 +23,15 @@ class TelegramAdminNotifierTest < ActiveSupport::TestCase
     assert_equal 0, TelegramAdminNotification.count
   end
 
-  test "notify sends a Markdown message with the main menu and records a notification row" do
+  test "notify sends an HTML message with the main menu and records a notification row" do
     translation = create_translation(attrs: { translated_title: "عنوان خبر", translated_body: "متن خبر" })
 
     ::Telegram::Bot::Client.stub(:new, @fake_bot) do
       TelegramAdminNotifier.notify(translation)
     end
 
-    assert_equal "12345",    @sent[:chat_id]
-    assert_equal "Markdown", @sent[:parse_mode]
+    assert_equal "12345", @sent[:chat_id]
+    assert_equal "HTML",  @sent[:parse_mode]
     assert_includes @sent[:text], "عنوان خبر"
     assert_kind_of Telegram::Bot::Types::InlineKeyboardMarkup, @sent[:reply_markup]
 

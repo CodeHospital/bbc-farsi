@@ -53,7 +53,7 @@ class LlmarktSubmitter
       model:       task.model,
       prompt:      prompt,
       webhook_url: callback_url(task, key),
-      timeout_seconds: 20.minutes.to_i,
+      timeout_seconds: Task::LLMARKT_JOB_TIMEOUT.to_i,
       priority:     task.priority,
       tag:         "task-#{task.target.article.feed.source}-#{key}"
     )
@@ -64,28 +64,54 @@ class LlmarktSubmitter
   end
 
   # Handle a completed-job webhook for (task, key): record the output, then either
-  # submit the next request in the chain or finish the task. Guards against stale
-  # or duplicate callbacks by only acting on the next expected request key.
-  def self.handle_callback(task, key, output)
-    responses = (task.responses || {}).dup
+  # submit the next request in the chain or finish the task. Guards against
+  # stale or duplicate callbacks by only acting on the next expected request
+  # key, AND (C-4) by ignoring any callback whose job_id doesn't match the
+  # task's current external_job_id — this is what makes a late webhook for a
+  # job that was already stale-reclaimed (and so had its job_id cleared, or
+  # replaced by a fresh submission) harmless instead of corrupting a task the
+  # Ollama worker has since taken over. Runs under task.with_lock so a
+  # concurrent duplicate delivery can't interleave with itself.
+  def self.handle_callback(task, key, output, job_id: nil)
+    task.with_lock do
+      next :stale if stale_job?(task, job_id)
 
-    expected_key = next_pending_key(task, responses)
-    # Ignore duplicates (key already recorded) or out-of-order callbacks.
-    return :ignored if responses.key?(key) || key != expected_key
+      responses = (task.responses || {}).dup
 
-    responses[key] = output.to_s
-    task.update_column(:responses, responses)
+      expected_key = next_pending_key(task, responses)
+      # Ignore duplicates (key already recorded) or out-of-order callbacks.
+      next :ignored if responses.key?(key) || key != expected_key
 
-    keys       = Array(task.requests).map { |r| r["key"] }
-    next_index = keys.index(key).to_i + 1
+      responses[key] = output.to_s
+      task.update_column(:responses, responses)
 
-    if next_index < keys.size
-      submit_request(task, next_index)
-      :continued
-    else
-      task.complete!(responses)
-      :completed
+      keys       = Array(task.requests).map { |r| r["key"] }
+      next_index = keys.index(key).to_i + 1
+
+      if next_index < keys.size
+        submit_request(task, next_index)
+        :continued
+      else
+        task.complete!(responses)
+        :completed
+      end
     end
+  end
+
+  # Handle a failed-job webhook: mark the task failed, unless the job_id no
+  # longer matches (see handle_callback) — a late failure for a job we've
+  # already moved on from must not clobber whatever the task is doing now.
+  def self.handle_failure(task, job_id, message)
+    task.with_lock do
+      next :stale if stale_job?(task, job_id)
+
+      task.fail!(message)
+      :failed
+    end
+  end
+
+  def self.stale_job?(task, job_id)
+    job_id.present? && task.external_job_id.present? && task.external_job_id != job_id.to_s
   end
 
   # Best-effort mirror of a local priority change onto llmarkt's job (only

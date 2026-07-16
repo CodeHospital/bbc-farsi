@@ -35,8 +35,8 @@ class ArticleRewriter
   # { rewritten_title:, content: }, stripping any Qwen3 <think> reasoning blocks.
   def self.process(responses)
     {
-      rewritten_title: clean(responses["title"]),
-      content:         clean(responses["body"])
+      rewritten_title: LlmText.clean(responses["title"]),
+      content:         LlmText.clean(responses["body"])
     }
   end
 
@@ -48,9 +48,4 @@ class ArticleRewriter
       url:           server&.url
     )
   end
-
-  def self.clean(text)
-    text.to_s.gsub(%r{<think>.*?</think>}m, "").strip
-  end
-  private_class_method :clean
 end

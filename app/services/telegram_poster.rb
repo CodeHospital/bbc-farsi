@@ -1,4 +1,10 @@
 require "telegram/bot"
+
+# Posts a translated article to a Telegram channel. Uses HTML parse mode
+# (H-8 from plan2.md): the title/body are LLM-generated Persian text that can
+# freely contain unbalanced *asterisks*, _underscores_, or [brackets], any of
+# which makes Telegram reject the whole message under Markdown parse mode.
+# HTML mode only cares about `<`/`>`/`&`, which CGI.escapeHTML neutralizes.
 class TelegramPoster
   def post(translation:, channel:)
     bot     = Telegram::Bot::Client.new(channel.token)
@@ -7,7 +13,7 @@ class TelegramPoster
     bot.api.send_message(
       chat_id:    channel.channel_id,
       text:       message,
-      parse_mode: "Markdown"
+      parse_mode: "HTML"
     )
   end
 
@@ -15,10 +21,11 @@ class TelegramPoster
 
   def build_message(translation)
     article = translation.article
-    "📢 *#{translation.translated_title}*\n\n" \
-      "#{translation.translated_body}\n\n\n" \
-      "#{article.url.split('?').first}\n\n" \
+    "📢 <b>#{escape(translation.translated_title)}</b>\n\n" \
+      "#{escape(translation.translated_body)}\n\n\n" \
+      "#{escape(article.url.to_s.split('?').first)}\n\n" \
       "follow @realbbcfarsi for more"
-    # "*#{article.title}*"
   end
+
+  def escape(text) = CGI.escapeHTML(text.to_s)
 end

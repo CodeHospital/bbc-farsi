@@ -21,9 +21,19 @@ class Task < ApplicationRecord
   # already-completed translation. Their results live in Rails.cache.
   CACHE_RESULT_KINDS = %w[feature tag].freeze
 
+  # The timeout llmarkt is told to enforce on a job it's running for us (see
+  # LlmarktSubmitter#submit_request). STALE_AFTER (below) must stay
+  # comfortably above this: a claimed task that's still a legitimately
+  # in-flight llmarkt job must never be reclaimed and handed to the Ollama
+  # worker too, since that means two backends execute the same work and the
+  # eventual late webhook races the worker's own completion (plan2.md C-4).
+  LLMARKT_JOB_TIMEOUT = 20.minutes
+
   # A claimed task whose worker hasn't reported back within this window is
   # presumed dead; the task is returned to the queue (see `reclaim_stale!`).
-  STALE_AFTER = 15.minutes
+  # Kept above LLMARKT_JOB_TIMEOUT plus slack for webhook delivery/network
+  # latency (see the comment on that constant).
+  STALE_AFTER = LLMARKT_JOB_TIMEOUT + 10.minutes
 
   validates :kind,     inclusion: { in: KINDS }
   validates :status,   inclusion: { in: STATUSES }
@@ -114,15 +124,24 @@ class Task < ApplicationRecord
   # Pass `models:` with a non-empty array to restrict to tasks whose model
   # is in the list (exact match). Omit or pass nil/[] to accept any model.
   def self.claim_next!(models: nil)
+    # Outside the claim transaction (H-12): reclaiming N stale tasks touches
+    # each one's target too, and there's no reason to hold the claim lock
+    # while that runs — it's idempotent and safe to interleave with claims.
+    reclaim_stale!
+
     transaction do
-      reclaim_stale!
+      # "FOR UPDATE SKIP LOCKED" lets concurrent worker polls claim different
+      # rows instead of serializing on the head of the queue (PostgreSQL
+      # only — Arel::Visitors::SQLite drops lock clauses entirely, so this is
+      # a no-op on SQLite, which is fine since SQLite already serializes
+      # writers at the connection level).
       scope = pending.by_priority
       scope = scope.where(model: models) if models.present?
-      task  = scope.lock.first
+      task  = scope.lock("FOR UPDATE SKIP LOCKED").first
       if task.nil? && models.present?
         patterns = models.map { |m| "#{m}%" }
         scope = pending.by_priority.where(Task.arel_table[:model].matches_any(patterns))
-        task  = scope.lock.first
+        task  = scope.lock("FOR UPDATE SKIP LOCKED").first
       end
       task&.mark_claimed!
       task
@@ -173,40 +192,62 @@ class Task < ApplicationRecord
     broadcast_article_refresh
   end
 
+  def completed? = status == "completed"
+
   # ── Worker: post results back ─────────────────────────────────────────────
 
+  # Idempotent (H-5/C-4): a duplicate or out-of-order webhook/worker report
+  # for an already-completed task is a no-op instead of re-running chains
+  # (which would enqueue a second translate/refine task and a second Telegram
+  # notification). All target/article/task state writes happen inside one
+  # transaction, and the task is marked "completed" before any side-effect
+  # chain runs, so a chain failure can never be mistaken for the primary
+  # result failing (see the rescue in Api::TasksController#complete, which
+  # would otherwise flip an already-completed target to "error").
   def complete!(responses)
+    return if completed?
+
     self.responses = responses
 
-    case kind
-    when "rewrite"
-      target.update!(ArticleRewriter.process(responses).merge(status: "completed"))
-      target.activate!
-      target.article.update!(status: "rewritten")
-      chain_translate!
-    when "translate"
-      target.update!(ArticleTranslator.process(responses).merge(status: "completed"))
-      target.activate!
-      target.article.update!(status: "translated")
-      chain_refine!
-    when "refine"
-      target.update!(TranslationRefiner.process(responses).merge(status: "completed"))
-      target.activate!
-      chain_autopost!
-      notify_admin_bot!
-    when "feature"
-      FeaturedSelector.store(FeaturedSelector.process(responses))
-      return update!(status: "completed", completed_at: Time.current)
-    when "tag"
-      TagGenerator.store(target.article_id, TagGenerator.process(responses))
-      return update!(status: "completed", completed_at: Time.current)
+    transaction do
+      case kind
+      when "rewrite"
+        target.update!(ArticleRewriter.process(responses).merge(status: "completed"))
+        target.activate!
+        target.article.update!(status: "rewritten")
+      when "translate"
+        target.update!(ArticleTranslator.process(responses).merge(status: "completed"))
+        target.activate!
+        target.article.update!(status: "translated")
+      when "refine"
+        target.update!(TranslationRefiner.process(responses).merge(status: "completed"))
+        target.activate!
+      when "feature"
+        FeaturedSelector.store(FeaturedSelector.process(responses))
+      when "tag"
+        TagGenerator.store(target.article_id, TagGenerator.process(responses))
+      end
+
+      update!(status: "completed", completed_at: Time.current)
     end
 
-    update!(status: "completed", completed_at: Time.current)
+    case kind
+    when "rewrite"  then chain_translate!
+    when "translate" then chain_refine!
+    when "refine"
+      chain_autopost!
+      notify_admin_bot!
+    end
+
     broadcast_article_refresh
   end
 
+  # A late failure (e.g. a llmarkt job timeout webhook that arrives after the
+  # Ollama worker fallback already completed the same reclaimed task) must
+  # never clobber a completed result (C-4).
   def fail!(message)
+    return if completed?
+
     if CACHE_RESULT_KINDS.include?(kind)
       return update!(status: "failed", error_message: message.to_s)
     end
@@ -236,10 +277,15 @@ class Task < ApplicationRecord
   end
 
   # Put a failed/stuck task back on the queue for another worker to claim.
+  # Clears external_job_id (C-4): once a task is handed back to the Ollama
+  # worker fallback, any in-flight llmarkt job for it is no longer this
+  # task's job — priority/retry mirroring must not target it, and a late
+  # webhook for it must be recognized as stale (see
+  # LlmarktSubmitter.handle_callback/handle_failure).
   def requeue!
     target.update!(status: "pending", error_message: nil)
     update!(status: "pending", claimed_at: nil, completed_at: nil,
-            error_message: nil, responses: nil)
+            error_message: nil, responses: nil, external_job_id: nil)
   end
 
   private
@@ -263,11 +309,16 @@ class Task < ApplicationRecord
     Rails.logger.error("Task#submit_to_llmarkt task=#{id}: #{e.class}: #{e.message}")
   end
 
+  # Runs after the primary result is already committed as "completed" (H-5),
+  # so a failure here must never look like the rewrite/translate itself
+  # failed — log and move on instead of raising.
   def chain_translate!
     return unless chain_translate
 
     server, model = pick_translate_target
     Task.enqueue_translate(target, server:, model:) if server && model
+  rescue StandardError => e
+    Rails.logger.error "Chain translate after task #{id} failed: #{e.message}"
   end
 
   def chain_refine!
@@ -276,6 +327,8 @@ class Task < ApplicationRecord
     server, model = OllamaServer.pick(:refine)
     return unless server && model
     Task.enqueue_refine(target, server:, model:)
+  rescue StandardError => e
+    Rails.logger.error "Chain refine after task #{id} failed: #{e.message}"
   end
 
   def pick_translate_target

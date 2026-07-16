@@ -44,6 +44,13 @@ gem "tzinfo-data", platforms: %i[ windows jruby ]
 # external worker client over the task API, not an in-app job queue.
 gem "solid_cache"
 
+# Database-backed Action Cable adapter for production (H-11 from plan2.md):
+# the previous `async` adapter only delivers broadcasts within the same
+# process, so it silently misses anything broadcast from a rake task/console
+# and breaks with more than one web process. Lives in the primary database,
+# same pattern as solid_cache above.
+gem "solid_cable", "~> 4.0"
+
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 

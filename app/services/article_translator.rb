@@ -30,8 +30,8 @@ class ArticleTranslator
 
   def self.process(responses)
     {
-      translated_title: responses["title"].to_s,
-      translated_body:  responses["body"].to_s
+      translated_title: LlmText.clean(responses["title"]),
+      translated_body:  LlmText.clean(responses["body"])
     }
   end
 

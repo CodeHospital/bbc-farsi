@@ -122,18 +122,11 @@ class Admin::TranslationsController < Admin::BaseController
 
   def post_to_channel
     channel = TelegramChannel.find(params[:telegram_channel_id])
-    post    = TelegramPost.find_or_initialize_by(translation: @translation, telegram_channel: channel)
-
-    TelegramPoster.new.post(translation: @translation, channel:)
-    post.update!(status: "posted", posted_at: Time.current)
-    @translation.article.update!(status: "posted")
+    result  = Publisher.post_to_channel(@translation, channel)
 
     redirect_back fallback_location: admin_translation_path(@translation),
-                  notice: "Posted to #{channel.name}."
-  rescue StandardError => e
-    post&.update!(status: "error", error_message: e.message)
-    redirect_back fallback_location: admin_translation_path(@translation),
-                  alert: "Posting failed: #{e.message}"
+                  notice: (result.message if result.success?),
+                  alert:  (result.message unless result.success?)
   end
 
   private

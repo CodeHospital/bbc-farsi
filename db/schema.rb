@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_05_000003) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_16_000002) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -135,6 +135,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_05_000003) do
     t.index ["keyword"], name: "index_search_queries_on_keyword"
   end
 
+  create_table "solid_cable_messages", force: :cascade do |t|
+    t.binary "channel", limit: 1024, null: false
+    t.binary "payload", limit: 536870912, null: false
+    t.datetime "created_at", null: false
+    t.integer "channel_hash", limit: 8, null: false
+    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
+    t.index ["channel"], name: "index_solid_cable_messages_on_channel"
+    t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
+  end
+
   create_table "solid_cache_entries", force: :cascade do |t|
     t.binary "key", limit: 1024, null: false
     t.binary "value", limit: 536870912, null: false
@@ -205,6 +215,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_05_000003) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["telegram_channel_id"], name: "index_telegram_posts_on_telegram_channel_id"
+    t.index ["translation_id", "telegram_channel_id"], name: "index_telegram_posts_on_translation_and_channel", unique: true
     t.index ["translation_id"], name: "index_telegram_posts_on_translation_id"
   end
 

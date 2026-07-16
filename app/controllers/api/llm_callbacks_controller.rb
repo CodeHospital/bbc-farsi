@@ -27,9 +27,9 @@ class Api::LlmCallbacksController < ActionController::API
 
     case params[:status].to_s
     when "failed"
-      task.fail!(params[:error].to_s.presence || "llmarkt job failed")
+      LlmarktSubmitter.handle_failure(task, params[:job_id], params[:error].to_s.presence || "llmarkt job failed")
     when "completed"
-      LlmarktSubmitter.handle_callback(task, key, params[:output])
+      LlmarktSubmitter.handle_callback(task, key, params[:output], job_id: params[:job_id])
     else
       # Non-terminal status (pending/claimed/running) — nothing to do yet.
       Rails.logger.info("llmarkt callback ignored (status=#{params[:status]}) task=#{task.id} key=#{key}")

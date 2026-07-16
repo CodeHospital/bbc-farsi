@@ -11,10 +11,11 @@
 >
 > Date: 2026-07-11
 >
-> **Status update (2026-07-16):** Phase 0 (§10) has been implemented — see the
-> "Phase 0 implementation status" note under §10 and the CHANGELOG entry
-> "Fixed — Phase 0 security hardening from plan2.md (C-1, C-2, C-3, C-5, C-6, H-13)".
-> Phases 1–4 are still just this planning document; no code for them has been written.
+> **Status update (2026-07-16):** Phase 0 (§10) AND Phase 1 (§10) have both been
+> implemented — see the "Phase 0 implementation status" / "Phase 1 implementation
+> status" notes under §10 and the CHANGELOG entries "Fixed — Phase 0 security
+> hardening..." and "Fixed — Phase 1 pipeline reliability...". Phases 2–4 are
+> still just this planning document; no code for them has been written.
 
 ---
 
@@ -112,7 +113,7 @@ rate_limit to: 10, within: 3.minutes, only: :create
 rate_limit to: 5, within: 15.minutes, only: :create
 ```
 
-### C-4. Duplicate task execution: stale-reclaim vs. llmarkt in-flight jobs
+### C-4. Duplicate task execution: stale-reclaim vs. llmarkt in-flight jobs — ✅ DONE (2026-07-16)
 
 Three facts that conflict:
 
@@ -140,6 +141,23 @@ job that no longer corresponds to the task.
    (the payload already carries it).
 4. Add a `Task` status guard in `complete!`/`fail!` (`return if completed?`) so a second
    completion is a no-op instead of re-running chains.
+
+> **Implementation note (2026-07-16):** items 1, 2, 3, and 4 all shipped.
+> `Task::LLMARKT_JOB_TIMEOUT` (20 min) is now the single source of truth
+> `LlmarktSubmitter#submit_request` reads for the llmarkt `timeout_seconds`,
+> and `STALE_AFTER` is derived from it (+10 min buffer) instead of a flat,
+> shorter 15 minutes. `requeue!` clears `external_job_id`. `handle_callback`
+> gained a sibling `handle_failure` (for the `"failed"` webhook path, which
+> previously called `task.fail!` directly with no staleness check); both run
+> inside `task.with_lock` and ignore a callback/failure whose `job_id`
+> doesn't match `task.external_job_id` via a new `stale_job?` guard.
+> `Api::LlmCallbacksController` now forwards `params[:job_id]` into both.
+> **Not done:** best-effort llmarkt job cancellation on reclaim (no such
+> endpoint exists in the vendor API today per `LlmarktClient`); a live chaos
+> test (kill worker mid-task, let llmarkt time out, replay duplicate
+> webhooks) — verified instead via unit tests plus a scripted
+> `bin/rails runner` smoke check of `complete!` idempotency and `requeue!`
+> clearing `external_job_id`.
 
 ### C-5. CSRF protection weakened on a state-changing admin controller — ✅ DONE (2026-07-16)
 
@@ -209,12 +227,17 @@ single slow feed can hang the request past any proxy timeout. The per-feed
 **Fix:** move `FeedIngestor.run` to background execution (§7.3) and flash "fetch started";
 or at minimum fetch concurrently with a hard per-feed timeout and an overall budget.
 
-### H-3. No timeouts on RSS fetching
+### H-3. No timeouts on RSS fetching — ✅ PARTIALLY DONE (2026-07-16)
 
 [feed_fetcher.rb:47](app/services/feed_fetcher.rb#L47) — `HTTParty.get(feed.url,
 follow_redirects: false)` has **no `timeout:`** (HTTParty's default is *no timeout*).
 Combined with H-2 this is the biggest availability risk in the admin. Add
 `timeout: 10` (or `open_timeout`/`read_timeout`) and a `Down`-style max-size guard.
+
+> **Implementation note (2026-07-16):** `timeout: 10` added. The `Down`-style
+> max-size guard (capping response body size, not just time) is **not**
+> done — H-2 (moving the "Fetch now" admin trigger off the request thread
+> entirely) is also still open; both remain Phase 2 work.
 
 ### H-4. `ArticleImageFetcher`: request-path fan-out, DB-pool pressure, SSRF-via-redirect
 
@@ -239,7 +262,7 @@ fetcher but with `open_uri` `redirect: false` (or manual redirect loop re-valida
 hop against the allow-list), https-only, and distinguish "no og:image" (cache long) from
 "fetch failed" (cache minutes).
 
-### H-5. `Task#complete!` is not atomic and failure handling can corrupt state
+### H-5. `Task#complete!` is not atomic and failure handling can corrupt state — ✅ DONE (2026-07-16)
 
 [task.rb:178-207](app/models/task.rb#L178-L207) performs 3–5 sequential writes (target
 update, `activate!`, article status, chain-enqueue, own status) with **no transaction**.
@@ -256,6 +279,17 @@ rescue marks a good result as `error` and the article as `error`. Wrap the state
 a transaction, set the task `completed` *before* running side-effect chains, and rescue
 chain errors separately (they already are for autopost/notify — extend to `chain_translate!`
 / `chain_refine!` which currently `create!` unrescued).
+
+> **Implementation note (2026-07-16):** `complete!` now wraps the
+> target/article/task status writes in one `ActiveRecord::Base.transaction`
+> and only runs the chain (`chain_translate!`/`chain_refine!`/
+> `chain_autopost!`/`notify_admin_bot!`) after that commits; `chain_translate!`
+> and `chain_refine!` are now individually rescued like `chain_autopost!`
+> already was. Combined with the `return if completed?` idempotency guard
+> from C-4, `Api::TasksController#complete`'s rescue path is now safe as-is
+> (needed no controller change): any exception before the transaction
+> commits rolls back cleanly, so there's nothing for `task.fail!` to
+> corrupt.
 
 ### H-6. Story pool and sitemap load the entire published corpus into memory
 
@@ -286,7 +320,7 @@ priority bump (e.g. only once per task, or cap priority), cap `keyword` length, 
 retention pruning (M-8). Note the priority bump also bypasses the llmarkt mirror that
 `reprioritize!` maintains — priorities silently diverge between systems.
 
-### H-8. Telegram Markdown breakage on real-world titles
+### H-8. Telegram Markdown breakage on real-world titles — ✅ DONE (2026-07-16)
 
 [telegram_poster.rb:16-23](app/services/telegram_poster.rb#L16-L23) and
 [telegram_admin_notifier.rb:149-165](app/services/telegram_admin_notifier.rb#L149-L165) send
@@ -296,13 +330,20 @@ message → autopost/notification fails (and with H-5, can mark things failed). 
 text does contain these. **Fix:** escape entities (or switch to HTML parse mode with
 `CGI.escapeHTML`, which is much easier to get right).
 
-### H-9. `ArticleTranslator.process` doesn't strip `<think>` blocks
+> **Implementation note (2026-07-16):** switched to `parse_mode: "HTML"` with
+> `CGI.escapeHTML` on every interpolated value in both files, as suggested.
+
+### H-9. `ArticleTranslator.process` doesn't strip `<think>` blocks — ✅ DONE (2026-07-16)
 
 [article_translator.rb:31-36](app/services/article_translator.rb#L31-L36) — the rewriter and
 refiner both strip `<think>…</think>` reasoning; the translator does **not**. Configure a
 reasoning model (qwen3 family, already used for rewrites) as a translate model and its
 chain-of-thought is published verbatim on the portal and Telegram. One-line fix; share one
 `StripsThink` helper across the three services (they have three copies of the same regex).
+
+> **Implementation note (2026-07-16):** new `LlmText.clean` (`app/services/llm_text.rb`)
+> replaces all three copies of the regex (`ArticleRewriter`, `TranslationRefiner`,
+> and the previously-missing call in `ArticleTranslator.process`).
 
 ### H-10. Missing database indexes for the hottest queries
 
@@ -321,7 +362,7 @@ From `db/schema.rb` vs. actual query shapes:
 
 Cheap win; measure before/after with `EXPLAIN ANALYZE` on production-sized data.
 
-### H-11. Action Cable `async` adapter in production
+### H-11. Action Cable `async` adapter in production — ✅ DONE (2026-07-16)
 
 [cable.yml](config/cable.yml) — `production: adapter: async` only delivers broadcasts to
 subscribers **in the same process**. Works today (single Puma container) but silently breaks
@@ -329,7 +370,14 @@ with >1 web process/container, and broadcasts fired from rake tasks (`bbc:*`) or
 never reach browsers. Rails explicitly warns against `async` in production. **Fix:** Solid
 Cable (DB-backed, fits the existing Solid-* stack, no Redis needed).
 
-### H-12. Task claiming: no `SKIP LOCKED`, stale-reclaim inside the claim transaction
+> **Implementation note (2026-07-16):** added the `solid_cable` gem;
+> `config/cable.yml` production now uses `adapter: solid_cable`, folded into
+> the primary database (no `connects_to`/separate `cable` db — no `database:`
+> key, same as Solid Cache) via a new `solid_cable_messages` table/migration.
+> **Not run:** `bin/rails db:migrate` on dev/prod (per project rules) — the
+> table needs to exist before Solid Cable can actually write to it.
+
+### H-12. Task claiming: no `SKIP LOCKED`, stale-reclaim inside the claim transaction — ✅ DONE (2026-07-16)
 
 [task.rb:116-130](app/models/task.rb#L116-L130) — `pending.by_priority.lock.first` on
 PostgreSQL serializes all concurrent workers on the same head-of-queue row (plain
@@ -338,6 +386,10 @@ PostgreSQL serializes all concurrent workers on the same head-of-queue row (plai
 *inside* that transaction, lengthening the lock hold.
 **Fix:** `lock("FOR UPDATE SKIP LOCKED")` on PG (SQLite ignores locking anyway), move
 `reclaim_stale!` out of the transaction (it's idempotent), and keep it on the cron path.
+
+> **Implementation note (2026-07-16):** both changes shipped exactly as
+> suggested — `Task.claim_next!` now locks with `.lock("FOR UPDATE SKIP LOCKED")`
+> and calls `reclaim_stale!` before opening the claim transaction.
 
 ### H-13. `allow_browser versions: :modern` blocks readers on the public portal — ✅ DONE (2026-07-16)
 
@@ -377,7 +429,7 @@ on a fresh DB, manual flush) silently deletes all tags until someone re-runs `bb
 Persist to real columns/tables (`article_tags`, `featured_selections`) and treat cache as
 cache. This also unblocks tag landing pages (feature F-3).
 
-### M-4. Three autopost paths with diverging semantics
+### M-4. Three autopost paths with diverging semantics — ✅ PARTIALLY DONE (2026-07-16)
 
 1. `chain_autopost!` → `Autoposter.post_translation` — respects `TelegramChannel.autopost`.
 2. `bbc:autopost` sweep — respects `autopost`.
@@ -389,6 +441,20 @@ moment a refine completes, as long as it's the only enabled channel — contradi
 meaning. Also `TelegramPost` uniqueness is only enforced by lookup, not by a DB unique index
 on `(translation_id, telegram_channel_id)` — the sweep + chain + bot can race into duplicates.
 Consolidate into one `Publisher` service + unique index.
+
+> **Implementation note (2026-07-16):** the unique-index + `Publisher`
+> consolidation shipped for paths 1 and 2 (`Autoposter#post_translation`/
+> `#run_all` and `Admin::TranslationsController#post_to_channel` and
+> `TelegramAdminNotifier#post_to_channel` — the admin-UI/admin-bot one-tap
+> post button — all now go through `Publisher.post_to_channel`). Path 3 as
+> described here (`auto_publish_to_sole_channel!` firing without a tap,
+> ignoring `autopost`) turned out to **no longer exist** — a prior session
+> ("Telegram admin bot: skip channel picker... keep one-tap confirm") had
+> already replaced it with a one-tap confirm button before this review ran,
+> so the "manual-only channel gets silently auto-posted" contradiction this
+> item describes doesn't currently apply. Left as partially-done since the
+> semantic-divergence audit (do all paths still agree on what `autopost`
+> means, now that they share `Publisher`) wasn't re-run end-to-end.
 
 ### M-5. Unmapped NYT categories leak raw slugs into the reader UI
 
@@ -676,13 +742,41 @@ All are near-one-liners with tests; zero migration risk.
   llmarkt/stale-reclaim duplicate-execution race) and H-5 (non-atomic `complete!`), which
   are the next-highest-risk items per §10.
 
-### Phase 1 — Pipeline reliability (≈ 1 week)
+### Phase 1 — Pipeline reliability (≈ 1 week) — ✅ DONE (2026-07-16)
 C-4 (stale/llmarkt race: STALE_AFTER, `external_job_id` hygiene, callback locking,
 idempotent complete) → H-5 (transactional `complete!`) → H-8 (Telegram escaping) →
 H-9 (translator `<think>` strip) → H-3 (feed timeouts) → H-12 (SKIP LOCKED) →
 H-11 (Solid Cable) → M-4 (single Publisher + unique index).
 *Exit criteria:* chaos test — kill the worker mid-task, let llmarkt time out, replay
 duplicate webhooks — with no duplicate tasks/posts and no wrongly-failed targets.
+
+**Implementation status:**
+- All eight items shipped — see the "Implementation note (2026-07-16)" under
+  each of C-4, H-3, H-5, H-8, H-9, H-11, H-12, and M-4 above for exactly what
+  changed and file references, and the CHANGELOG entry "Fixed — Phase 1
+  pipeline reliability from plan2.md (C-4, H-5, H-8, H-9, H-3, H-12, H-11,
+  M-4)" for the consolidated summary.
+- New files: `app/services/llm_text.rb` (H-9), `app/services/publisher.rb`
+  (M-4). New migrations (not run, per project rules — `db/schema.rb` updated
+  by hand instead): `20260716000001_add_unique_index_to_telegram_posts.rb`,
+  `20260716000002_create_solid_cable_messages.rb`.
+- 395 tests green (2 updated for the HTML parse-mode switch, 1 new escaping
+  test, 1 stale tautological test removed — see CHANGELOG). `rubocop`/
+  `zeitwerk:check` clean. Brakeman unchanged (still the 1 known M-9 warning).
+- **Exit criteria not met as originally scoped:** no actual chaos test was
+  run (a live worker-kill + llmarkt-timeout + duplicate-webhook-replay
+  scenario). Each fix was verified individually — full test suite, plus a
+  scripted `bin/rails runner` smoke check exercising `complete!`
+  transactionality/idempotency and `requeue!` clearing `external_job_id` —
+  but not under an actually induced race between the two backends. Treat
+  C-4 as *believed* fixed, not *proven* fixed under load.
+- **Not done in this pass:** llmarkt job cancellation on reclaim (no such
+  endpoint in the vendor API today); H-3's `Down`-style max-size guard and
+  H-2 (async feed ingest) remain Phase 2 work; M-4's full semantic-divergence
+  re-audit across all `autopost` paths wasn't re-run (see the M-4 note
+  above — the specific issue it originally flagged had already been
+  superseded before this review). Everything in Phases 2–4 is still
+  unstarted.
 
 ### Phase 2 — Public-path performance & data model (≈ 1–2 weeks)
 Decision §7.3 (adopt Solid Queue for non-LLM I/O) → H-1 (geo off the request path, CDN

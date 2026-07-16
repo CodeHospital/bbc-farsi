@@ -44,7 +44,7 @@ class FeedFetcher
       raise ArgumentError, "Feed URL #{feed.url.inspect} is not an allowed #{source_label} host"
     end
 
-    xml = HTTParty.get(feed.url, follow_redirects: false).body
+    xml = HTTParty.get(feed.url, follow_redirects: false, timeout: 10).body
     Feedjira.parse(xml).entries
   end
 

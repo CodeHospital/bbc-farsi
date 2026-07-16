@@ -31,13 +31,9 @@ class TranslationRefiner
 
   def self.process(responses)
     {
-      translated_title: strip_think(responses["title"]),
-      translated_body:  strip_think(responses["body"])
+      translated_title: LlmText.clean(responses["title"]),
+      translated_body:  LlmText.clean(responses["body"])
     }
-  end
-
-  def self.strip_think(text)
-    text.to_s.gsub(%r{<think>.*?</think>}m, "").strip
   end
 
   def self.debug_curl_title(translation, server: nil, model:)

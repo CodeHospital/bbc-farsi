@@ -44,7 +44,7 @@ class TelegramAdminNotifier
     message = TelegramAdminBot.client.api.send_message(
       chat_id: TelegramAdminBot.chat_id,
       text: notification_text(translation),
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: main_menu(translation)
     )
 
@@ -113,14 +113,7 @@ class TelegramAdminNotifier
     channel = TelegramChannel.find_by(id: channel_id)
     return "Channel not found." unless channel
 
-    post = TelegramPost.find_or_initialize_by(translation:, telegram_channel: channel)
-    TelegramPoster.new.post(translation:, channel:)
-    post.update!(status: "posted", posted_at: Time.current)
-    translation.article.update!(status: "posted")
-    "Posted to #{channel.name}."
-  rescue StandardError => e
-    post&.update!(status: "error", error_message: e.message)
-    "Posting failed: #{e.message}"
+    Publisher.post_to_channel(translation, channel).message
   end
 
   def toggle_portal(translation)
@@ -145,6 +138,10 @@ class TelegramAdminNotifier
 
   # ── Message rendering ──────────────────────────────────────────────────────
 
+  # HTML parse mode (H-8 from plan2.md): translated_title/translated_body are
+  # LLM-generated Persian text that can contain unbalanced Markdown special
+  # characters, which would make Telegram reject the whole message under
+  # Markdown parse mode. Every interpolated value is escaped.
   def notification_text(translation)
     article = translation.article
     status_line = [
@@ -153,15 +150,17 @@ class TelegramAdminNotifier
     ].compact.join(" | ")
 
     <<~TEXT.strip
-      📰 *#{translation.translated_title}*
+      📰 <b>#{escape(translation.translated_title)}</b>
 
-      #{translation.translated_body.to_s.truncate(BODY_PREVIEW_LENGTH)}
+      #{escape(translation.translated_body.to_s.truncate(BODY_PREVIEW_LENGTH))}
 
       #{status_line}
 
-      منبع: #{article.url.to_s.split('?').first}
+      منبع: #{escape(article.url.to_s.split('?').first)}
     TEXT
   end
+
+  def escape(text) = CGI.escapeHTML(text.to_s)
 
   def refresh_message(callback_query, translation, action)
     translation.reload
@@ -171,7 +170,7 @@ class TelegramAdminNotifier
       chat_id: callback_query.dig("message", "chat", "id"),
       message_id: callback_query.dig("message", "message_id"),
       text: notification_text(translation),
-      parse_mode: "Markdown",
+      parse_mode: "HTML",
       reply_markup: keyboard
     )
   rescue StandardError => e
@@ -210,7 +209,7 @@ class TelegramAdminNotifier
     enabled_channels = TelegramChannel.enabled.order(:name).to_a
     if enabled_channels.one?
       channel = enabled_channels.first
-      posted  = TelegramPost.exists?(translation:, telegram_channel: channel, status: "posted")
+      posted  = Publisher.already_posted?(translation, channel)
       label   = posted ? "✅ ارسال شد به #{channel.name}" : "📤 انتشار در #{channel.name}"
       button(label, "post:#{translation.id}:#{channel.id}")
     else
