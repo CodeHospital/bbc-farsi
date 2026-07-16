@@ -1,6 +1,5 @@
 class Admin::RewritesController < Admin::BaseController
   include Pagy::Method
-  protect_from_forgery with: :null_session
 
   before_action :set_rewrite, only: %i[show edit update rerun activate archive]
 

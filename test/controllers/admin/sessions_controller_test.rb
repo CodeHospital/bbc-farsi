@@ -44,4 +44,15 @@ class Admin::SessionsControllerTest < ActionDispatch::IntegrationTest
     get admin_root_path
     assert_redirected_to admin_login_path
   end
+
+  test "disabled user with a live session is redirected to login" do
+    post admin_login_path, params: { username: @user.username, password: TEST_USER_PASSWORD }
+    get admin_root_path
+    assert_response :success
+
+    @user.update_column(:active, false)
+
+    get admin_root_path
+    assert_redirected_to admin_login_path
+  end
 end

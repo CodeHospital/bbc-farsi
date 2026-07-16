@@ -5,6 +5,10 @@
 class Admin::PasswordResetsController < ApplicationController
   layout false
 
+  rate_limit to: 5, within: 15.minutes, only: :create, with: -> {
+    redirect_to admin_login_path, alert: "Too many password reset requests. Please wait a while and try again."
+  }
+
   before_action :set_user_from_token, only: %i[edit update]
 
   def new; end

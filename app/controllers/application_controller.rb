@@ -1,5 +1,4 @@
 class ApplicationController < ActionController::Base
-  allow_browser versions: :modern
   layout :resolve_layout
 
   before_action :set_paper_trail_whodunnit
@@ -11,7 +10,9 @@ class ApplicationController < ActionController::Base
     controller_path.start_with?("admin/") ? "admin" : "application"
   end
 
+  # `active` is checked here (not just at login) so deactivating a user at
+  # /admin/users immediately ends any session they already hold.
   def current_user
-    @current_user ||= User.find_by(id: session[:user_id])
+    @current_user ||= User.active.find_by(id: session[:user_id])
   end
 end

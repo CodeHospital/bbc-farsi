@@ -56,12 +56,12 @@ Rails.application.configure do
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [ :id ]
 
-  # Enable DNS rebinding protection and other `Host` header attacks.
-  # config.hosts = [
-  #   "example.com",     # Allow requests from example.com
-  #   /.*\.example\.com/ # Allow requests from subdomains like `www.example.com`
-  # ]
-  #
+  # Enable DNS rebinding protection and other `Host` header attacks. The
+  # public host is the same `app_base_url` credential/ENV (APP_BASE_URL)
+  # already used for webhook callback URLs and mail — see Llmarkt.app_base_url.
+  app_base_url = Rails.application.credentials.dig(:app_base_url) || ENV["APP_BASE_URL"]
+  config.hosts << URI.parse(app_base_url).host if app_base_url.present?
+
   # Skip DNS rebinding protection for the default health check endpoint.
-  # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

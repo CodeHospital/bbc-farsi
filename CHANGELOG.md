@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Phase 0 security hardening from plan2.md (C-1, C-2, C-3, C-5, C-6, H-13)
+
+- **C-1** — `current_user` (`ApplicationController`) now looks up `User.active.find_by(id: session[:user_id])` instead of ignoring `active`, so deactivating a user at `/admin/users` immediately ends any session they already hold instead of only blocking future logins. `Admin::SessionsController#logged_in?` gets the matching `User.active.exists?` check. New regression test: "disabled user with a live session is redirected to login".
+- **C-2** — `Admin::SessionsController#create` now calls `reset_session` before setting `session[:user_id]` (prevents session fixation — a session id planted before authentication no longer survives login); `#destroy` calls `reset_session` instead of `session.delete(:user_id)`.
+- **C-3** — Added Rails 8 `rate_limit` to the two unauthenticated write endpoints attackers can hammer: `Admin::SessionsController#create` (10 attempts / 3 minutes, re-renders the login form with a friendly alert) and `Admin::PasswordResetsController#create` (5 / 15 minutes, redirects to login) — stops unlimited password guessing and reset-email mail-bombing/Resend-quota burn.
+- **C-5** — Removed `protect_from_forgery with: :null_session` from `Admin::TranslationsController` **and** `Admin::RewritesController` (the plan only named the first, but both had the same leftover override) — a forged request without a CSRF token is now rejected outright instead of proceeding with a nulled session. Both controllers now inherit the app's default `:exception` forgery protection.
+- **C-6** — `config.hosts` was fully commented out in production, so any `Host:` header was accepted (cache/SEO-poisoning risk via `request.base_url`-built URLs). Now derived from the existing `app_base_url` credential/`APP_BASE_URL` env var (already used by `Llmarkt`/mailer for webhook URLs — no new config introduced) via `URI.parse(app_base_url).host`. Also un-commented `config.host_authorization` to exclude `/up` from the check.
+- **H-13** — `allow_browser versions: :modern` moved from `ApplicationController` to `Admin::BaseController`, so the public news portal (older Android WebView/Chrome traffic) no longer gets a bare 406 — only the admin area requires a modern browser.
+- 395 tests green (394 + 1 new). `rubocop`/`zeitwerk:check` clean. Brakeman: same 1 known medium warning (M-9, unrelated — tracked separately). No migrations, no schema changes.
+- **Not done yet** (remaining Phase 0/1+ items tracked in [plan2.md](plan2.md)): C-4 (llmarkt/stale-reclaim duplicate-execution race), H-5 (non-atomic `complete!`), H-8 (Telegram Markdown escaping), and everything in Phases 1–4.
+
 ### Added — plan2.md: comprehensive code review & strategic improvement plan (documentation only, no code changes)
 
 - Full-codebase architect review written to [plan2.md](plan2.md): every file under `app/` plus `db/schema.rb`, routes, initializers, deploy/env config, and the standalone `worker/worker.rb` were read; the test suite (394 runs, 0 failures) and Brakeman (1 medium warning) were run as validation inputs. No code, schema, or configuration was modified.
