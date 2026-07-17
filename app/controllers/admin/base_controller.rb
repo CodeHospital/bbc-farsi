@@ -2,6 +2,7 @@ class Admin::BaseController < ApplicationController
   # Public portal readers skew toward older Android WebView/Chrome builds and
   # must not get a bare 406 — restrict the modern-browser requirement to admin.
   allow_browser versions: :modern
+  protect_from_forgery with: :null_session
 
   before_action :require_login
 
