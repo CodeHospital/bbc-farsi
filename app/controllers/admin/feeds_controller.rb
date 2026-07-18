@@ -55,7 +55,10 @@ class Admin::FeedsController < Admin::BaseController
 
   def toggle
     @feed.update!(enabled: !@feed.enabled)
-    redirect_to admin_feeds_path, notice: "Feed #{@feed.enabled? ? 'enabled' : 'disabled'}."
+    respond_to do |format|
+      format.turbo_stream
+      format.html { redirect_to admin_feeds_path, notice: "Feed #{@feed.enabled? ? 'enabled' : 'disabled'}." }
+    end
   end
 
   # Fetches this one feed synchronously and reports new/updated/skipped

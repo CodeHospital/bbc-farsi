@@ -26,6 +26,16 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_not @feed.reload.enabled
   end
 
+  test "toggles feed enabled state via turbo stream without a page redirect" do
+    assert @feed.enabled
+    patch toggle_admin_feed_path(@feed), as: :turbo_stream
+    assert_response :success
+    assert_equal Mime[:turbo_stream], response.media_type
+    assert_not @feed.reload.enabled
+    assert_match "Enable", response.body
+    assert_match ActionView::RecordIdentifier.dom_id(@feed), response.body
+  end
+
   test "deletes a feed" do
     assert_difference("Feed.count", -1) do
       delete admin_feed_path(@feed)

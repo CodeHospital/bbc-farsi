@@ -56,27 +56,6 @@
     </tr>
   </thead>
   <tbody>
-    <% @feeds.each do |feed| %>
-      <tr>
-        <td><%= feed.name %></td>
-        <td><span class="badge bg-secondary"><%= feed.category %></span></td>
-        <td><span class="badge bg-info text-dark"><%= feed.source %></span></td>
-        <td><small class="text-muted"><%= feed.url %></small></td>
-        <td><%= link_to feed.articles.count, admin_articles_path(feed_id: feed.id) %></td>
-        <td>
-          <%= button_to feed.enabled? ? "Disable" : "Enable",
-                toggle_admin_feed_path(feed), method: :patch,
-                class: "btn btn-sm #{feed.enabled? ? 'btn-success' : 'btn-outline-secondary'}" %>
-        </td>
-        <td>
-          <%= button_to "Fetch", fetch_admin_feed_path(feed), method: :post,
-                class: "btn btn-sm btn-outline-info me-1" %>
-          <%= link_to "Edit", edit_admin_feed_path(feed), class: "btn btn-sm btn-outline-primary me-1" %>
-          <%= button_to "Delete", admin_feed_path(feed), method: :delete,
-                class: "btn btn-sm btn-outline-danger",
-                data: { turbo_confirm: "Delete this feed?" } %>
-        </td>
-      </tr>
-    <% end %>
+    <%= render @feeds %>
   </tbody>
 </table>
