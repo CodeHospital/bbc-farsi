@@ -3,7 +3,7 @@ class Feed < ApplicationRecord
 
   has_many :articles, dependent: :destroy
 
-  SOURCES = %w[bbc nyt].freeze
+  SOURCES = %w[bbc nyt adhocnews].freeze
 
   validates :name, presence: true
   validates :url, presence: true, uniqueness: true
@@ -120,12 +120,35 @@ class Feed < ApplicationRecord
     "Sunday Opinion"      => { url: "https://rss.nytimes.com/services/xml/rss/nyt/sunday-review.xml",                                       category: "opinion" }
   }.freeze
 
+  # The German-language feed catalog from https://www.ad-hoc-news.de/rss
+  # (as of 2026-07-18). Categories reuse the existing canonical set where a
+  # good fit exists; "police" is new (same precedent as NYT's extra topical
+  # sections that aren't in the nav menu either).
+  ADHOCNEWS_FEEDS = {
+    "All News"       => { url: "https://www.ad-hoc-news.de/rss/nachrichten.xml",              category: "top" },
+    "Ad Hoc Notices" => { url: "https://www.ad-hoc-news.de/rss/adhocnews.xml",                 category: "business" },
+    "Stock Market"   => { url: "https://www.ad-hoc-news.de/rss/boerse.xml",                    category: "business" },
+    "Economy"        => { url: "https://www.ad-hoc-news.de/rss/wirtschaft.xml",                category: "business" },
+    "Politics"       => { url: "https://www.ad-hoc-news.de/rss/politik.xml",                   category: "politics" },
+    "Sports"         => { url: "https://www.ad-hoc-news.de/rss/sport.xml",                     category: "sports" },
+    "Entertainment"  => { url: "https://www.ad-hoc-news.de/rss/unterhaltung.xml",               category: "arts" },
+    "Science"        => { url: "https://www.ad-hoc-news.de/rss/wissenschaft.xml",              category: "science" },
+    "Company News"   => { url: "https://www.ad-hoc-news.de/rss/unternehmensnachrichten.xml",   category: "business" },
+    "Police Reports" => { url: "https://www.ad-hoc-news.de/rss/polizeimeldungen.xml",          category: "police" },
+    "International"  => { url: "https://www.ad-hoc-news.de/rss/ausland.xml",                   category: "world" },
+    "Corporate News" => { url: "https://www.ad-hoc-news.de/rss/corporate-news.xml",            category: "business" }
+  }.freeze
+
   def self.seed_bbc_feeds!
     seed_feeds!(BBC_FEEDS, source: "bbc")
   end
 
   def self.seed_nyt_feeds!
     seed_feeds!(NYT_FEEDS, source: "nyt")
+  end
+
+  def self.seed_adhocnews_feeds!
+    seed_feeds!(ADHOCNEWS_FEEDS, source: "adhocnews")
   end
 
   def self.seed_feeds!(feed_definitions, source:)

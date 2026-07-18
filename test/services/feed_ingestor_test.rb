@@ -60,6 +60,22 @@ class FeedIngestorTest < ActiveSupport::TestCase
     assert_equal [ nyt_feed.id ], seen_feed_ids
   end
 
+  test "routes Ad Hoc News feeds to AdhocnewsFeedFetcher" do
+    adhocnews_feed = create_feed(source: "adhocnews", url: "https://www.ad-hoc-news.de/rss/test-#{SecureRandom.hex(6)}.xml")
+
+    bbc_fake = Object.new
+    bbc_fake.define_singleton_method(:fetch) { |_feed| [] }
+    adhocnews_fake = Object.new
+    seen_feed_ids = []
+    adhocnews_fake.define_singleton_method(:fetch) { |feed| seen_feed_ids << feed.id; [] }
+
+    BbcFeedFetcher.stub(:new, bbc_fake) do
+      AdhocnewsFeedFetcher.stub(:new, adhocnews_fake) { FeedIngestor.run }
+    end
+
+    assert_equal [ adhocnews_feed.id ], seen_feed_ids
+  end
+
   test "still ingests articles when no Ollama server is configured (no task)" do
     OllamaServer.delete_all
     new_articles = [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ]

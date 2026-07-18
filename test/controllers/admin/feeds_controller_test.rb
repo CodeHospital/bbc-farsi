@@ -11,6 +11,14 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "seeds Ad Hoc News feeds" do
+    assert_difference("Feed.count", Feed::ADHOCNEWS_FEEDS.size) do
+      post seed_admin_feeds_path(source: "adhocnews")
+    end
+    assert_response :redirect
+    assert_equal [ "adhocnews" ], Feed.where(source: "adhocnews").pluck(:source).uniq
+  end
+
   test "toggles feed enabled state" do
     assert @feed.enabled
     patch toggle_admin_feed_path(@feed)

@@ -50,12 +50,23 @@ class FeedTest < ActiveSupport::TestCase
     assert_equal [ "nyt" ], Feed.pluck(:source).uniq
   end
 
-  test "seeding both BBC and NYT feeds keeps them distinct" do
+  test "seed_adhocnews_feeds! creates the Ad Hoc News catalog idempotently" do
+    Feed.seed_adhocnews_feeds!
+    count_after_first = Feed.count
+    Feed.seed_adhocnews_feeds!
+    assert_equal count_after_first, Feed.count, "seed is not idempotent"
+    assert_equal Feed::ADHOCNEWS_FEEDS.size, count_after_first
+    assert_equal [ "adhocnews" ], Feed.pluck(:source).uniq
+  end
+
+  test "seeding BBC, NYT, and Ad Hoc News feeds keeps them distinct" do
     Feed.seed_bbc_feeds!
     Feed.seed_nyt_feeds!
-    assert_equal Feed::BBC_FEEDS.size + Feed::NYT_FEEDS.size, Feed.count
+    Feed.seed_adhocnews_feeds!
+    assert_equal Feed::BBC_FEEDS.size + Feed::NYT_FEEDS.size + Feed::ADHOCNEWS_FEEDS.size, Feed.count
     assert_equal Feed::BBC_FEEDS.size, Feed.where(source: "bbc").count
     assert_equal Feed::NYT_FEEDS.size, Feed.where(source: "nyt").count
+    assert_equal Feed::ADHOCNEWS_FEEDS.size, Feed.where(source: "adhocnews").count
   end
 
   test "every NYT feed url is unique and points at an allowed host" do
@@ -65,6 +76,16 @@ class FeedTest < ActiveSupport::TestCase
     urls.each do |url|
       host = URI.parse(url).host
       assert_includes %w[rss.nytimes.com www.nytimes.com], host, "#{url} is not on an allowed NYT host"
+    end
+  end
+
+  test "every Ad Hoc News feed url is unique and points at an allowed host" do
+    urls = Feed::ADHOCNEWS_FEEDS.values.map { |attrs| attrs[:url] }
+    assert_equal urls.uniq.size, urls.size, "duplicate URLs in ADHOCNEWS_FEEDS would silently no-op in seed_feeds!"
+
+    urls.each do |url|
+      host = URI.parse(url).host
+      assert_includes %w[www.ad-hoc-news.de], host, "#{url} is not on an allowed Ad Hoc News host"
     end
   end
 

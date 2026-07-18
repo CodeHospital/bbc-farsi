@@ -41,14 +41,16 @@ class Admin::FeedsController < Admin::BaseController
     redirect_to admin_feeds_path, notice: "Feed deleted."
   end
 
+  SEED_METHODS = {
+    "bbc"       => [ :seed_bbc_feeds!, "BBC" ],
+    "nyt"       => [ :seed_nyt_feeds!, "NYT" ],
+    "adhocnews" => [ :seed_adhocnews_feeds!, "Ad Hoc News" ]
+  }.freeze
+
   def seed
-    if params[:source] == "nyt"
-      Feed.seed_nyt_feeds!
-      redirect_to admin_feeds_path, notice: "NYT feeds seeded — #{Feed.count} feeds total."
-    else
-      Feed.seed_bbc_feeds!
-      redirect_to admin_feeds_path, notice: "BBC feeds seeded — #{Feed.count} feeds total."
-    end
+    method, label = SEED_METHODS.fetch(params[:source], SEED_METHODS["bbc"])
+    Feed.public_send(method)
+    redirect_to admin_feeds_path, notice: "#{label} feeds seeded — #{Feed.count} feeds total."
   end
 
   def toggle

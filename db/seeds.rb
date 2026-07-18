@@ -1,5 +1,6 @@
 Feed.seed_bbc_feeds!
 Feed.seed_nyt_feeds!
+Feed.seed_adhocnews_feeds!
 puts "Seeded #{Feed.count} feeds."
 
 Prompt.seed_defaults!

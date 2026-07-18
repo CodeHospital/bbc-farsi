@@ -48,8 +48,9 @@ module NewsHelper
   # Publisher metadata per Feed#source, used for the "read original" link and
   # article structured data so both stay correct for non-BBC feeds (e.g. NYT).
   SOURCE_INFO = {
-    "bbc" => { name: "BBC News", domain: "bbc.com", url: "https://www.bbc.com/news" },
-    "nyt" => { name: "The New York Times", domain: "nytimes.com", url: "https://www.nytimes.com" }
+    "bbc"       => { name: "BBC News", domain: "bbc.com", url: "https://www.bbc.com/news" },
+    "nyt"       => { name: "The New York Times", domain: "nytimes.com", url: "https://www.nytimes.com" },
+    "adhocnews" => { name: "Ad Hoc News", domain: "ad-hoc-news.de", url: "https://www.ad-hoc-news.de" }
   }.freeze
 
   # Per-category accent colors — the signature tagDiv "Newspaper" look, where
