@@ -4,9 +4,19 @@
   <td><span class="badge bg-secondary"><%= feed.category %></span></td>
   <td><span class="badge bg-info text-dark"><%= feed.source %></span></td>
   <td><small class="text-muted"><%= feed.url %></small></td>
-  <td><%= link_to feed.articles.count, admin_articles_path(feed_id: feed.id) %></td>
-  <td><span class="badge bg-primary"><%= telegram_posts_counts_by_feed_id.fetch(feed.id) { feed.articles.joins(translations: :telegram_posts).merge(TelegramPost.posted).count } %>/<%= telegram_posts_counts_by_feed_id.fetch(feed.id) { feed.articles.count } %></span></td>
-  <td>
+  <td data-sort-value="<%= feed.articles.count %>">
+    <%= link_to feed.articles.count, admin_articles_path(feed_id: feed.id) %>
+  </td>
+  <% telegram_posts_count = telegram_posts_counts_by_feed_id.fetch(feed.id, 0) %>
+  <td data-sort-value="<%= telegram_posts_count %>">
+    <% if feed.articles.empty? %>
+      0
+    <% else %>
+      <%= telegram_posts_count %>
+      <span class="badge bg-primary"><%= 100 * telegram_posts_count / feed.articles.count %>%</span>
+    <% end %>
+  </td>
+  <td data-sort-value="<%= feed.enabled? ? 1 : 0 %>">
     <%= button_to feed.enabled? ? "Disable" : "Enable",
           toggle_admin_feed_path(feed), method: :patch,
           class: "btn btn-sm #{feed.enabled? ? 'btn-success' : 'btn-outline-secondary'}" %>

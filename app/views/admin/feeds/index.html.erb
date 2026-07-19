@@ -43,16 +43,16 @@
   </div>
 <% end %>
 
-<table class="table table-hover">
+<table class="table table-hover" data-controller="sortable-table">
   <thead>
     <tr>
-      <th><%= sort_link "name", "Name" %></th>
-      <th><%= sort_link "category", "Category" %></th>
-      <th><%= sort_link "source", "Source" %></th>
-      <th>URL</th>
-      <th>Articles</th>
-      <th>Posted to Telegram</th>
-      <th><%= sort_link "enabled", "Status" %></th>
+      <th data-action="click->sortable-table#sort">Name</th>
+      <th data-action="click->sortable-table#sort">Category</th>
+      <th data-action="click->sortable-table#sort">Source</th>
+      <th data-action="click->sortable-table#sort">URL</th>
+      <th data-action="click->sortable-table#sort" data-sort-type="number">Articles</th>
+      <th data-action="click->sortable-table#sort" data-sort-type="number">Posted</th>
+      <th data-action="click->sortable-table#sort" data-sort-type="number">Status</th>
       <th></th>
     </tr>
   </thead>

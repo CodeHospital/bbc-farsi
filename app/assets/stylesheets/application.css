@@ -8,3 +8,8 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+ .table>:not(caption)>tr>th {
+    /* no wrap */
+    white-space: nowrap;
+ }

@@ -2,15 +2,8 @@ class Admin::FeedsController < Admin::BaseController
   before_action :require_admin!
   before_action :set_feed, only: %i[edit update destroy toggle fetch]
 
-  SORT_COLUMNS = {
-    "name"     => "feeds.name",
-    "category" => "feeds.category",
-    "source"   => "feeds.source",
-    "enabled"  => "feeds.enabled"
-  }.freeze
-
   def index
-    @feeds = sorted_feeds
+    @feeds = Feed.order(:name)
     @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
   end
 
@@ -66,7 +59,7 @@ class Admin::FeedsController < Admin::BaseController
   # counts (with a reason for every skipped entry) right on the index page.
   def fetch
     @fetch_result = FeedIngestor.run_one(@feed)
-    @feeds = sorted_feeds
+    @feeds = Feed.order(:name)
     @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
 
     if @fetch_result[:error]
@@ -80,12 +73,6 @@ class Admin::FeedsController < Admin::BaseController
   end
 
   private
-
-  def sorted_feeds
-    column    = SORT_COLUMNS[params[:sort]] || "feeds.name"
-    direction = params[:dir] == "asc" ? "asc" : "desc"
-    Feed.order(Arel.sql("#{column} #{direction}"))
-  end
 
   def set_feed = @feed = Feed.find(params[:id])
   def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled)

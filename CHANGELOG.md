@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — `app/assets/stylesheets/application.css` now actually loads on admin pages
+
+- `app/views/layouts/admin.html.erb` never included `application.css` — only the public `application.html.erb` layout did (via `stylesheet_link_tag :app`), so every rule ever added to that file (including the pre-existing `.table>:not(caption)>*>* { padding: .0rem !important; }`) was silently dead on `/admin/*`. Added `<%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>` to the admin layout's `<head>`, matching the public layout. Verified live: `td` `padding-top` was `16px` (Bootstrap default) before the fix and `0px` after, confirmed via a throwaway admin user + Playwright (deleted afterward). 134/134 `test/controllers/admin/*` still green.
+- This also means the sort-indicator CSS added earlier in this file for the Feeds JS-sortable-table work (below) could move out of the admin layout's inline `<style>` block and into `application.css` proper now that it's loaded — left as-is for this pass since it already works; worth consolidating next time that file is touched.
+
+### Changed — Admin Feeds index sorts client-side (all columns), no page reload
+
+- Feeds isn't paginated (unlike Articles/Translations/etc.), so every column can be sorted in the browser instead of round-tripping to the server. New `app/javascript/controllers/sortable_table_controller.js` (Stimulus) sorts `<tbody>` rows in place on header click, toggling asc/desc and inferring type (`data-sort-type="number"` for numeric columns, plain string compare otherwise); cells that render formatted content (the Articles link, the Posted count+percentage badge, the Enable/Disable button) carry a `data-sort-value` attribute so sorting isn't fooled by markup.
+- `app/views/admin/feeds/index.html.erb` header cells switched from the request-based `sort_link` helper (still used as-is by the paginated admin pages) to plain `data-action="click->sortable-table#sort"` headers — now every column is sortable (previously only Name/Category/Source/Status were, via `sort_link`), including URL, Articles, and Posted.
+- `Admin::FeedsController` dropped its now-unused `SORT_COLUMNS`/`sorted_feeds`/`params[:sort]` handling (`index`/`fetch` just do `Feed.order(:name)`) since sorting no longer touches the server.
+- The ▲/▼ sort indicator CSS went into `app/views/layouts/admin.html.erb`'s existing inline `<style>` block, not `app/assets/stylesheets/application.css` — turns out the admin layout never loads that asset-pipeline file at all (only Bootstrap via CDN + its own inline `<style>`), so a first pass at this landed in a stylesheet that's dead weight for every admin page. Caught it because the indicator silently didn't render in a live check; moved the rule to where admin CSS actually lives.
+- Also fixed a bug in the "Posted to Telegram" percentage (introduced when that column was reshaped to show a % badge): it fell back to `feed.articles.count` instead of `0` for feeds with zero Telegram posts, which rendered as a false 100%.
+- Verified live: started the dev server against a throwaway admin user (not a real account), used Playwright to click each header and confirm rows actually reorder (text columns alphabetically, numeric columns — Articles/Posted — by the underlying count via `data-sort-value`, both directions) *and* that the ▲/▼ indicator actually renders (`getComputedStyle` on the `::after` pseudo-element, plus a screenshot). Dev server stopped and the throwaway user deleted afterward. 8/8 `Admin::FeedsControllerTest` still green.
+
 ### Added — Admin Feeds index shows a "Posted to Telegram" count per feed
 
 - New "Posted to Telegram" column in `app/views/admin/feeds/_feed.html.erb`, next to the existing Articles count, showing how many `TelegramPost`s with `status: "posted"` trace back to each feed (via `article -> translations -> telegram_posts`).
