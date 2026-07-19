@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Admin Feeds index shows a "Posted to Telegram" count per feed
+
+- New "Posted to Telegram" column in `app/views/admin/feeds/_feed.html.erb`, next to the existing Articles count, showing how many `TelegramPost`s with `status: "posted"` trace back to each feed (via `article -> translations -> telegram_posts`).
+- `Admin::FeedsController#index`/`#fetch` compute all feeds' counts in one grouped query (`telegram_posts_counts_by_feed_id`, `TelegramPost.posted.joins(translation: :article).group("articles.feed_id").count`) passed as a local to the partial, avoiding an N+1 per row. `_feed.html.erb` falls back to a lazy per-feed query when the local isn't supplied (used by the single-row Turbo Stream render in `toggle.turbo_stream.erb`).
+- No schema changes. No migrations. 8/8 existing `Admin::FeedsControllerTest` tests green.
+
 ### Fixed — Admin Turbo was never actually loaded; feed toggle now updates via Turbo Stream, no full page navigation
 
 - Root cause found while wiring up an AJAX feed enable/disable toggle: `app/views/layouts/admin.html.erb` never called `javascript_importmap_tags`, so **Turbo was not loaded anywhere in the admin section at all** — every `data-turbo-confirm` (e.g. the Delete buttons on Feeds/Articles/etc.) was silently doing nothing (forms submitted immediately with no confirmation dialog), the layout's own `turbo:submit-start`/`turbo:submit-end` spinner JS and `turbo:load` bulk-select init never fired, and the existing `admin/tasks/retry.turbo_stream.erb` view was dead code (every request fell through to the `format.html` redirect branch since the browser never sent a `text/vnd.turbo-stream.html` Accept header). Added `<%= javascript_importmap_tags %>` to the admin layout `<head>` (matching the public `application.html.erb` layout) — confirmed via a live Playwright smoke test that `data-turbo-confirm` now shows its dialog and Turbo Stream responses now patch in place with zero extra network requests.

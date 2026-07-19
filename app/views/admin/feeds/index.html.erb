@@ -51,11 +51,13 @@
       <th><%= sort_link "source", "Source" %></th>
       <th>URL</th>
       <th>Articles</th>
+      <th>Posted to Telegram</th>
       <th><%= sort_link "enabled", "Status" %></th>
       <th></th>
     </tr>
   </thead>
   <tbody>
-    <%= render @feeds %>
+    <%= render partial: "feed", collection: @feeds,
+          locals: { telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id } %>
   </tbody>
 </table>

@@ -11,6 +11,7 @@ class Admin::FeedsController < Admin::BaseController
 
   def index
     @feeds = sorted_feeds
+    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
   end
 
   def new
@@ -66,6 +67,7 @@ class Admin::FeedsController < Admin::BaseController
   def fetch
     @fetch_result = FeedIngestor.run_one(@feed)
     @feeds = sorted_feeds
+    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
 
     if @fetch_result[:error]
       flash.now[:alert] = "Fetch failed for #{@feed.name}: #{@fetch_result[:error]}"
@@ -87,4 +89,12 @@ class Admin::FeedsController < Admin::BaseController
 
   def set_feed = @feed = Feed.find(params[:id])
   def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled)
+
+  # One grouped query for all feeds, instead of an N+1 count per row.
+  def telegram_posts_counts_by_feed_id
+    TelegramPost.posted
+                .joins(translation: :article)
+                .group("articles.feed_id")
+                .count
+  end
 end
