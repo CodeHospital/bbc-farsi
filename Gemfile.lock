@@ -218,7 +218,7 @@ GEM
     nokogiri (1.19.4-x86_64-linux-gnu)
       racc (~> 1.4)
     ostruct (0.6.3)
-    pagy (43.6.0)
+    pagy (43.6.1)
       json
       uri
       yaml
@@ -405,7 +405,7 @@ DEPENDENCIES
   jbuilder
   kamal
   minitest (~> 5.0)
-  pagy (~> 43.5)
+  pagy (~> 43.6)
   paper_trail
   pg (~> 1.5)
   propshaft
