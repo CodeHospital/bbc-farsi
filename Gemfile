@@ -22,7 +22,7 @@ gem "feedjira", "~> 4.0"
 gem "httparty", "~> 0.24"
 
 # Telegram bot
-gem "telegram-bot-ruby", "~> 2.4"
+gem "telegram-bot-ruby", "~> 2.8"
 
 # Env vars
 gem "dotenv-rails", "~> 2.8"
