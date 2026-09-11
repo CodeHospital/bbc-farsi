@@ -17,6 +17,11 @@ gem "stimulus-rails"
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
 
+# Pin below 3.0: ActiveSupport::JSON.encode/decode still pass the `quirks_mode:`
+# keyword to ::JSON.generate/parse, which json 3.x removed (ArgumentError:
+# unknown keyword: quirks_mode).
+gem "json", "< 3"
+
 # BBC news fetching
 gem "feedjira", "~> 4.0"
 gem "httparty", "~> 0.24"

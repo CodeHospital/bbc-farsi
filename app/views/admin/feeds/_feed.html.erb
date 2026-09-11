@@ -1,8 +1,10 @@
 <% telegram_posts_counts_by_feed_id ||= {} %>
 <tr id="<%= dom_id(feed) %>">
-  <td><%= feed.name %></td>
-  <td><span class="badge bg-secondary"><%= feed.category %></span></td>
-  <td><span class="badge bg-info text-dark"><%= feed.source %></span></td>
+  <td><%= feed.name %>
+  <br />
+  <span class="badge bg-secondary"><%= feed.category %></span>
+  <br />
+  <span class="badge bg-info text-dark"><%= feed.source %></span></td>
   <td><small class="text-muted"><%= feed.url %></small></td>
   <td data-sort-value="<%= feed.articles.count %>">
     <%= link_to feed.articles.count, admin_articles_path(feed_id: feed.id) %>

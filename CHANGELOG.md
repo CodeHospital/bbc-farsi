@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — `Admin::UsersControllerTest#test_update_changes_role_and_name_without_touching_the_password` (and every other test hitting `log_in_as`) raised `ArgumentError: unknown keyword: quirks_mode`
+
+- Root cause: `Gemfile.lock` had drifted to `json (3.0.2)` (pulled in transitively, unpinned in the `Gemfile`) without anyone touching the `Gemfile`. `ActiveSupport::JSON.encode`/`.decode` (`activesupport-8.0.5.1`) still call `::JSON.generate`/`::JSON.parse` with a `quirks_mode:` keyword, which the `json` gem removed in 3.x. Rails' default cookie serializer is `:json`, so anything that writes to the session cookie — including `log_in_as`'s `post admin_login_path` — round-trips through `ActiveSupport::JSON` and blew up on every controller test that logs in.
+- Fix: pinned `gem "json", "< 3"` in `Gemfile`, then `bundle lock --update json` (only the `json` entry changed in the lock file, back to `2.21.2`; left the rest of the pre-existing `Gemfile.lock` diff — Rails 8.0.5 → 8.0.5.1 and other patch bumps — untouched since those weren't the cause and weren't reverted). Full suite green: 405 runs, 0 failures/errors.
+
 ### Fixed — `app/assets/stylesheets/application.css` now actually loads on admin pages
 
 - `app/views/layouts/admin.html.erb` never included `application.css` — only the public `application.html.erb` layout did (via `stylesheet_link_tag :app`), so every rule ever added to that file (including the pre-existing `.table>:not(caption)>*>* { padding: .0rem !important; }`) was silently dead on `/admin/*`. Added `<%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>` to the admin layout's `<head>`, matching the public layout. Verified live: `td` `padding-top` was `16px` (Bootstrap default) before the fix and `0px` after, confirmed via a throwaway admin user + Playwright (deleted afterward). 134/134 `test/controllers/admin/*` still green.
