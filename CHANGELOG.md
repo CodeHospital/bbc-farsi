@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Admin Analytics "Top articles" table now splits views by FA/EN edition
+
+- The summary cards at the top of `/admin/analytics` already broke total views down by edition (Persian/English), but the "Top articles" table below it showed one combined "Views" count per article with no indication of which edition those views came from — since every article is viewable in both editions, that count was ambiguous.
+- `Admin::AnalyticsController#show`: `@top_articles` now groups `ArticleView` by `article_id` *and* `edition` (was: `article_id` only) and reshapes into `{ article_id:, title:, fa_count:, en_count:, count: }` rows, still sorted by total views descending and capped at 15.
+- `app/views/admin/analytics/show.html.erb`: the table gained separate "FA views" / "EN views" columns alongside the existing bold "Total" column (was a single "Views" column).
+- No schema/migration changes. Verified with a throwaway controller test against real FA/EN-tagged `ArticleView` rows (asserted the two count columns render the correct split), then deleted the test — logic also spot-checked against the live dev DB's 22 existing `ArticleView` rows via `bin/rails runner`. 405/405 existing tests still green, `rubocop` clean.
+
+### Changed — Autoposting to Telegram is now throttled to ~25-40 minutes between posts per channel
+
+- Root cause: `Autoposter.post_translation` fires immediately after every translate task completes (task chaining), and the `bbc:autopost` cron sweep (`Autoposter.run_all`, every 5 min per `lib/tasks/bbc.rake`) posted *every* unposted translation for a channel in one pass. Neither path paced deliveries, so a burst of translations finishing close together (e.g. a feed fetch that enqueues many rewrites at once) all landed on the Telegram channel within seconds of each other — reads as automated spam rather than a real channel.
+- Fix: `app/services/autoposter.rb` gained `Autoposter.ready?(channel)`, which checks the `posted_at` of the channel's most recent `TelegramPost` and requires `MIN_INTERVAL` (25 min) plus a random `JITTER` (0-15 min) to have elapsed before allowing another post — so gaps land somewhere in the ~25-40 min range instead of a fixed cadence. Both `post_translation` and `run_all` now skip a channel that isn't ready yet; `run_all` also posts at most one translation per channel per sweep (was: all of them) so the cron tick can't burn through the whole backlog in one go. Anything skipped for being too soon is simply left unposted and picked up by a later cron tick once the channel is ready again — no new queue/table needed, `posted_at` (already on `telegram_posts`) is the only state used.
+- Scope: only the automated paths (task-chain autopost, `bbc:autopost` cron) are throttled. `Admin::TranslationsController#post_to_channel` (the manual "post now" button) still calls `Publisher.post_to_channel` directly and is unaffected — an editor's explicit action should never be rate-limited.
+- No schema/migration changes. 41/41 `test/models/task_test.rb` + `test/models/telegram_channel_test.rb` still green.
+
 ### Fixed — `Admin::UsersControllerTest#test_update_changes_role_and_name_without_touching_the_password` (and every other test hitting `log_in_as`) raised `ArgumentError: unknown keyword: quirks_mode`
 
 - Root cause: `Gemfile.lock` had drifted to `json (3.0.2)` (pulled in transitively, unpinned in the `Gemfile`) without anyone touching the `Gemfile`. `ActiveSupport::JSON.encode`/`.decode` (`activesupport-8.0.5.1`) still call `::JSON.generate`/`::JSON.parse` with a `quirks_mode:` keyword, which the `json` gem removed in 3.x. Rails' default cookie serializer is `:json`, so anything that writes to the session cookie — including `log_in_as`'s `post admin_login_path` — round-trips through `ActiveSupport::JSON` and blew up on every controller test that logs in.

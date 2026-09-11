@@ -18,13 +18,20 @@ class Admin::AnalyticsController < Admin::BaseController
                         .order("count_all DESC")
                         .limit(15)
                         .count
-    @top_articles = scope
+    counts_by_article_and_edition = scope
       .joins(:article)
-      .group("article_views.article_id", "articles.title")
-      .order("count(article_views.id) DESC")
-      .limit(15)
+      .group("article_views.article_id", "articles.title", "article_views.edition")
       .count("article_views.id")
-      .map { |(article_id, title), count| { article_id:, title:, count: } }
+
+    @top_articles = counts_by_article_and_edition
+      .each_with_object({}) do |((article_id, title, edition), count), rows|
+        row = rows[article_id] ||= { article_id:, title:, fa_count: 0, en_count: 0 }
+        row[edition == "en" ? :en_count : :fa_count] += count
+      end
+      .values
+      .map { |row| row.merge(count: row[:fa_count] + row[:en_count]) }
+      .sort_by { |row| -row[:count] }
+      .first(15)
     @daily_views = scope
       .group("DATE(article_views.created_at)")
       .order("DATE(article_views.created_at)")

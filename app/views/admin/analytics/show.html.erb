@@ -85,13 +85,21 @@
         <% if @top_articles.any? %>
           <table class="table table-sm table-hover mb-0">
             <thead>
-              <tr><th>#</th><th>Title</th><th class="text-end">Views</th><th></th></tr>
+              <tr>
+                <th>#</th><th>Title</th>
+                <th class="text-end">FA views</th>
+                <th class="text-end">EN views</th>
+                <th class="text-end">Total</th>
+                <th></th>
+              </tr>
             </thead>
             <tbody>
               <% @top_articles.each_with_index do |row, idx| %>
                 <tr>
                   <td class="text-muted"><%= idx + 1 %></td>
                   <td><%= link_to row[:title].to_s.truncate(60), admin_article_path(row[:article_id]) %></td>
+                  <td class="text-end"><%= row[:fa_count] %></td>
+                  <td class="text-end"><%= row[:en_count] %></td>
                   <td class="text-end fw-bold"><%= row[:count] %></td>
                   <td class="text-end">
                     <%= link_to "FA", news_path(id: "a#{row[:article_id]}"), target: "_blank",
