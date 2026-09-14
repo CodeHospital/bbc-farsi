@@ -74,6 +74,11 @@ class Admin::ArticlesController < Admin::BaseController
     @posted_channel_ids_by_translation = posted_rows.group_by(&:first)
                                                      .transform_values { |rows| rows.map(&:last) }
 
+    queued_rows = TelegramPost.where(translation: @translations, status: "pending")
+                               .pluck(:translation_id, :telegram_channel_id)
+    @queued_channel_ids_by_translation = queued_rows.group_by(&:first)
+                                                     .transform_values { |rows| rows.map(&:last) }
+
     @article_tasks   = queue_tasks_for_article
     @task_by_target  = @article_tasks.index_by { |task| [ task.target_type, task.target_id ] }
 

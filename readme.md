@@ -226,23 +226,37 @@ requests/responses, and retry failed tasks.
 
 ### Periodic work (RSS fetch + autopost)
 
-These need no Ollama access, so they stay in the app. There is no built-in
-scheduler anymore — drive them from the admin UI or an external cron:
+These need no Ollama access, so they stay in the app.
 
-| Command | Purpose |
-|---|---|
-| `bin/rails bbc:fetch` | Fetch enabled RSS feeds, create a rewrite task per new article |
-| `bin/rails bbc:autopost` | Post active completed translations to autopost channels |
-
-Example crontab:
+**RSS fetch** has no built-in scheduler — drive it from the admin UI (the
+**Fetch now** button runs `bin/rails bbc:fetch` synchronously) or an external
+cron:
 
 ```cron
-*/30 * * * *  cd /path/to/app && bin/rails bbc:fetch    >> log/cron.log 2>&1
-*/5  * * * *  cd /path/to/app && bin/rails bbc:autopost >> log/cron.log 2>&1
+*/30 * * * *  cd /path/to/app && bin/rails bbc:fetch >> log/cron.log 2>&1
 ```
 
-(The admin **Fetch now** button runs `bbc:fetch` synchronously; a completed
-translation task also auto-posts inline.)
+**Telegram posting** is queue-then-deliver, not instant, on every path —
+autopost, a completed translation task, the web admin's "📤 Post" button, and
+the Telegram admin bot's one-tap publish button all just *queue* a post
+(`Publisher.post_to_channel`); actual delivery to Telegram is paced to
+roughly 25-40 minutes apart per channel (`Autoposter::MIN_INTERVAL`/`JITTER`)
+so a channel doesn't get a burst of messages at once. What actually calls
+`Autoposter.run_all` to deliver due posts:
+
+- **Built in, no setup needed**: `config/initializers/telegram_autopost_scheduler.rb`
+  runs a background thread inside the app server (`bin/rails server`) that
+  polls every minute. This is the primary delivery mechanism — nothing else
+  to configure.
+- **Optional external cron**, if you'd rather not rely on the in-process
+  thread (e.g. it also drives the `unposted_for` sweep that queues new
+  autopost-eligible translations, independent of the task-chain autopost):
+  `bin/rails bbc:autopost`. Safe to run alongside the in-process poller —
+  delivery is claim-then-atomic-update safe against double-sending.
+
+```cron
+*/5  * * * *  cd /path/to/app && bin/rails bbc:autopost >> log/cron.log 2>&1
+```
 
 ---
 

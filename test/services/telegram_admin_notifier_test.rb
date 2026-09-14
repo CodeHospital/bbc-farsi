@@ -125,25 +125,19 @@ class TelegramAdminNotifierTest < ActiveSupport::TestCase
     assert_includes @answered[:text], "Refine queued"
   end
 
-  test "handle_callback post publishes to the given channel" do
+  test "handle_callback post queues the translation for the given channel, but does not deliver it instantly" do
     channel      = create_channel
     translation  = create_translation
     notification = create_notification(translation)
 
-    poster_fake_api = Object.new
-    poster_fake_api.define_singleton_method(:send_message) { |_opts| FakeMessage.new(1) }
-    poster_fake_bot = Object.new
-    poster_fake_bot.define_singleton_method(:api) { poster_fake_api }
-
-    dispatch = ->(token) { token == channel.token ? poster_fake_bot : @fake_bot }
-    ::Telegram::Bot::Client.stub(:new, dispatch) do
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
       TelegramAdminNotifier.handle_callback(callback_query_for(translation, action: "post", extra_id: channel.id))
     end
 
     post = TelegramPost.find_by(translation:, telegram_channel: channel)
-    assert_equal "posted", post.status
-    assert_equal "posted", translation.article.reload.status
-    assert_includes @answered[:text], "Posted to #{channel.name}"
+    assert_equal "pending", post.status
+    assert_not_equal "posted", translation.article.reload.status
+    assert_includes @answered[:text], "Queued to post to #{channel.name}"
     assert_equal "actioned", notification.reload.status
   end
 

@@ -122,12 +122,20 @@
   <% @telegram_channels.each do |channel| %>
     <div class="col-auto">
       <% already_posted = @posted_channel_ids.include?(channel.id) %>
-      <%= button_to already_posted ? "✓ #{channel.name}" : "📤 #{channel.name}",
+      <% already_queued = @queued_channel_ids.include?(channel.id) %>
+      <% label = if already_posted then "✓ #{channel.name}"
+                 elsif already_queued then "⏳ #{channel.name}"
+                 else "📤 #{channel.name}" end %>
+      <% btn_class = if already_posted then "btn-success"
+                     elsif already_queued then "btn-warning"
+                     else "btn-outline-success" end %>
+      <%= button_to label,
             post_to_channel_admin_translation_path(@translation),
             method: :post,
             params: { telegram_channel_id: channel.id },
-            class: "btn #{already_posted ? 'btn-success' : 'btn-outline-success'}",
-            disabled: already_posted %>
+            class: "btn #{btn_class}",
+            disabled: already_posted || already_queued,
+            title: (already_queued ? "Queued — will post on the usual schedule" : nil) %>
     </div>
   <% end %>
 </div>

@@ -396,6 +396,7 @@
       </div>
     </div>
     <% posted_channel_ids = @posted_channel_ids_by_translation[translation.id] || [] %>
+    <% queued_channel_ids = @queued_channel_ids_by_translation[translation.id] || [] %>
     <% if translation.translated_title.present? %>
       <div class="card-body py-2">
         <div dir="rtl" lang="fa">
@@ -465,7 +466,9 @@
                 class: "d-flex align-items-center gap-2" do |f| %>
             <%= f.select :telegram_channel_id,
                   @telegram_channels.map { |ch|
-                    label = posted_channel_ids.include?(ch.id) ? "✓ #{ch.name}" : ch.name
+                    label = if posted_channel_ids.include?(ch.id) then "✓ #{ch.name}"
+                            elsif queued_channel_ids.include?(ch.id) then "⏳ #{ch.name} (queued)"
+                            else ch.name end
                     [label, ch.id]
                   },
                   {}, class: "form-select form-select-sm", style: "width:auto; min-width:160px" %>

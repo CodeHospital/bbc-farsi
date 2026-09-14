@@ -201,19 +201,31 @@ class TelegramAdminNotifier
   # The "publish to a Telegram channel" entry in the main menu. With exactly
   # one enabled channel there's nothing to choose, so this is a direct one-tap
   # post button (`post:<id>:<channel_id>`) — no submenu, and no auto-publish, so
-  # the admin still confirms with a single tap. Once posted (or on a re-sent
-  # notification) it shows the "✅ ارسال شد" state and re-posts if tapped again.
-  # With zero or several enabled channels, keep the picker submenu
-  # (`channels:<id>`).
+  # the admin still confirms with a single tap. Tapping it only queues the
+  # post (see Publisher/Autoposter) — the actual Telegram message goes out on
+  # the shared posting schedule, not instantly, so a burst of approvals
+  # doesn't dump them all on the channel at once. The button shows "✅ ارسال
+  # شد" once actually delivered, "⏳ در صف" while queued and waiting its turn,
+  # and re-queues harmlessly if tapped again. With zero or several enabled
+  # channels, keep the picker submenu (`channels:<id>`).
   def publish_button(translation)
     enabled_channels = TelegramChannel.enabled.order(:name).to_a
     if enabled_channels.one?
       channel = enabled_channels.first
-      posted  = Publisher.already_posted?(translation, channel)
-      label   = posted ? "✅ ارسال شد به #{channel.name}" : "📤 انتشار در #{channel.name}"
+      label = channel_status_label(translation, channel)
       button(label, "post:#{translation.id}:#{channel.id}")
     else
       button("📤 انتشار در کانال تلگرام", "channels:#{translation.id}")
+    end
+  end
+
+  def channel_status_label(translation, channel)
+    if Publisher.already_posted?(translation, channel)
+      "✅ ارسال شد به #{channel.name}"
+    elsif Publisher.already_queued?(translation, channel)
+      "⏳ در صف انتشار در #{channel.name}"
+    else
+      "📤 انتشار در #{channel.name}"
     end
   end
 
@@ -239,8 +251,11 @@ class TelegramAdminNotifier
   def channel_menu(translation)
     id = translation.id
     rows = TelegramChannel.enabled.order(:name).map do |channel|
-      posted = TelegramPost.exists?(translation:, telegram_channel: channel, status: "posted")
-      [ button("#{posted ? '✅ ' : ''}#{channel.name}", "post:#{id}:#{channel.id}") ]
+      prefix = if Publisher.already_posted?(translation, channel) then "✅ "
+      elsif Publisher.already_queued?(translation, channel) then "⏳ "
+      else ""
+      end
+      [ button("#{prefix}#{channel.name}", "post:#{id}:#{channel.id}") ]
     end
     rows << [ button("⬅️ بازگشت", "back:#{id}") ]
     keyboard_markup(rows)
