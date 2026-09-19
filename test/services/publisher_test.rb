@@ -74,6 +74,23 @@ class PublisherTest < ActiveSupport::TestCase
     assert_includes post.error_message, "boom"
   end
 
+  test "deliver_pending! reports a Telegram send failure to Sentry" do
+    Publisher.post_to_channel(@translation, @channel)
+
+    fake_api = Object.new
+    fake_api.define_singleton_method(:send_message) { |_opts| raise "boom" }
+    fake_bot = Object.new
+    fake_bot.define_singleton_method(:api) { fake_api }
+
+    captured = nil
+    ::Telegram::Bot::Client.stub(:new, fake_bot) do
+      Sentry.stub(:capture_exception, ->(e) { captured = e }) { Publisher.deliver_pending!(@channel) }
+    end
+
+    assert_kind_of RuntimeError, captured
+    assert_equal "boom", captured.message
+  end
+
   private
 
   def assert_no_telegram_calls

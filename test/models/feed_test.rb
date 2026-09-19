@@ -93,6 +93,33 @@ class FeedTest < ActiveSupport::TestCase
     assert_not build_feed(source: "cnn").valid?
   end
 
+  test "fetch_hour is nil (unscheduled) by default" do
+    assert_nil Feed.new.fetch_hour
+    assert_equal "Disabled", Feed.new.fetch_schedule_label
+  end
+
+  test "fetch_hour accepts every hour of the day" do
+    Feed::FETCH_HOURS.each { |hour| assert build_feed(fetch_hour: hour).valid?, "hour #{hour} should be valid" }
+    assert_equal 24, Feed::FETCH_HOURS.size
+  end
+
+  test "invalid with an out-of-range fetch_hour" do
+    assert_not build_feed(fetch_hour: 24).valid?
+    assert_not build_feed(fetch_hour: -1).valid?
+  end
+
+  test "fetch_schedule_label renders a zero-padded hour" do
+    assert_equal "08:00", build_feed(fetch_hour: 8).fetch_schedule_label
+    assert_equal "23:00", build_feed(fetch_hour: 23).fetch_schedule_label
+  end
+
+  test "scheduled scope returns only feeds with an hour set" do
+    scheduled   = create_feed(url: "https://feeds.bbci.co.uk/news/sched.rss", fetch_hour: 8)
+    unscheduled = create_feed(url: "https://feeds.bbci.co.uk/news/unsched.rss", fetch_hour: nil)
+    assert_includes Feed.scheduled, scheduled
+    assert_not_includes Feed.scheduled, unscheduled
+  end
+
   test "defaults to bbc source" do
     assert_equal "bbc", Feed.new.source
   end

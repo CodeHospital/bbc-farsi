@@ -1,6 +1,6 @@
 class Admin::FeedsController < Admin::BaseController
   before_action :require_admin!
-  before_action :set_feed, only: %i[edit update destroy toggle fetch]
+  before_action :set_feed, only: %i[edit update destroy toggle fetch schedule]
 
   def index
     load_filtered_feeds
@@ -52,9 +52,24 @@ class Admin::FeedsController < Admin::BaseController
     # while viewing "Enabled" only) should disappear from the turbo-stream
     # response instead of lingering with a stale row.
     @feed_matches_filter = feed_matches_filter?(@feed)
+    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to admin_feeds_path, notice: "Feed #{@feed.enabled? ? 'enabled' : 'disabled'}." }
+    end
+  end
+
+  # Sets (or clears, on a blank value) a feed's scheduled fetch hour straight
+  # from the index row. An out-of-range hour just re-renders the unchanged row.
+  def schedule
+    @feed.reload unless @feed.update(fetch_hour: params[:fetch_hour].presence)
+    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    respond_to do |format|
+      format.turbo_stream
+      format.html do
+        redirect_back fallback_location: admin_feeds_path,
+                      notice: "#{@feed.name} scheduled fetch: #{@feed.fetch_schedule_label}."
+      end
     end
   end
 
@@ -77,7 +92,7 @@ class Admin::FeedsController < Admin::BaseController
   private
 
   def set_feed = @feed = Feed.find(params[:id])
-  def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled)
+  def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled, :fetch_hour)
 
   def load_filtered_feeds
     @enabled_filter   = params[:enabled].presence || "enabled"

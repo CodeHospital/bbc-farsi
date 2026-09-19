@@ -210,6 +210,16 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/پیدا نشد/, @response.body)
   end
 
+  test "show reports the RecordNotFound to Sentry" do
+    captured = nil
+    Sentry.stub(:capture_exception, ->(e) { captured = e }) do
+      get news_path(id: "no-such-story")
+    end
+
+    assert_response :not_found
+    assert_kind_of ActiveRecord::RecordNotFound, captured
+  end
+
   test "show renders the not-found page for an archived (unpublished) translation" do
     translation = create_translation(attrs: { translated_title: "خبر آرشیو شده", archived: true })
 

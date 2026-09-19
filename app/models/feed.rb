@@ -5,15 +5,27 @@ class Feed < ApplicationRecord
 
   SOURCES = %w[bbc nyt adhocnews].freeze
 
+  # Hour-of-day slots a feed can be scheduled for. nil means "not scheduled",
+  # which is the default — a feed is only auto-fetched once given an hour.
+  FETCH_HOURS = (0..23).to_a.freeze
+
   validates :name, presence: true
   validates :url, presence: true, uniqueness: true
   validates :category, presence: true
   validates :source, presence: true, inclusion: { in: SOURCES }
+  validates :fetch_hour, inclusion: { in: FETCH_HOURS }, allow_nil: true
 
   scope :enabled, -> { where(enabled: true) }
+  scope :scheduled, -> { where.not(fetch_hour: nil) }
 
   def title
     "#{name} (#{source.upcase})"
+  end
+
+  # Hours are server-local (the sweep compares against Time.now.hour), so no
+  # timezone conversion here — 8 means 08:00 on the machine running the app.
+  def fetch_schedule_label
+    fetch_hour ? format("%02d:00", fetch_hour) : "Disabled"
   end
 
   BBC_FEEDS = {

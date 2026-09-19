@@ -25,6 +25,7 @@ if defined?(Rails::Server) && !Rails.env.test?
           ActiveRecord::Base.connection_pool.with_connection { Autoposter.run_all }
         rescue StandardError => e
           Rails.logger.error "TelegramAutopostScheduler: #{e.class}: #{e.message}"
+          Sentry.capture_exception(e)
         end
         sleep TELEGRAM_AUTOPOST_POLL_INTERVAL
       end

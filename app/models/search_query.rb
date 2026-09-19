@@ -7,11 +7,13 @@ class SearchQuery < ApplicationRecord
     create!(keyword: keyword.strip.downcase, edition: edition, results_count: results_count)
   rescue => error
     Rails.logger.warn("[SearchQuery] tracking failed: #{error.message}")
+    Sentry.capture_exception(error)
   end
 
   def self.table_exists?
     connection.table_exists?(:search_queries)
-  rescue
+  rescue => error
+    Sentry.capture_exception(error)
     false
   end
 end

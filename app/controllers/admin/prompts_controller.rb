@@ -27,6 +27,7 @@ class Admin::PromptsController < Admin::BaseController
 
     redirect_to admin_prompt_path(@prompt), notice: "Prompt saved."
   rescue ActiveRecord::RecordInvalid => e
+    Sentry.capture_exception(e)
     @versions = @prompt.prompt_versions.order(number: :desc)
     flash.now[:alert] = e.record.errors.full_messages.to_sentence
     render :edit, status: :unprocessable_entity

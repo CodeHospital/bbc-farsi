@@ -7,10 +7,12 @@ class FeedFetcher
 
       entry_attrs(entry)
     end
-  rescue ArgumentError
+  rescue ArgumentError => e
+    Sentry.capture_exception(e)
     raise  # SSRF / allowlist violations must not be silently swallowed
   rescue StandardError => e
     log_error(feed, e)
+    Sentry.capture_exception(e)
     []
   end
 
@@ -33,6 +35,7 @@ class FeedFetcher
     { entries: included, ignored:, error: nil }
   rescue StandardError => e
     log_error(feed, e)
+    Sentry.capture_exception(e)
     { entries: [], ignored: [], error: e.message }
   end
 

@@ -18,6 +18,16 @@
     <%= f.label :source, class: "form-label" %>
     <%= f.select :source, Feed::SOURCES, {}, class: "form-select" %>
   </div>
+  <div class="mb-3">
+    <%= f.label :fetch_hour, "Scheduled fetch", class: "form-label" %>
+    <%= f.select :fetch_hour,
+          Feed::FETCH_HOURS.map { |hour| [ format("%02d:00", hour), hour ] },
+          { include_blank: "Disabled — never auto-fetched" },
+          class: "form-select" %>
+    <div class="form-text">
+      Hour of day (server time) when cron auto-fetches this feed. Disabled by default.
+    </div>
+  </div>
   <div class="form-check mb-3">
     <%= f.check_box :enabled, class: "form-check-input" %>
     <%= f.label :enabled, class: "form-check-label" %>

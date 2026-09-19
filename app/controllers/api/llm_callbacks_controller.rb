@@ -36,12 +36,15 @@ class Api::LlmCallbacksController < ActionController::API
     end
 
     head :ok
-  rescue InvalidSignature, ActiveSupport::MessageVerifier::InvalidSignature
+  rescue InvalidSignature, ActiveSupport::MessageVerifier::InvalidSignature => e
+    Sentry.capture_exception(e)
     head :unauthorized
-  rescue ActiveRecord::RecordNotFound
+  rescue ActiveRecord::RecordNotFound => e
+    Sentry.capture_exception(e)
     head :not_found
   rescue StandardError => e
     Rails.logger.error("llmarkt callback error: #{e.class}: #{e.message}")
+    Sentry.capture_exception(e)
     head :unprocessable_entity
   end
 

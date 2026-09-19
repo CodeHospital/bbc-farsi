@@ -39,6 +39,7 @@ class LlmarktClient
 
     parse_response(response, "POST /jobs")
   rescue HTTParty::Error, SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
+    Sentry.capture_exception(e)
     raise Error, "llmarkt request error: #{e.class}: #{e.message}"
   end
 
@@ -57,6 +58,7 @@ class LlmarktClient
 
     parse_response(response, "PATCH /jobs/#{job_id}/priority")
   rescue HTTParty::Error, SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
+    Sentry.capture_exception(e)
     raise Error, "llmarkt request error: #{e.class}: #{e.message}"
   end
 
@@ -74,6 +76,7 @@ class LlmarktClient
 
     parse_response(response, "POST /jobs/#{job_id}/retry")
   rescue HTTParty::Error, SocketError, Timeout::Error, Errno::ECONNREFUSED, JSON::ParserError => e
+    Sentry.capture_exception(e)
     raise Error, "llmarkt request error: #{e.class}: #{e.message}"
   end
 

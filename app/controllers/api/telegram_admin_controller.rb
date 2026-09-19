@@ -33,5 +33,6 @@ class Api::TelegramAdminController < ActionController::API
     TelegramAdminNotifier.handle_callback(callback_query.to_unsafe_h)
   rescue StandardError => e
     Rails.logger.error "Telegram admin webhook error: #{e.class}: #{e.message}"
+    Sentry.capture_exception(e)
   end
 end

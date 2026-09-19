@@ -6,3 +6,7 @@ ruby "~> 3.3"
 
 # .env file loading
 gem "dotenv", "~> 3.0"
+
+# Error tracking — reports every rescued exception to Sentry. Inert (no-op)
+# until SENTRY_DSN is set in the environment or worker/.env.
+gem "sentry-ruby"

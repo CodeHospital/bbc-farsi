@@ -5,6 +5,7 @@
 
 require "bundler/setup"
 require "dotenv"
+require "sentry-ruby"
 require "net/http"
 require "json"
 require "uri"
@@ -14,6 +15,16 @@ require "time"
 
 $stdout.sync = true
 Dotenv.load(File.join(__dir__, ".env"))
+
+# Only activates when SENTRY_DSN is set (env or worker/.env) — otherwise every
+# Sentry.capture_exception call below is a documented no-op. (Plain Ruby here,
+# no ActiveSupport — hence the manual empty? check instead of #present?.)
+if !ENV["SENTRY_DSN"].to_s.empty?
+  Sentry.init do |config|
+    config.dsn = ENV["SENTRY_DSN"]
+    config.traces_sample_rate = 0.1
+  end
+end
 
 # ── Configuration ───────────────────────────────────────────────────────────
 class Config
@@ -185,6 +196,7 @@ class RetryableHTTP
     begin
       yield
     rescue Net::ReadTimeout, Net::OpenTimeout, Errno::ECONNRESET, Errno::EPIPE => e
+      Sentry.capture_exception(e)
       retries += 1
       raise if retries > max_retries
       sleep(0.5 * retries)
@@ -208,6 +220,7 @@ def fetch_ollama_models(base_url)
     .reject(&:empty?)
 rescue StandardError => e
   error("Failed to fetch models from #{base_url}: #{e.message}")
+  Sentry.capture_exception(e)
   []
 end
 
@@ -293,7 +306,8 @@ def claim_and_run(worker_id:)
   STATE.finish_task(status: "completed", worker_id: worker_id)
   true
 
-rescue Interrupt
+rescue Interrupt => e
+  Sentry.capture_exception(e)
   task_id = task&.dig("id")
   reason = $shutdown_reason || "unknown interrupt"
   if task_id
@@ -304,8 +318,9 @@ rescue Interrupt
         { error: "Worker interrupted: #{reason}" },
         { "Authorization" => "Bearer #{CONFIG.worker_api_token}" }
       )
-    rescue StandardError
+    rescue StandardError => report_error
       # best effort — app may be unreachable during shutdown
+      Sentry.capture_exception(report_error)
     end
     STATE.finish_task(status: "failed", worker_id: worker_id, error: "Interrupted: #{reason}")
   else
@@ -315,14 +330,16 @@ rescue Interrupt
 
 rescue StandardError => e
   error("Task ##{task&.dig('id')} failed: #{e.message}")
+  Sentry.capture_exception(e)
   begin
     HTTP.post(
       URI("#{CONFIG.app_url}/api/tasks/#{task['id']}/fail"),
       { error: e.message },
       { "Authorization" => "Bearer #{CONFIG.worker_api_token}" }
     )
-  rescue StandardError
+  rescue StandardError => report_error
     # best effort
+    Sentry.capture_exception(report_error)
   end
   STATE.finish_task(status: "failed", worker_id: worker_id, error: e.message)
   false
@@ -610,10 +627,12 @@ def handle_status_request(client)
   end
 rescue StandardError => e
   error("Status server error: #{e.class}: #{e.message}")
+  Sentry.capture_exception(e)
 ensure
   begin
     client&.close
-  rescue StandardError
+  rescue StandardError => close_error
+    Sentry.capture_exception(close_error)
     nil
   end
 end
@@ -627,11 +646,13 @@ def start_status_server
         handle_status_request(server.accept)
       rescue StandardError => e
         error("Status accept error: #{e.class}: #{e.message}")
+        Sentry.capture_exception(e)
       end
     end
   end
 rescue StandardError => e
   warn("Could not start status server on #{CONFIG.status_bind}:#{CONFIG.status_port}: #{e.message}")
+  Sentry.capture_exception(e)
   nil
 end
 
@@ -647,7 +668,7 @@ def trigger_shutdown(reason:)
   # LOG_MUTEX must not be used here — signal traps cannot acquire mutexes
   $stdout.puts "[#{Time.now.strftime('%H:%M:%S')}][main][WARN] Shutdown triggered: #{reason}"
   $stdout.flush
-  $worker_threads.each { |t| t.raise(Interrupt) rescue nil }
+  $worker_threads.each { |t| t.raise(Interrupt) rescue Sentry.capture_exception($!) }
 end
 
 trap("INT")  { trigger_shutdown(reason: "SIGINT (Ctrl-C)") }
@@ -675,10 +696,12 @@ $worker_threads = CONFIG.concurrency.times.map do |i|
       begin
         did_work = claim_and_run(worker_id: worker_id)
         interruptible_sleep(CONFIG.poll_interval) unless did_work
-      rescue Interrupt
+      rescue Interrupt => e
+        Sentry.capture_exception(e)
         stop_reason = $shutdown_reason || "Interrupt signal"
         break
       rescue StandardError => e
+        Sentry.capture_exception(e)
         if $shutdown
           stop_reason = "#{$shutdown_reason || 'shutdown'} (interrupted during #{e.class})"
           break

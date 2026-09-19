@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_16_000002) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_19_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -49,6 +49,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_000002) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "source", default: "bbc", null: false
+    t.integer "fetch_hour"
+    t.datetime "last_scheduled_fetch_at"
     t.index ["url"], name: "index_feeds_on_url", unique: true
   end
 
@@ -140,8 +142,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_000002) do
     t.binary "payload", limit: 536870912, null: false
     t.datetime "created_at", null: false
     t.integer "channel_hash", limit: 8, null: false
-    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
     t.index ["channel"], name: "index_solid_cable_messages_on_channel"
+    t.index ["channel_hash"], name: "index_solid_cable_messages_on_channel_hash"
     t.index ["created_at"], name: "index_solid_cable_messages_on_created_at"
   end
 
@@ -215,7 +217,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_16_000002) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["telegram_channel_id"], name: "index_telegram_posts_on_telegram_channel_id"
-    t.index ["translation_id", "telegram_channel_id"], name: "index_telegram_posts_on_translation_and_channel", unique: true
     t.index ["translation_id"], name: "index_telegram_posts_on_translation_id"
   end
 

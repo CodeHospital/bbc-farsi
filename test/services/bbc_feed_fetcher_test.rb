@@ -54,6 +54,27 @@ class BbcFeedFetcherTest < ActiveSupport::TestCase
     assert_equal [], results
   end
 
+  test "reports a swallowed HTTP error to Sentry" do
+    stub_request(:get, @feed.url).to_raise(StandardError.new("timeout"))
+
+    captured = nil
+    Sentry.stub(:capture_exception, ->(e) { captured = e }) { @fetcher.fetch(@feed) }
+
+    assert_kind_of StandardError, captured
+    assert_equal "timeout", captured.message
+  end
+
+  test "reports a disallowed host ArgumentError to Sentry before re-raising" do
+    @feed.url = "https://evil.example.com/rss.xml"
+
+    captured = nil
+    Sentry.stub(:capture_exception, ->(e) { captured = e }) do
+      assert_raises(ArgumentError) { @fetcher.fetch(@feed) }
+    end
+
+    assert_kind_of ArgumentError, captured
+  end
+
   test "fetch_with_report includes every entry, tagging ignored ones with a reason" do
     stub_request(:get, @feed.url).to_return(body: VALID_RSS, headers: { "Content-Type" => "application/rss+xml" })
 

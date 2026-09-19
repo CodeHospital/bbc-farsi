@@ -1,19 +1,26 @@
 # Periodic, Ollama-free work that used to run on the Solid Queue cron schedule.
 # Now driven by an external scheduler (e.g. system cron) calling these tasks.
 #
-#   bin/rails bbc:fetch          # pull enabled RSS feeds, enqueue rewrite tasks
-#   bin/rails bbc:autopost       # post active translations to autopost channels
-#   bin/rails bbc:reclaim_stale  # return timed-out claimed tasks to the queue
+#   bin/rails bbc:fetch            # pull every enabled RSS feed now
+#   bin/rails bbc:fetch_scheduled  # pull only feeds scheduled for this hour
+#   bin/rails bbc:autopost         # post active translations to autopost channels
+#   bin/rails bbc:reclaim_stale    # return timed-out claimed tasks to the queue
 #
 # Example crontab:
-#   */30 * * * *  cd /path/to/app && bin/rails bbc:fetch         >> log/cron.log 2>&1
-#   */5  * * * *  cd /path/to/app && bin/rails bbc:autopost      >> log/cron.log 2>&1
-#   */10 * * * *  cd /path/to/app && bin/rails bbc:reclaim_stale >> log/cron.log 2>&1
+#   0    * * * *  cd /path/to/app && bin/rails bbc:fetch_scheduled >> log/cron.log 2>&1
+#   */5  * * * *  cd /path/to/app && bin/rails bbc:autopost        >> log/cron.log 2>&1
+#   */10 * * * *  cd /path/to/app && bin/rails bbc:reclaim_stale   >> log/cron.log 2>&1
 namespace :bbc do
   desc "Fetch enabled RSS feeds and enqueue a rewrite task per new article"
   task fetch: :environment do
     count = FeedIngestor.run
     puts "Ingested #{count} new article(s)."
+  end
+
+  desc "Fetch only the enabled feeds scheduled for the current hour (run hourly from cron)"
+  task fetch_scheduled: :environment do
+    result = FeedIngestor.run_scheduled
+    puts "Fetched #{result[:feed_count]} scheduled feed(s), ingested #{result[:new_count]} new article(s)."
   end
 
   desc "Post active, completed translations to autopost channels"

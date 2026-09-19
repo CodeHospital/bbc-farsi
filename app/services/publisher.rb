@@ -81,6 +81,7 @@ class Publisher
     translation.article.update!(status: "posted")
     Result.new(success?: true, message: "Posted to #{post.telegram_channel.name}.", post:)
   rescue StandardError => e
+    Sentry.capture_exception(e)
     post.update!(status: "error", error_message: e.message)
     Result.new(success?: false, message: "Posting failed: #{e.message}", post:)
   end
@@ -94,7 +95,8 @@ class Publisher
     return existing.tap { |p| p.update!(status: "pending") } if existing # status was "error"
 
     TelegramPost.create!(translation:, telegram_channel: channel, status: "pending")
-  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+    Sentry.capture_exception(e)
     nil
   end
 end

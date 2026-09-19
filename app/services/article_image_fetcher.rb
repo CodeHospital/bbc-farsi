@@ -66,6 +66,7 @@ class ArticleImageFetcher
     html[OG_IMAGE_RE, 1] || html[OG_IMAGE_ALT, 1]
   rescue StandardError => e
     Rails.logger.warn "ArticleImageFetcher failed for article #{@article.id} (#{@article.url}): #{e.message}"
+    Sentry.capture_exception(e)
     nil
   end
 end

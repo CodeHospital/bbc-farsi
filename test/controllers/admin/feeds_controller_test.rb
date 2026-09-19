@@ -56,6 +56,82 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match @feed.name, response.body
   end
 
+  test "the edit form offers a disable option plus all 24 hours" do
+    get edit_admin_feed_path(@feed)
+    assert_response :success
+    assert_select "select[name=?]", "feed[fetch_hour]" do
+      assert_select "option", count: Feed::FETCH_HOURS.size + 1 # 24 hours + "Disabled"
+      assert_select "option[value='']"
+      assert_select "option[value='0']", "00:00"
+      assert_select "option[value='23']", "23:00"
+    end
+  end
+
+  test "sets a feed's scheduled fetch hour" do
+    patch admin_feed_path(@feed), params: { feed: { name: @feed.name, url: @feed.url, category: @feed.category,
+                                                    source: @feed.source, fetch_hour: "8" } }
+    assert_response :redirect
+    assert_equal 8, @feed.reload.fetch_hour
+  end
+
+  test "a blank fetch hour disables the schedule" do
+    @feed.update!(fetch_hour: 8)
+
+    patch admin_feed_path(@feed), params: { feed: { name: @feed.name, url: @feed.url, category: @feed.category,
+                                                    source: @feed.source, fetch_hour: "" } }
+    assert_response :redirect
+    assert_nil @feed.reload.fetch_hour
+  end
+
+  test "sets the fetch hour inline from the index row" do
+    patch schedule_admin_feed_path(@feed), params: { fetch_hour: "8" }
+    assert_response :redirect
+    assert_equal 8, @feed.reload.fetch_hour
+  end
+
+  test "clears the fetch hour inline with a blank value" do
+    @feed.update!(fetch_hour: 8)
+    patch schedule_admin_feed_path(@feed), params: { fetch_hour: "" }
+    assert_response :redirect
+    assert_nil @feed.reload.fetch_hour
+  end
+
+  test "inline schedule change replaces just the row via turbo stream" do
+    patch schedule_admin_feed_path(@feed), params: { fetch_hour: "8" }, as: :turbo_stream
+    assert_response :success
+    assert_equal Mime[:turbo_stream], response.media_type
+    assert_equal 8, @feed.reload.fetch_hour
+    assert_match "replace", response.body
+    assert_match ActionView::RecordIdentifier.dom_id(@feed), response.body
+  end
+
+  test "an out-of-range inline fetch hour leaves the schedule unchanged" do
+    @feed.update!(fetch_hour: 8)
+    patch schedule_admin_feed_path(@feed), params: { fetch_hour: "99" }
+    assert_response :redirect
+    assert_equal 8, @feed.reload.fetch_hour
+  end
+
+  test "the index row renders an inline schedule selector" do
+    get admin_feeds_path
+    assert_response :success
+    assert_select "form[action=?]", schedule_admin_feed_path(@feed) do
+      assert_select "select[name=?]", "fetch_hour" do
+        assert_select "option", count: Feed::FETCH_HOURS.size + 1 # 24 hours + "Disabled"
+      end
+    end
+  end
+
+  test "a turbo stream row re-render keeps the feed's posted count" do
+    translation = create_translation(rewrite: create_rewrite(article: create_article(feed: @feed)))
+    TelegramPost.create!(translation:, telegram_channel: create_channel,
+                         status: "posted", posted_at: Time.current)
+
+    patch schedule_admin_feed_path(@feed), params: { fetch_hour: "8" }, as: :turbo_stream
+    assert_response :success
+    assert_match "100%", response.body
+  end
+
   test "seeds Ad Hoc News feeds" do
     assert_difference("Feed.count", Feed::ADHOCNEWS_FEEDS.size) do
       post seed_admin_feeds_path(source: "adhocnews")

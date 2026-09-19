@@ -5,11 +5,12 @@ app no longer talks to Ollama itself — it only enqueues **tasks**. This worker
 (which has access to Ollama) claims tasks over a protected API, runs them
 against Ollama, and posts the results back.
 
-The worker is a standalone Bundler app (`worker/Gemfile`). Its only external
-dependency is the `dotenv` gem for `.env` loading; all HTTP work uses the Ruby
-standard library. It runs anywhere Ruby 3.3+ is installed — including the
-machine that hosts Ollama, which may be different from the one running the Rails
-app.
+The worker is a standalone Bundler app (`worker/Gemfile`). Its external
+dependencies are the `dotenv` gem for `.env` loading and `sentry-ruby` for
+error reporting (inert unless `SENTRY_DSN` is set — see below); all HTTP work
+uses the Ruby standard library. It runs anywhere Ruby 3.3+ is installed —
+including the machine that hosts Ollama, which may be different from the one
+running the Rails app.
 
 ## How it works
 
@@ -48,6 +49,7 @@ hung worker.
 | `OLLAMA_TIMEOUT`   | `600`                    | HTTP read timeout (seconds) for Ollama calls. |
 | `STATUS_PORT`      | `4567`                   | Port for the built-in status page. |
 | `STATUS_BIND`      | `0.0.0.0`                | Address the status page binds to. |
+| `SENTRY_DSN`        | — (optional)             | Error tracking. Unset (the default) means every `Sentry.capture_exception` call in the worker is a documented no-op — nothing is sent anywhere. |
 
 Configuration can also live in a `.env` file next to `worker.rb` (one
 `KEY=value` per line; `#` comments and an optional `export` prefix are allowed).

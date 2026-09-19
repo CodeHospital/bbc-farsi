@@ -4,17 +4,7 @@ require "json"
 class ArticleView < ApplicationRecord
   belongs_to :article
 
-  CF_COUNTRY_HEADER   = "HTTP_CF_IPCOUNTRY"
-  CF_FRONT_HEADER     = "HTTP_CLOUDFRONT_VIEWER_COUNTRY"
-  GENERIC_COUNTRY_HDR = "HTTP_X_COUNTRY_CODE"
-  LOCAL_IPS           = %w[127.0.0.1 ::1 localhost].freeze
-
-  GEO_URL     = Rails.application.credentials.dig(:geo_url)
-  GEO_TIMEOUT = { open: 2, read: 3 }.freeze
-
-  # Read at call-time so the value can be rotated without a restart.
-  # Set GEO_SECRET in .env (or server env) to override the default.
-  def self.geo_secret = Rails.application.credentials.dig(:geo_secret)
+  LOCAL_IPS = %w[127.0.0.1 ::1 localhost].freeze
 
   # Record a page-view event. Silently swallows errors so a missing migration
   # or DB hiccup never surfaces to the reader.
@@ -30,6 +20,7 @@ class ArticleView < ApplicationRecord
     )
   rescue => error
     Rails.logger.warn("[ArticleView] tracking failed: #{error.message}")
+    Sentry.capture_exception(error)
   end
 
   private_class_method def self.extract_location(request)
@@ -39,6 +30,7 @@ class ArticleView < ApplicationRecord
     geolocate_ip(ip)
   rescue => error
     Rails.logger.warn("[ArticleView] extract_location failed: #{error.message}")
+    Sentry.capture_exception(error)
     [ nil, nil ]
   end
 
@@ -55,12 +47,14 @@ class ArticleView < ApplicationRecord
     country, city = fetch_country_from_service(ip)
     IpGeolocation.create!(ip: ip, country_name: country, city_name: city, lookups_count: 1, last_used_at: Time.current)
     [ country.presence, city.presence ]
-  rescue ActiveRecord::RecordNotUnique
+  rescue ActiveRecord::RecordNotUnique => error
     # Another request cached this IP first — just read it back.
+    Sentry.capture_exception(error)
     cached = IpGeolocation.find_by(ip: ip)
     [ cached&.country_name.presence, cached&.city_name.presence ]
   rescue => error
     Rails.logger.warn("[ArticleView] geolocate_ip(#{ip}) failed: #{error.message}")
+    Sentry.capture_exception(error)
     [ nil, nil ]
   end
 
@@ -72,8 +66,8 @@ class ArticleView < ApplicationRecord
     location_data = JSON.parse(response)
     return [ nil, nil ] unless location_data["success"]
 
-    city = location_data["city"],
+    city = location_data["city"]
     country = location_data["country"]
-    return country, city
+    [ country, city ]
   end
 end

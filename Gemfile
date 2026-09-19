@@ -32,6 +32,12 @@ gem "telegram-bot-ruby", "~> 2.4"
 # Env vars
 gem "dotenv-rails", "~> 2.8"
 
+# Error tracking — reports every rescued exception (not just ones that bubble
+# up unhandled) to Sentry. Inert until SentryConfig.dsn is set (see
+# config/initializers/sentry.rb).
+gem "sentry-ruby"
+gem "sentry-rails"
+
 # Pagination
 gem "pagy", "~> 43.5"
 

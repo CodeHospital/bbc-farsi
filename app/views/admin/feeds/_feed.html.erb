@@ -5,7 +5,11 @@
   <span class="badge bg-secondary"><%= feed.category %></span>
   <br />
   <span class="badge bg-info text-dark"><%= feed.source %></span></td>
-  <td><small class="text-muted"><%= feed.url %></small></td>
+  <%# Scheme stripped and the cell clipped to keep long NYT/BBC feed paths from
+      dominating the row; the full URL stays in the title tooltip. %>
+  <td class="text-truncate" style="max-width: 220px;">
+    <small class="text-muted" title="<%= feed.url %>"><%= feed.url.sub(%r{\Ahttps?://}, "") %></small>
+  </td>
   <% articles_count = feed.articles.count %>
   <td data-sort-value="<%= articles_count %>">
     <%= link_to articles_count, admin_articles_path(feed_id: feed.id) %>
@@ -16,6 +20,22 @@
   <td data-sort-value="<%= posted_percentage %>">
     <% unless articles_count.zero? %>
       <span class="badge bg-primary"><%= posted_percentage.round %>%</span>
+    <% end %>
+  </td>
+  <%# Unscheduled feeds sort after every scheduled hour (0-23). %>
+  <td data-sort-value="<%= feed.fetch_hour || 99 %>">
+    <%= form_with url: schedule_admin_feed_path(feed), method: :patch, class: "d-inline" do %>
+      <%= select_tag :fetch_hour,
+            options_for_select(
+              [ [ "Disabled", "" ] ] + Feed::FETCH_HOURS.map { |hour| [ format("%02d:00", hour), hour ] },
+              feed.fetch_hour
+            ),
+            onchange: "this.form.requestSubmit()",
+            class: "form-select form-select-sm", style: "width: auto;",
+            aria: { label: "Scheduled fetch hour for #{feed.name}" } %>
+    <% end %>
+    <% if feed.last_scheduled_fetch_at %>
+      <small class="text-muted d-block"><%= time_ago_in_words(feed.last_scheduled_fetch_at) %> ago</small>
     <% end %>
   </td>
   <td data-sort-value="<%= feed.enabled? ? 1 : 0 %>">

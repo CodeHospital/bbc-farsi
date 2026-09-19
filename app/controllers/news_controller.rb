@@ -221,7 +221,8 @@ class NewsController < ApplicationController
 
   # `load_chrome` (nav/sidebar data) has already run by the time any action
   # raises RecordNotFound, so the 404 view renders with the full site chrome.
-  def render_story_not_found
+  def render_story_not_found(exception)
+    Sentry.capture_exception(exception)
     render "news/not_found", status: :not_found
   end
 
@@ -317,6 +318,7 @@ class NewsController < ApplicationController
     rewrite_tasks.or(translation_tasks).update_all("priority = priority + 1")
   rescue => error
     Rails.logger.warn("[NewsController] priority bump failed: #{error.message}")
+    Sentry.capture_exception(error)
   end
 
   # Full-text search across the portal story pool (case-insensitive).

@@ -307,6 +307,7 @@ class Task < ApplicationRecord
     LlmarktSubmitter.submit_task(self)
   rescue StandardError => e
     Rails.logger.error("Task#submit_to_llmarkt task=#{id}: #{e.class}: #{e.message}")
+    Sentry.capture_exception(e)
   end
 
   # Runs after the primary result is already committed as "completed" (H-5),
@@ -319,6 +320,7 @@ class Task < ApplicationRecord
     Task.enqueue_translate(target, server:, model:) if server && model
   rescue StandardError => e
     Rails.logger.error "Chain translate after task #{id} failed: #{e.message}"
+    Sentry.capture_exception(e)
   end
 
   def chain_refine!
@@ -329,6 +331,7 @@ class Task < ApplicationRecord
     Task.enqueue_refine(target, server:, model:)
   rescue StandardError => e
     Rails.logger.error "Chain refine after task #{id} failed: #{e.message}"
+    Sentry.capture_exception(e)
   end
 
   def pick_translate_target
@@ -345,6 +348,7 @@ class Task < ApplicationRecord
     Autoposter.post_translation(target)
   rescue StandardError => e
     Rails.logger.error "Autopost after task #{id} failed: #{e.message}"
+    Sentry.capture_exception(e)
   end
 
   # DM an admin/editor via the Telegram admin bot with rewrite/retranslate/
@@ -356,6 +360,7 @@ class Task < ApplicationRecord
     TelegramAdminNotifier.notify(target)
   rescue StandardError => e
     Rails.logger.error "Admin bot notify after task #{id} failed: #{e.message}"
+    Sentry.capture_exception(e)
   end
 
   def broadcast_article_refresh
@@ -365,5 +370,6 @@ class Task < ApplicationRecord
     Turbo::StreamsChannel.broadcast_refresh_to("article_#{article.id}_tasks")
   rescue StandardError => e
     Rails.logger.error "ActionCable broadcast failed for task #{id}: #{e.message}"
+    Sentry.capture_exception(e)
   end
 end

@@ -175,6 +175,7 @@ class TelegramAdminNotifier
     )
   rescue StandardError => e
     Rails.logger.error "TelegramAdminNotifier#refresh_message failed: #{e.class}: #{e.message}"
+    Sentry.capture_exception(e)
   end
 
   def answer(callback_query, text)
@@ -183,6 +184,7 @@ class TelegramAdminNotifier
     )
   rescue StandardError => e
     Rails.logger.error "TelegramAdminNotifier#answer failed: #{e.class}: #{e.message}"
+    Sentry.capture_exception(e)
   end
 
   def main_menu(translation)

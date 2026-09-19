@@ -23,6 +23,7 @@ class Api::TasksController < Api::BaseController
     task.complete!(responses_param)
     render json: { id: task.id, status: task.status }
   rescue StandardError => e
+    Sentry.capture_exception(e)
     task&.fail!(e.message)
     render json: { error: e.message }, status: :unprocessable_entity
   end

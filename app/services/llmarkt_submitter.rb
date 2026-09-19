@@ -31,11 +31,13 @@ class LlmarktSubmitter
     true
   rescue StandardError => e
     Rails.logger.error("LlmarktSubmitter#submit_task task=#{task.id}: #{e.class}: #{e.message}")
+    Sentry.capture_exception(e)
     # Roll back to pending so the worker fallback can run this task.
     begin
       task.requeue!
     rescue StandardError => rollback_error
       Rails.logger.error("LlmarktSubmitter rollback failed task=#{task.id}: #{rollback_error.message}")
+      Sentry.capture_exception(rollback_error)
     end
     false
   end
@@ -126,6 +128,7 @@ class LlmarktSubmitter
     true
   rescue StandardError => e
     Rails.logger.error("LlmarktSubmitter#update_priority task=#{task.id}: #{e.class}: #{e.message}")
+    Sentry.capture_exception(e)
     false
   end
 
@@ -140,6 +143,7 @@ class LlmarktSubmitter
     true
   rescue StandardError => e
     Rails.logger.error("LlmarktSubmitter#retry_task task=#{task.id}: #{e.class}: #{e.message}")
+    Sentry.capture_exception(e)
     false
   end
 

@@ -228,9 +228,32 @@ requests/responses, and retry failed tasks.
 
 These need no Ollama access, so they stay in the app.
 
-**RSS fetch** has no built-in scheduler — drive it from the admin UI (the
-**Fetch now** button runs `bin/rails bbc:fetch` synchronously) or an external
-cron:
+**RSS fetch** can run on a per-feed hourly schedule, on demand, or both.
+
+Each feed has a **Scheduled fetch** setting (`/admin/feeds` → Edit): either
+*Disabled* (the default — the feed is never auto-fetched) or an hour of the
+day, `00:00`–`23:00`. Hours are **server-local** (the sweep compares against
+`Time.now.hour` on the machine running the app), so spreading feeds across the
+24 slots staggers the load round the clock instead of hammering every source at
+once. The Feeds index shows each feed's slot and when it was last auto-fetched.
+
+What actually runs the hourly sweep (`FeedIngestor.run_scheduled`):
+
+- **Built in, no setup needed**: `config/initializers/feed_fetch_scheduler.rb`
+  runs a background thread inside the app server (`bin/rails server`) that
+  polls every 5 minutes and fetches whatever is due.
+- **Optional external cron**, if you'd rather not rely on the in-process
+  thread. Safe to run alongside it — each feed is claimed with a conditional
+  `UPDATE` (`feeds.last_scheduled_fetch_at`), so a feed is fetched at most once
+  per hour slot no matter how many sweeps race:
+
+```cron
+0 * * * *  cd /path/to/app && bin/rails bbc:fetch_scheduled >> log/cron.log 2>&1
+```
+
+To fetch *everything* regardless of schedule, use the admin **Fetch now**
+button, the per-feed **Fetch** button, or `bin/rails bbc:fetch` (which ignores
+`fetch_hour` and pulls every enabled feed):
 
 ```cron
 */30 * * * *  cd /path/to/app && bin/rails bbc:fetch >> log/cron.log 2>&1
@@ -396,6 +419,26 @@ is off (see `config/initializers/action_mailer.rb`) — the forgot-password flow
 still runs end to end, it just doesn't actually send anything. In tests,
 `config/environments/test.rb` sets the `:test` delivery method, so specs
 assert against `ActionMailer::Base.deliveries` instead of hitting the network.
+
+---
+
+## Error Tracking (Sentry)
+
+Every `rescue` in the app — not just exceptions that go unhandled — reports to
+[Sentry](https://sentry.io) via `Sentry.capture_exception`, in addition to
+whatever the site already did (log, retry, fall back). This covers both the
+Rails app and the standalone worker (`worker/worker.rb`).
+
+1. Create a Sentry project and grab its DSN.
+2. Set `SENTRY_DSN` (env or, preferred, Rails credentials as `sentry_dsn`) —
+   see `app/services/sentry_config.rb`. For the worker, set `SENTRY_DSN` in
+   its own environment or `worker/.env` (see `worker/README.md`) — it does not
+   read Rails credentials.
+
+Without `SENTRY_DSN` configured anywhere, `Sentry.init` is never called
+(`config/initializers/sentry.rb` / the worker's own inline check), and every
+`Sentry.capture_exception` call throughout the app is a documented no-op — the
+app behaves exactly as it did before Sentry was added.
 
 ---
 

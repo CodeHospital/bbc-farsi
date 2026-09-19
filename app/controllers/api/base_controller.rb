@@ -17,7 +17,8 @@ class Api::BaseController < ActionController::API
     render json: { error: "unauthorized" }, status: :unauthorized
   end
 
-  def not_found
+  def not_found(exception)
+    Sentry.capture_exception(exception)
     render json: { error: "not found" }, status: :not_found
   end
 end
