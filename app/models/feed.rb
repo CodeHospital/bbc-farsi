@@ -2,6 +2,8 @@ class Feed < ApplicationRecord
   has_paper_trail
 
   has_many :articles, dependent: :destroy
+  belongs_to :autopost_telegram_channel, class_name: "TelegramChannel", optional: true,
+                                          inverse_of: :autoposting_feeds
 
   SOURCES = %w[bbc nyt adhocnews].freeze
 
@@ -14,9 +16,15 @@ class Feed < ApplicationRecord
   validates :category, presence: true
   validates :source, presence: true, inclusion: { in: SOURCES }
   validates :fetch_hour, inclusion: { in: FETCH_HOURS }, allow_nil: true
+  # belongs_to(optional: true) only validates presence-when-required, not that
+  # the id actually resolves — without this, a bogus id from the inline picker
+  # would hit the raw DB foreign-key constraint (an exception) instead of
+  # failing validation gracefully like an out-of-range fetch_hour does.
+  validates :autopost_telegram_channel_id, inclusion: { in: ->(_feed) { TelegramChannel.ids } }, allow_nil: true
 
   scope :enabled, -> { where(enabled: true) }
   scope :scheduled, -> { where.not(fetch_hour: nil) }
+  scope :autoposting, -> { where.not(autopost_telegram_channel_id: nil) }
 
   def title
     "#{name} (#{source.upcase})"
@@ -26,6 +34,20 @@ class Feed < ApplicationRecord
   # timezone conversion here — 8 means 08:00 on the machine running the app.
   def fetch_schedule_label
     fetch_hour ? format("%02d:00", fetch_hour) : "Disabled"
+  end
+
+  def autopost_channel_label
+    autopost_telegram_channel&.name || "Disabled"
+  end
+
+  # Whether Autoposter should actually deliver this feed's translations to its
+  # chosen channel — the channel must still be enabled AND have its own
+  # Autopost toggle on (deliberately a second gate: the feed says WHERE, the
+  # channel says whether it's currently accepting any autoposted content at
+  # all, e.g. to pause every feed's autopost to a channel without editing
+  # every feed). See Autoposter.
+  def autoposts?
+    autopost_telegram_channel.present? && autopost_telegram_channel.enabled? && autopost_telegram_channel.autopost?
   end
 
   BBC_FEEDS = {

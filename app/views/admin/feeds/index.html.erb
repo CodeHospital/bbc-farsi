@@ -94,12 +94,14 @@
       <th data-action="click->sortable-table#sort" data-sort-type="number">Posted</th>
       <th data-action="click->sortable-table#sort" data-sort-type="number">Posted %</th>
       <th data-action="click->sortable-table#sort" data-sort-type="number">Schedule</th>
+      <th data-action="click->sortable-table#sort">Autopost</th>
       <th data-action="click->sortable-table#sort" data-sort-type="number">Status</th>
       <th></th>
     </tr>
   </thead>
   <tbody>
     <%= render partial: "feed", collection: @feeds,
-          locals: { telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id } %>
+          locals: { telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id,
+                    telegram_channel_options: @telegram_channel_options } %>
   </tbody>
 </table>

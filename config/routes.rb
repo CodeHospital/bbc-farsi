@@ -12,7 +12,7 @@ Rails.application.routes.draw do
     resources :password_resets, only: %i[new create edit update], param: :token
 
     resources :feeds, only: %i[index new create edit update destroy] do
-      member     { patch :toggle; post :fetch; patch :schedule }
+      member     { patch :toggle; post :fetch; patch :schedule; patch :autopost_channel }
       collection { post :seed }
     end
 

@@ -1,6 +1,7 @@
 class Admin::FeedsController < Admin::BaseController
   before_action :require_admin!
-  before_action :set_feed, only: %i[edit update destroy toggle fetch schedule]
+  before_action :set_feed, only: %i[edit update destroy toggle fetch schedule autopost_channel]
+  before_action :set_telegram_channel_options, only: %i[index toggle fetch schedule autopost_channel]
 
   def index
     load_filtered_feeds
@@ -73,6 +74,21 @@ class Admin::FeedsController < Admin::BaseController
     end
   end
 
+  # Sets (or clears, on a blank value) a feed's autopost target channel
+  # straight from the index row. An unknown channel id just re-renders the
+  # unchanged row (belongs_to's default validation already rejects it).
+  def autopost_channel
+    @feed.reload unless @feed.update(autopost_telegram_channel_id: params[:autopost_telegram_channel_id].presence)
+    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    respond_to do |format|
+      format.turbo_stream
+      format.html do
+        redirect_back fallback_location: admin_feeds_path,
+                      notice: "#{@feed.name} autopost channel: #{@feed.autopost_channel_label}."
+      end
+    end
+  end
+
   # Fetches this one feed synchronously and reports new/updated/skipped
   # counts (with a reason for every skipped entry) right on the index page.
   def fetch
@@ -92,7 +108,13 @@ class Admin::FeedsController < Admin::BaseController
   private
 
   def set_feed = @feed = Feed.find(params[:id])
-  def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled, :fetch_hour)
+  def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled, :fetch_hour, :autopost_telegram_channel_id)
+
+  # Computed once per request instead of once per row — the inline autopost
+  # channel picker on every feed row needs the same [name, id] option list.
+  def set_telegram_channel_options
+    @telegram_channel_options = TelegramChannel.order(:name).pluck(:name, :id)
+  end
 
   def load_filtered_feeds
     @enabled_filter   = params[:enabled].presence || "enabled"
@@ -100,7 +122,7 @@ class Admin::FeedsController < Admin::BaseController
     @source_counts    = Feed.group(:source).count
     @category_counts  = Feed.group(:category).count
 
-    @feeds = filtered_feeds.order(:name)
+    @feeds = filtered_feeds.includes(:autopost_telegram_channel).order(:name)
     @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
   end
 

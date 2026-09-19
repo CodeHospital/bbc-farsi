@@ -259,6 +259,18 @@ button, the per-feed **Fetch** button, or `bin/rails bbc:fetch` (which ignores
 */30 * * * *  cd /path/to/app && bin/rails bbc:fetch >> log/cron.log 2>&1
 ```
 
+**Telegram autoposting is per-feed**: each feed has an **Autopost to**
+setting (`/admin/feeds` → Edit, or the inline picker on the index row) —
+either *Disabled* (the default) or one specific Telegram channel. Once a
+translation for that feed completes, `Autoposter.post_translation` queues it
+for that one channel only (no fan-out to every autopost-enabled channel).
+Delivery still requires the channel itself to be both `enabled` **and** have
+its own Autopost toggle on (`/admin/telegram_channels`) — a deliberate second
+gate, so a channel's autoposting can be paused without editing every feed
+pointed at it (`Feed#autoposts?`). The Feeds index flags a feed in red when
+its chosen channel isn't currently enabled/autoposting, so a misconfiguration
+doesn't fail silently.
+
 **Telegram posting** is queue-then-deliver, not instant, on every path —
 autopost, a completed translation task, the web admin's "📤 Post" button, and
 the Telegram admin bot's one-tap publish button all just *queue* a post

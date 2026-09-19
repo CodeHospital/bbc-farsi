@@ -132,6 +132,94 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_match "100%", response.body
   end
 
+  test "the edit form offers a disable option plus every existing channel" do
+    channel = create_channel(name: "News Channel")
+
+    get edit_admin_feed_path(@feed)
+    assert_response :success
+    assert_select "select[name=?]", "feed[autopost_telegram_channel_id]" do
+      assert_select "option", count: 2 # "Disabled" + the one channel
+      assert_select "option[value='']"
+      assert_select "option[value='#{channel.id}']", channel.name
+    end
+  end
+
+  test "sets a feed's autopost channel" do
+    channel = create_channel
+
+    patch admin_feed_path(@feed), params: { feed: { name: @feed.name, url: @feed.url, category: @feed.category,
+                                                    source: @feed.source, autopost_telegram_channel_id: channel.id } }
+    assert_response :redirect
+    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
+  end
+
+  test "a blank autopost channel disables autoposting for the feed" do
+    @feed.update!(autopost_telegram_channel: create_channel)
+
+    patch admin_feed_path(@feed), params: { feed: { name: @feed.name, url: @feed.url, category: @feed.category,
+                                                    source: @feed.source, autopost_telegram_channel_id: "" } }
+    assert_response :redirect
+    assert_nil @feed.reload.autopost_telegram_channel_id
+  end
+
+  test "sets the autopost channel inline from the index row" do
+    channel = create_channel
+
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: channel.id }
+    assert_response :redirect
+    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
+  end
+
+  test "clears the autopost channel inline with a blank value" do
+    @feed.update!(autopost_telegram_channel: create_channel)
+
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: "" }
+    assert_response :redirect
+    assert_nil @feed.reload.autopost_telegram_channel_id
+  end
+
+  test "inline autopost channel change replaces just the row via turbo stream" do
+    channel = create_channel
+
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: channel.id }, as: :turbo_stream
+    assert_response :success
+    assert_equal Mime[:turbo_stream], response.media_type
+    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
+    assert_match "replace", response.body
+    assert_match ActionView::RecordIdentifier.dom_id(@feed), response.body
+  end
+
+  test "a bogus inline autopost channel id leaves the setting unchanged" do
+    channel = create_channel
+    @feed.update!(autopost_telegram_channel: channel)
+
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: "999999" }
+    assert_response :redirect
+    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
+  end
+
+  test "the index row renders an inline autopost channel selector" do
+    channel = create_channel(name: "News Channel")
+
+    get admin_feeds_path
+    assert_response :success
+    assert_select "form[action=?]", autopost_channel_admin_feed_path(@feed) do
+      assert_select "select[name=?]", "autopost_telegram_channel_id" do
+        assert_select "option", count: 2 # "Disabled" + the one channel
+        assert_select "option[value='#{channel.id}']", channel.name
+      end
+    end
+  end
+
+  test "a feed pointed at a disabled or non-autoposting channel is flagged in the index row" do
+    channel = create_channel(autopost: false)
+    @feed.update!(autopost_telegram_channel: channel)
+
+    get admin_feeds_path
+    assert_response :success
+    assert_match "channel not enabled/autoposting", response.body
+  end
+
   test "seeds Ad Hoc News feeds" do
     assert_difference("Feed.count", Feed::ADHOCNEWS_FEEDS.size) do
       post seed_admin_feeds_path(source: "adhocnews")

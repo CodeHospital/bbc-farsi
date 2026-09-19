@@ -28,6 +28,17 @@
       Hour of day (server time) when cron auto-fetches this feed. Disabled by default.
     </div>
   </div>
+  <div class="mb-3">
+    <%= f.label :autopost_telegram_channel_id, "Autopost to", class: "form-label" %>
+    <%= f.collection_select :autopost_telegram_channel_id, TelegramChannel.order(:name), :id, :name,
+          { include_blank: "Disabled — never autoposted" },
+          class: "form-select" %>
+    <div class="form-text">
+      Telegram channel this feed's translations autopost to once a translation
+      completes. The channel must also be enabled with its own Autopost toggle
+      on for delivery to actually happen. Disabled by default.
+    </div>
+  </div>
   <div class="form-check mb-3">
     <%= f.check_box :enabled, class: "form-check-input" %>
     <%= f.label :enabled, class: "form-check-label" %>

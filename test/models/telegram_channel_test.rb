@@ -31,6 +31,15 @@ class TelegramChannelTest < ActiveSupport::TestCase
     assert_not_includes TelegramChannel.autopost, manual
   end
 
+  test "destroying a channel clears it from any feed pointed at it instead of being blocked by the FK" do
+    channel = create_channel
+    feed = create_feed(url: "https://feeds.bbci.co.uk/news/channel-destroy-test.rss", autopost_telegram_channel: channel)
+
+    channel.destroy!
+
+    assert_nil feed.reload.autopost_telegram_channel_id
+  end
+
   private
 
   def build_channel(attrs = {})

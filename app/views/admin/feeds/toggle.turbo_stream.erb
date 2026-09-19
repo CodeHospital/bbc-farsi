@@ -1,7 +1,8 @@
 <% if @feed_matches_filter %>
   <%= turbo_stream.replace dom_id(@feed) do %>
     <%= render "feed", feed: @feed,
-          telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id %>
+          telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id,
+          telegram_channel_options: @telegram_channel_options %>
   <% end %>
 <% else %>
   <%= turbo_stream.remove dom_id(@feed) %>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_19_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_19_010000) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -51,6 +51,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_19_000001) do
     t.string "source", default: "bbc", null: false
     t.integer "fetch_hour"
     t.datetime "last_scheduled_fetch_at"
+    t.integer "autopost_telegram_channel_id"
+    t.index ["autopost_telegram_channel_id"], name: "index_feeds_on_autopost_telegram_channel_id"
     t.index ["url"], name: "index_feeds_on_url", unique: true
   end
 
@@ -268,6 +270,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_19_000001) do
 
   add_foreign_key "article_views", "articles"
   add_foreign_key "articles", "feeds"
+  add_foreign_key "feeds", "telegram_channels", column: "autopost_telegram_channel_id"
   add_foreign_key "prompt_version_usages", "prompt_versions"
   add_foreign_key "prompt_version_usages", "tasks"
   add_foreign_key "prompt_versions", "prompts"

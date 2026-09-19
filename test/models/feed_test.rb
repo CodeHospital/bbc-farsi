@@ -120,6 +120,44 @@ class FeedTest < ActiveSupport::TestCase
     assert_not_includes Feed.scheduled, unscheduled
   end
 
+  test "autopost_telegram_channel_id is nil (disabled) by default" do
+    assert_nil Feed.new.autopost_telegram_channel_id
+    assert_equal "Disabled", Feed.new.autopost_channel_label
+  end
+
+  test "invalid with an autopost_telegram_channel_id that doesn't reference a real channel" do
+    assert_not build_feed(autopost_telegram_channel_id: 999_999).valid?
+  end
+
+  test "valid with an autopost_telegram_channel_id that references a real channel" do
+    channel = create_channel
+    assert build_feed(autopost_telegram_channel_id: channel.id).valid?
+  end
+
+  test "autopost_channel_label renders the channel name" do
+    channel = create_channel(name: "News Channel")
+    assert_equal "News Channel", build_feed(autopost_telegram_channel: channel).autopost_channel_label
+  end
+
+  test "autoposting scope returns only feeds with a channel set" do
+    channel = create_channel
+    autoposting  = create_feed(url: "https://feeds.bbci.co.uk/news/autoposting.rss", autopost_telegram_channel: channel)
+    not_autoposting = create_feed(url: "https://feeds.bbci.co.uk/news/not-autoposting.rss")
+    assert_includes Feed.autoposting, autoposting
+    assert_not_includes Feed.autoposting, not_autoposting
+  end
+
+  test "autoposts? requires a channel that is both enabled and has its own Autopost toggle on" do
+    enabled_and_autopost = create_channel(enabled: true, autopost: true)
+    disabled              = create_channel(enabled: false, autopost: true)
+    not_autopost          = create_channel(enabled: true, autopost: false)
+
+    assert build_feed(autopost_telegram_channel: enabled_and_autopost).autoposts?
+    assert_not build_feed(autopost_telegram_channel: disabled).autoposts?
+    assert_not build_feed(autopost_telegram_channel: not_autopost).autoposts?
+    assert_not build_feed(autopost_telegram_channel: nil).autoposts?
+  end
+
   test "defaults to bbc source" do
     assert_equal "bbc", Feed.new.source
   end
