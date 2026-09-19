@@ -6,21 +6,21 @@
   <br />
   <span class="badge bg-info text-dark"><%= feed.source %></span></td>
   <td><small class="text-muted"><%= feed.url %></small></td>
-  <td data-sort-value="<%= feed.articles.count %>">
-    <%= link_to feed.articles.count, admin_articles_path(feed_id: feed.id) %>
+  <% articles_count = feed.articles.count %>
+  <td data-sort-value="<%= articles_count %>">
+    <%= link_to articles_count, admin_articles_path(feed_id: feed.id) %>
   </td>
   <% telegram_posts_count = telegram_posts_counts_by_feed_id.fetch(feed.id, 0) %>
-  <td data-sort-value="<%= telegram_posts_count %>">
-    <% if feed.articles.empty? %>
-      0
-    <% else %>
-      <%= telegram_posts_count %>
-      <span class="badge bg-primary"><%= 100 * telegram_posts_count / feed.articles.count %>%</span>
+  <% posted_percentage = articles_count.zero? ? 0 : 100.0 * telegram_posts_count / articles_count %>
+  <td data-sort-value="<%= telegram_posts_count %>"><%= telegram_posts_count %></td>
+  <td data-sort-value="<%= posted_percentage %>">
+    <% unless articles_count.zero? %>
+      <span class="badge bg-primary"><%= posted_percentage.round %>%</span>
     <% end %>
   </td>
   <td data-sort-value="<%= feed.enabled? ? 1 : 0 %>">
     <%= button_to feed.enabled? ? "Disable" : "Enable",
-          toggle_admin_feed_path(feed), method: :patch,
+          toggle_admin_feed_path(feed, request.query_parameters.except("page")), method: :patch,
           class: "btn btn-sm #{feed.enabled? ? 'btn-success' : 'btn-outline-secondary'}" %>
   </td>
   <td>

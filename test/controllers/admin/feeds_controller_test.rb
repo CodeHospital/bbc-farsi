@@ -11,6 +11,51 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "defaults to showing only enabled feeds" do
+    disabled_feed = create_feed(name: "Disabled Feed", url: "https://www.bbc.co.uk/news/disabled.xml", enabled: false)
+
+    get admin_feeds_path
+    assert_response :success
+    assert_match @feed.name, response.body
+    assert_no_match disabled_feed.name, response.body
+  end
+
+  test "enabled=all shows both enabled and disabled feeds" do
+    disabled_feed = create_feed(name: "Disabled Feed", url: "https://www.bbc.co.uk/news/disabled.xml", enabled: false)
+
+    get admin_feeds_path(enabled: "all")
+    assert_response :success
+    assert_match @feed.name, response.body
+    assert_match disabled_feed.name, response.body
+  end
+
+  test "enabled=disabled shows only disabled feeds" do
+    disabled_feed = create_feed(name: "Disabled Feed", url: "https://www.bbc.co.uk/news/disabled.xml", enabled: false)
+
+    get admin_feeds_path(enabled: "disabled")
+    assert_response :success
+    assert_no_match @feed.name, response.body
+    assert_match disabled_feed.name, response.body
+  end
+
+  test "filters feeds by source" do
+    nyt_feed = create_feed(name: "NYT Feed", url: "https://rss.nytimes.com/services/xml/rss/nyt/test.xml", source: "nyt")
+
+    get admin_feeds_path(source: "nyt")
+    assert_response :success
+    assert_match nyt_feed.name, response.body
+    assert_no_match @feed.name, response.body
+  end
+
+  test "filters feeds by category" do
+    business_feed = create_feed(name: "Business Feed", url: "https://www.bbc.co.uk/news/business.xml", category: "business")
+
+    get admin_feeds_path(category: "business")
+    assert_response :success
+    assert_match business_feed.name, response.body
+    assert_no_match @feed.name, response.body
+  end
+
   test "seeds Ad Hoc News feeds" do
     assert_difference("Feed.count", Feed::ADHOCNEWS_FEEDS.size) do
       post seed_admin_feeds_path(source: "adhocnews")
@@ -28,11 +73,20 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
 
   test "toggles feed enabled state via turbo stream without a page redirect" do
     assert @feed.enabled
-    patch toggle_admin_feed_path(@feed), as: :turbo_stream
+    patch toggle_admin_feed_path(@feed, enabled: "all"), as: :turbo_stream
     assert_response :success
     assert_equal Mime[:turbo_stream], response.media_type
     assert_not @feed.reload.enabled
     assert_match "Enable", response.body
+    assert_match ActionView::RecordIdentifier.dom_id(@feed), response.body
+  end
+
+  test "disabling a feed removes it from the turbo stream when the default (enabled-only) filter is active" do
+    assert @feed.enabled
+    patch toggle_admin_feed_path(@feed), as: :turbo_stream
+    assert_response :success
+    assert_not @feed.reload.enabled
+    assert_match "remove", response.body
     assert_match ActionView::RecordIdentifier.dom_id(@feed), response.body
   end
 

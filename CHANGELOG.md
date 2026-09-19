@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Sort `/admin/feeds` by posted count and posted percentage independently
+
+- The single "Posted" column (which rendered a raw count plus a "%" badge but only exposed the raw count to the existing client-side `sortable-table` Stimulus controller) is now two columns: "Posted" (count) and "Posted %" (percentage of the feed's articles that have been posted to Telegram). Each has its own `data-sort-value` and its own clickable, independently-sortable header, so a feed can be sorted by either dimension.
+- `app/views/admin/feeds/_feed.html.erb`: `posted_percentage` is now computed once as a float (`100.0 * telegram_posts_count / articles_count`, guarded against a zero-article feed) and used both for the sort value and the rounded display badge; `feed.articles.count` is only queried once per row (previously queried twice — once for the Articles column link, once inline in the Posted badge calc).
+- No schema/migration/controller changes — purely a view-layer split of an existing derived value; sorting stays entirely client-side. 423 tests green.
+
+### Added — Filter feeds by source, category, and enabled state on `/admin/feeds`
+
+- `Admin::FeedsController#index` (and `#fetch`, which re-renders the same index) now accept `enabled`, `source`, and `category` query params. `enabled` defaults to `"enabled"` when absent, so the page shows only enabled feeds by default; `"disabled"` and `"all"` are the other two states. `source`/`category` filter to an exact match when present.
+- `app/views/admin/feeds/index.html.erb` gained a filter bar: Status toggle buttons (Enabled/Disabled/All, with counts) mirroring the app's existing toggle-filter style, a Source button group (reusing the shared `admin/shared/filter_group` partial, only rendered when more than one source exists), and a Category `<select>` dropdown (auto-submitting, since the feed catalog spans ~25 categories) — all preserve each other via query params.
+- The "Enable"/"Disable" turbo-stream toggle button now forwards the active filter query params, and `Admin::FeedsController#toggle` checks whether the just-toggled feed still matches that filter (`feed_matches_filter?`) — if not (e.g. disabling a feed while viewing "Enabled" only), the turbo-stream response removes the row instead of leaving a stale one in place.
+- No schema/migration changes. Added 6 controller tests (default enabled-only listing, `enabled=all`, `enabled=disabled`, source filter, category filter, turbo-stream row removal on filtered-out toggle); updated the existing turbo-stream toggle test to pass `enabled=all` since it asserts the row is replaced, not removed. 423 tests green, `rubocop` clean.
+
 ### Fixed — Telegram posts triggered via the Telegram admin bot (and the web admin "Post" button) were still sent instantly, bypassing the posting schedule
 
 - Root cause: the earlier `Autoposter` throttle (25-40 min between posts, see the entry below) only gated the `TelegramChannel.autopost` sweep/chain path — but the only configured channel in this app has `autopost: false`, so **every real Telegram post has always gone out through a human explicitly tapping "publish"**, either the Telegram admin bot's one-tap inline button (`TelegramAdminNotifier#post_to_channel`) or the web admin's "📤 Post" button (`Admin::TranslationsController#post_to_channel`) — both called `Publisher.post_to_channel`, which sent to Telegram synchronously and instantly. The previous fix never touched that path, so approving a backlog of stories in quick succession (tapping "publish" repeatedly in Telegram) still dumped them all onto the channel within seconds.

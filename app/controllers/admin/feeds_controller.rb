@@ -3,8 +3,7 @@ class Admin::FeedsController < Admin::BaseController
   before_action :set_feed, only: %i[edit update destroy toggle fetch]
 
   def index
-    @feeds = Feed.order(:name)
-    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    load_filtered_feeds
   end
 
   def new
@@ -49,6 +48,10 @@ class Admin::FeedsController < Admin::BaseController
 
   def toggle
     @feed.update!(enabled: !@feed.enabled)
+    # A feed toggled out of the currently active filter (e.g. disabling a feed
+    # while viewing "Enabled" only) should disappear from the turbo-stream
+    # response instead of lingering with a stale row.
+    @feed_matches_filter = feed_matches_filter?(@feed)
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to admin_feeds_path, notice: "Feed #{@feed.enabled? ? 'enabled' : 'disabled'}." }
@@ -59,8 +62,7 @@ class Admin::FeedsController < Admin::BaseController
   # counts (with a reason for every skipped entry) right on the index page.
   def fetch
     @fetch_result = FeedIngestor.run_one(@feed)
-    @feeds = Feed.order(:name)
-    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    load_filtered_feeds
 
     if @fetch_result[:error]
       flash.now[:alert] = "Fetch failed for #{@feed.name}: #{@fetch_result[:error]}"
@@ -76,6 +78,31 @@ class Admin::FeedsController < Admin::BaseController
 
   def set_feed = @feed = Feed.find(params[:id])
   def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled)
+
+  def load_filtered_feeds
+    @enabled_filter   = params[:enabled].presence || "enabled"
+    @enabled_counts   = Feed.group(:enabled).count
+    @source_counts    = Feed.group(:source).count
+    @category_counts  = Feed.group(:category).count
+
+    @feeds = filtered_feeds.order(:name)
+    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+  end
+
+  def filtered_feeds
+    enabled_filter = params[:enabled].presence || "enabled"
+
+    feeds = Feed.all
+    feeds = feeds.where(enabled: true)  if enabled_filter == "enabled"
+    feeds = feeds.where(enabled: false) if enabled_filter == "disabled"
+    feeds = feeds.where(source: params[:source])     if params[:source].present?
+    feeds = feeds.where(category: params[:category]) if params[:category].present?
+    feeds
+  end
+
+  def feed_matches_filter?(feed)
+    filtered_feeds.exists?(feed.id)
+  end
 
   # One grouped query for all feeds, instead of an N+1 count per row.
   def telegram_posts_counts_by_feed_id

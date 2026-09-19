@@ -1,3 +1,7 @@
-<%= turbo_stream.replace dom_id(@feed) do %>
-  <%= render "feed", feed: @feed %>
+<% if @feed_matches_filter %>
+  <%= turbo_stream.replace dom_id(@feed) do %>
+    <%= render "feed", feed: @feed %>
+  <% end %>
+<% else %>
+  <%= turbo_stream.remove dom_id(@feed) %>
 <% end %>
