@@ -179,9 +179,11 @@ class Admin::TranslationsControllerTest < ActionDispatch::IntegrationTest
 
   test "edits and saves a translation" do
     translation = translation_with(title: "Alpha", translated_title: "عنوان قدیمی", translated_body: "متن قدیمی")
+    stub_request(:get, translation.article.url).to_return(body: "<html><head></head></html>")
 
     get edit_admin_translation_path(translation)
     assert_response :success
+    assert_select "h5.card-title", text: "Alpha"
 
     patch admin_translation_path(translation), params: {
       translation: {

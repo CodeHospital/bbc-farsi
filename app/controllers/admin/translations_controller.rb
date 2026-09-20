@@ -40,7 +40,9 @@ class Admin::TranslationsController < Admin::BaseController
     @versions           = @translation.versions.order(created_at: :desc)
   end
 
-  def edit; end
+  def edit
+    @article_image_url = ArticleImageFetcher.call(@translation.article) if @translation.article
+  end
 
   def update
     if @translation.update(translation_params)

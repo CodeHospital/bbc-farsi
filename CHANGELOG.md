@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Original article preview on the translation edit page
+
+- `/admin/translations/:id/edit` now shows a "Original source" card above the edit form: the original article's title, description, and (when resolvable) its `og:image` thumbnail, plus a "View original article ↗" link to the source URL on BBC/NYT.
+- `Admin::TranslationsController#edit` resolves the thumbnail via the existing `ArticleImageFetcher.call(@translation.article)` (cached, SSRF-guarded — no new fetch logic added).
+- Test stubs the article's source URL with WebMock (same pattern already used in `news_controller_test.rb`) and asserts the original title renders. 473 tests green.
+
 ### Fixed — Admin feeds index: long feed URLs were clipped instead of readable
 
 - `app/views/admin/feeds/_feed.html.erb`: the URL column used Bootstrap's `text-truncate` (forces `white-space: nowrap` + ellipsis) with only a `title` tooltip to see the full value. Replaced with `word-break: break-all` on the cell's `<small>` so the scheme-stripped URL wraps across multiple lines within the column and is fully visible without hovering; the `max-width: 220px` and title tooltip stay as-is.

@@ -2,6 +2,26 @@
   <h2>Edit Translation</h2>
   <%= link_to "← Back", admin_translation_path(@translation), class: "btn btn-outline-secondary btn-sm" %>
 </div>
+<% if @translation.article %>
+  <div class="card mb-3">
+    <div class="card-header">Original source</div>
+    <div class="row g-0">
+      <% if @article_image_url.present? %>
+        <div class="col-md-3">
+          <%= image_tag @article_image_url, class: "img-fluid rounded-start", style: "object-fit: cover; height: 100%; width: 100%;" %>
+        </div>
+      <% end %>
+      <div class="col">
+        <div class="card-body">
+          <h5 class="card-title"><%= @translation.article.title %></h5>
+          <p class="card-text text-muted"><%= @translation.article.description %></p>
+          <%= link_to "View original article ↗", @translation.article.url, target: "_blank", rel: "noopener",
+                class: "btn btn-outline-secondary btn-sm" %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% end %>
 <div class="card mb-3 bg-light">
   <div class="card-body">
     <strong>Rewritten source:</strong> <%= @translation.rewrite&.content&.truncate(300) %>
