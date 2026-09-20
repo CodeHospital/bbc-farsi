@@ -76,6 +76,70 @@ class FeedIngestorTest < ActiveSupport::TestCase
     assert_equal [ adhocnews_feed.id ], seen_feed_ids
   end
 
+  test "routes heise feeds to HeiseFeedFetcher" do
+    heise_feed = create_feed(source: "heise", url: "https://www.heise.de/rss/test-#{SecureRandom.hex(6)}.xml")
+
+    bbc_fake = Object.new
+    bbc_fake.define_singleton_method(:fetch) { |_feed| [] }
+    heise_fake = Object.new
+    seen_feed_ids = []
+    heise_fake.define_singleton_method(:fetch) { |feed| seen_feed_ids << feed.id; [] }
+
+    BbcFeedFetcher.stub(:new, bbc_fake) do
+      HeiseFeedFetcher.stub(:new, heise_fake) { FeedIngestor.run }
+    end
+
+    assert_equal [ heise_feed.id ], seen_feed_ids
+  end
+
+  test "routes German News feeds to GermanNewsFeedFetcher" do
+    german_feed = create_feed(source: "germannews", url: "https://www.tagesschau.de/rss/test-#{SecureRandom.hex(6)}.xml")
+
+    bbc_fake = Object.new
+    bbc_fake.define_singleton_method(:fetch) { |_feed| [] }
+    german_fake = Object.new
+    seen_feed_ids = []
+    german_fake.define_singleton_method(:fetch) { |feed| seen_feed_ids << feed.id; [] }
+
+    BbcFeedFetcher.stub(:new, bbc_fake) do
+      GermanNewsFeedFetcher.stub(:new, german_fake) { FeedIngestor.run }
+    end
+
+    assert_equal [ german_feed.id ], seen_feed_ids
+  end
+
+  test "routes Australian News feeds to AustraliaNewsFeedFetcher" do
+    au_feed = create_feed(source: "australianews", url: "https://www.abc.net.au/news/test-#{SecureRandom.hex(6)}.xml")
+
+    bbc_fake = Object.new
+    bbc_fake.define_singleton_method(:fetch) { |_feed| [] }
+    au_fake = Object.new
+    seen_feed_ids = []
+    au_fake.define_singleton_method(:fetch) { |feed| seen_feed_ids << feed.id; [] }
+
+    BbcFeedFetcher.stub(:new, bbc_fake) do
+      AustraliaNewsFeedFetcher.stub(:new, au_fake) { FeedIngestor.run }
+    end
+
+    assert_equal [ au_feed.id ], seen_feed_ids
+  end
+
+  test "routes Israel News feeds to IsraelNewsFeedFetcher" do
+    il_feed = create_feed(source: "israelnews", url: "https://www.haaretz.com/test-#{SecureRandom.hex(6)}.xml")
+
+    bbc_fake = Object.new
+    bbc_fake.define_singleton_method(:fetch) { |_feed| [] }
+    il_fake = Object.new
+    seen_feed_ids = []
+    il_fake.define_singleton_method(:fetch) { |feed| seen_feed_ids << feed.id; [] }
+
+    BbcFeedFetcher.stub(:new, bbc_fake) do
+      IsraelNewsFeedFetcher.stub(:new, il_fake) { FeedIngestor.run }
+    end
+
+    assert_equal [ il_feed.id ], seen_feed_ids
+  end
+
   test "still ingests articles when no Ollama server is configured (no task)" do
     OllamaServer.delete_all
     new_articles = [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ]

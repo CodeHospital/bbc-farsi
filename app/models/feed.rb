@@ -5,7 +5,12 @@ class Feed < ApplicationRecord
   belongs_to :autopost_telegram_channel, class_name: "TelegramChannel", optional: true,
                                           inverse_of: :autoposting_feeds
 
-  SOURCES = %w[bbc nyt adhocnews].freeze
+  SOURCES = %w[bbc nyt adhocnews heise germannews australianews israelnews].freeze
+
+  # Sources that aggregate many different publishers under one `source`, so
+  # publisher metadata (name/domain/home page) can't be derived from `source`
+  # alone the way it can for bbc/nyt/adhocnews/heise. See #publisher_info.
+  MULTI_PUBLISHER_SOURCES = %w[germannews australianews israelnews].freeze
 
   # Hour-of-day slots a feed can be scheduled for. nil means "not scheduled",
   # which is the default — a feed is only auto-fetched once given an hour.
@@ -48,6 +53,18 @@ class Feed < ApplicationRecord
   # every feed). See Autoposter.
   def autoposts?
     autopost_telegram_channel.present? && autopost_telegram_channel.enabled? && autopost_telegram_channel.autopost?
+  end
+
+  def multi_publisher_source? = MULTI_PUBLISHER_SOURCES.include?(source)
+
+  # Publisher name/domain/home page for THIS feed, for sources that mix many
+  # publishers — nil for single-publisher sources (bbc/nyt/adhocnews/heise),
+  # where NewsHelper::SOURCE_INFO already answers by `source`. A feed an admin
+  # added by hand won't be in the catalog, so fall back to its own host.
+  def publisher_info
+    return nil unless multi_publisher_source?
+
+    self.class.const_get("#{source.upcase}_PUBLISHERS")[url] || derived_publisher_info
   end
 
   BBC_FEEDS = {
@@ -173,6 +190,212 @@ class Feed < ApplicationRecord
     "Corporate News" => { url: "https://www.ad-hoc-news.de/rss/corporate-news.xml",            category: "business" }
   }.freeze
 
+  # The heise.de feed catalog from https://www.heise.de/news-extern/news.html
+  # (the "Übersicht unserer Feeds" page, as of 2026-09-20). All of these are
+  # Atom, which Feedjira parses through the same interface as the BBC/NYT RSS.
+  # Telepolis is a heise-medien title and lives on its own host; TechStage's
+  # old techstage.de/rss.xml now redirects into heise.de/bestenlisten.feed, so
+  # the canonical heise.de URL is used here (FeedFetcher never follows
+  # redirects, so only canonical URLs work).
+  HEISE_FEEDS = {
+    "heise online"        => { url: "https://www.heise.de/rss/heise-atom.xml",                     category: "top" },
+    "Top-News"            => { url: "https://www.heise.de/rss/heise-top-atom.xml",                 category: "top" },
+    "IT"                  => { url: "https://www.heise.de/rss/heise-Rubrik-IT-atom.xml",           category: "technology" },
+    "Mobiles"             => { url: "https://www.heise.de/rss/heise-Rubrik-Mobiles-atom.xml",      category: "technology" },
+    "Netzpolitik"         => { url: "https://www.heise.de/rss/heise-Rubrik-Netzpolitik-atom.xml",  category: "politics" },
+    "Wirtschaft"          => { url: "https://www.heise.de/rss/heise-Rubrik-Wirtschaft-atom.xml",   category: "business" },
+    "Wissen"              => { url: "https://www.heise.de/rss/heise-Rubrik-Wissen-atom.xml",       category: "science" },
+    "Entertainment"       => { url: "https://www.heise.de/rss/heise-Rubrik-Entertainment-atom.xml", category: "arts" },
+    "Journal"             => { url: "https://www.heise.de/rss/heise-Rubrik-Journal-atom.xml",      category: "opinion" },
+    "heise Security"      => { url: "https://www.heise.de/security/feed.xml",                      category: "technology" },
+    "Security Alerts"     => { url: "https://www.heise.de/security/Alerts/feed.xml",               category: "technology" },
+    "heise Developer"     => { url: "https://www.heise.de/developer/feed.xml",                     category: "technology" },
+    "heise Download"      => { url: "https://www.heise.de/download/feed/top",                      category: "technology" },
+    "tipps+tricks"        => { url: "https://www.heise.de/tipps-tricks/feed.xml",                  category: "technology" },
+    "heise Autos"         => { url: "https://www.heise.de/autos/feed.xml",                         category: "autos" },
+    "c't Magazin"         => { url: "https://www.heise.de/ct/feed.xml",                            category: "technology" },
+    "c't Fotografie"      => { url: "https://www.heise.de/foto/feed.xml",                          category: "technology" },
+    "iX Magazin"          => { url: "https://www.heise.de/ix/feed.xml",                            category: "technology" },
+    "Mac & i"             => { url: "https://www.heise.de/mac-and-i/feed.xml",                     category: "technology" },
+    "Make Magazin"        => { url: "https://www.heise.de/make/feed.xml",                          category: "technology" },
+    "TechStage"           => { url: "https://www.heise.de/bestenlisten.feed",                      category: "technology" },
+    "Telepolis"           => { url: "https://www.telepolis.de/feed.xml",                           category: "politics" }
+  }.freeze
+
+  # Builds a { feed_url => { name:, domain:, url: } } publisher index for a
+  # multi-publisher catalog (see MULTI_PUBLISHER_SOURCES). Each entry's key is
+  # its Feed#name and doubles as its publisher's display name, unless the
+  # entry overrides that with `publisher:` — needed once a catalog holds
+  # several feeds from the *same* publisher (e.g. "tagesschau – Ausland" and
+  # "tagesschau – Wirtschaft" both attribute to publisher "tagesschau", not to
+  # their own section-qualified feed names).
+  def self.build_publisher_index(catalog)
+    catalog.to_h { |feed_name, attrs|
+      publisher_name = attrs[:publisher] || feed_name
+      [ attrs[:url], { name: publisher_name, domain: URI.parse(attrs[:site]).host.to_s.delete_prefix("www."), url: attrs[:site] } ]
+    }
+  end
+
+  # The German-language news catalog from https://rss.feedspot.com/german_news_rss_feeds/
+  # (as of 2026-09-20) plus the public-broadcaster feeds from
+  # https://www.tagesschau.de/infoservices/rssfeeds, https://www.swr.de,
+  # https://www.br.de/service/br-rss-feeds-100.html,
+  # https://www1.wdr.de/global/feeds100.html, and
+  # https://www.ndr.de/service/.../rssndr101.html (as of 2026-09-20). Unlike
+  # every other catalog here, each entry is a *different* publisher, so each
+  # one carries the `site:` its articles live on — that's what
+  # GERMANNEWS_PUBLISHERS turns into per-feed attribution on the public portal
+  # (see #publisher_info).
+  #
+  # Feedspot lists 57 outlets; these are the ones that actually serve a usable
+  # feed at a canonical URL. Left out, with the reason each was rejected when
+  # every URL was fetched on 2026-09-20:
+  #   - 21 entries (WELT, DW, Tagesspiegel, BILD, …) have no RSS feed on
+  #     Feedspot at all — they are "Generate RSS" scraper entries.
+  #   - General-Anzeiger + Rheinische Post: HTTP 402 (paywalled feed).
+  #   - Main-Post: HTTP 410 Gone. German Brief: connection times out.
+  #   - MunichNOW: /feed/ 301s to the homepage. Handelsblatt: only reachable
+  #     through an internal infrastructure host, not a stable public URL.
+  #   - The Local Germany: entry <link>s contain newlines, so every article
+  #     URL would be unusable.
+  #   - The Munich Eye: sitemap.rss is a whole-site sitemap (4 500+ entries),
+  #     not a news feed — one fetch would enqueue thousands of rewrite tasks.
+  GERMANNEWS_FEEDS = {
+    "tagesschau"              => { url: "https://www.tagesschau.de/infoservices/alle-meldungen-100~rss2.xml",           category: "top",      site: "https://www.tagesschau.de" },
+    "ZEIT ONLINE"             => { url: "https://newsfeed.zeit.de/index",                                                category: "top",      site: "https://www.zeit.de" },
+    "DER SPIEGEL"             => { url: "https://www.spiegel.de/international/index.rss",                                category: "top",      site: "https://www.spiegel.de" },
+    "Süddeutsche Zeitung"     => { url: "https://rss.sueddeutsche.de/rss/Topthemen",                                     category: "top",      site: "https://www.sueddeutsche.de" },
+    "Frankfurter Allgemeine"  => { url: "https://www.faz.net/rss/aktuell/",                                              category: "top",      site: "https://www.faz.net" },
+    "FOCUS online"            => { url: "https://www.focus.de/rss",                                                      category: "top",      site: "https://www.focus.de" },
+    "Stern"                   => { url: "https://www.stern.de/feed/standard/alle-nachrichten/",                          category: "top",      site: "https://www.stern.de" },
+    "t-online"                => { url: "https://www.t-online.de/feed.rss",                                              category: "top",      site: "https://www.t-online.de" },
+    "taz"                     => { url: "https://taz.de/!p4608;rss/",                                                    category: "top",      site: "https://taz.de" },
+    "deutschland.de"          => { url: "https://www.deutschland.de/en/feed-news/rss.xml",                               category: "top",      site: "https://www.deutschland.de" },
+    "Squirrel News"           => { url: "https://squirrel-news.net/feed/",                                               category: "top",      site: "https://squirrel-news.net" },
+
+    "junge Welt"              => { url: "https://www.jungewelt.de/feeds/newsticker.rss",                                 category: "politics", site: "https://www.jungewelt.de" },
+    "neues deutschland"       => { url: "https://www.nd-aktuell.de/rss/aktuell.php",                                     category: "politics", site: "https://www.nd-aktuell.de" },
+    "JUNGE FREIHEIT"          => { url: "https://jungefreiheit.de/feed/",                                                category: "politics", site: "https://jungefreiheit.de" },
+
+    "Kölner Stadt-Anzeiger"   => { url: "https://feed.ksta.de/feed/rss/index.rss",                                       category: "local",    site: "https://www.ksta.de" },
+    "Hamburger Morgenpost"    => { url: "https://www.mopo.de/index?lab_viewport=rss",                                    category: "local",    site: "https://www.mopo.de" },
+    "Abendzeitung München"    => { url: "https://www.abendzeitung-muenchen.de/storage/rss/rss/alle-artikel-abendzeitung.xml", category: "local", site: "https://www.abendzeitung-muenchen.de" },
+    "Kieler Nachrichten"      => { url: "https://www.kn-online.de/arc/outboundfeeds/rss/",                               category: "local",    site: "https://www.kn-online.de" },
+    "Hannoversche Allgemeine" => { url: "https://www.haz.de/arc/outboundfeeds/rss/",                                     category: "local",    site: "https://www.haz.de" },
+    "Lübecker Nachrichten"    => { url: "https://www.ln-online.de/arc/outboundfeeds/rss/",                               category: "local",    site: "https://www.ln-online.de" },
+    "Ostsee Zeitung"          => { url: "https://www.ostsee-zeitung.de/arc/outboundfeeds/rss/",                          category: "local",    site: "https://www.ostsee-zeitung.de" },
+    "Oberhessische Presse"    => { url: "https://www.op-marburg.de/arc/outboundfeeds/rss/",                              category: "local",    site: "https://www.op-marburg.de" },
+    "LVZ"                     => { url: "https://www.lvz.de/arc/outboundfeeds/rss/",                                     category: "local",    site: "https://www.lvz.de" },
+    "Münstersche Zeitung"     => { url: "https://www.muensterschezeitung.de/rss/feed/mz_lokales",                        category: "local",    site: "https://www.muensterschezeitung.de" },
+    "Ruhr Nachrichten"        => { url: "https://www.ruhrnachrichten.de/feed/",                                          category: "local",    site: "https://www.ruhrnachrichten.de" },
+    "Aachener Zeitung"        => { url: "https://www.aachener-zeitung.de/rss/",                                          category: "local",    site: "https://www.aachener-zeitung.de" },
+    "Freie Presse"            => { url: "https://www.freiepresse.de/chemnitz/feed.atom",                                 category: "local",    site: "https://www.freiepresse.de" },
+    "Stuttgart Journal"       => { url: "https://stuttgart-journal.de/tp3/feed/",                                        category: "local",    site: "https://stuttgart-journal.de" },
+
+    # Public-broadcaster feeds. Several sections per broadcaster, so each uses
+    # `publisher:` to attribute back to the broadcaster itself rather than to
+    # its section-qualified feed name (see .build_publisher_index above).
+    "tagesschau – Inland"       => { url: "https://www.tagesschau.de/inland/index~rss2.xml",          category: "politics", site: "https://www.tagesschau.de", publisher: "tagesschau" },
+    "tagesschau – Ausland"      => { url: "https://www.tagesschau.de/ausland/index~rss2.xml",         category: "world",    site: "https://www.tagesschau.de", publisher: "tagesschau" },
+    "tagesschau – Wirtschaft"   => { url: "https://www.tagesschau.de/wirtschaft/index~rss2.xml",      category: "business", site: "https://www.tagesschau.de", publisher: "tagesschau" },
+    "tagesschau – Wissen"       => { url: "https://www.tagesschau.de/wissen/index~rss2.xml",          category: "science",  site: "https://www.tagesschau.de", publisher: "tagesschau" },
+    "tagesschau – Investigativ" => { url: "https://www.tagesschau.de/investigativ/index~rss2.xml",    category: "top",      site: "https://www.tagesschau.de", publisher: "tagesschau" },
+    "tagesschau – Faktenfinder" => { url: "https://www.tagesschau.de/faktenfinder/index~rss2.xml",    category: "opinion",  site: "https://www.tagesschau.de", publisher: "tagesschau" },
+    "tagesschau – Regional"     => { url: "https://www.tagesschau.de/inland/regional/index~rss2.xml", category: "local",    site: "https://www.tagesschau.de", publisher: "tagesschau" },
+
+    "SWR Aktuell" => { url: "https://www.swr.de/~rss/swraktuell/index.xml", category: "local", site: "https://www.swr.de", publisher: "SWR" },
+
+    "BR24 Nachrichten" => { url: "https://www.br.de/nachrichten/meldungen/nachrichten-bayerischer-rundfunk100~newsRss.xml", category: "local", site: "https://www.br.de", publisher: "BR" },
+
+    "WDR – Übersicht"       => { url: "https://www1.wdr.de/uebersicht-100.feed",                                              category: "local",   site: "https://www1.wdr.de", publisher: "WDR" },
+    "WDR – Rheinland"       => { url: "https://www1.wdr.de/nrw/rheinland/uebersicht-rheinland-100.feed",                      category: "local",   site: "https://www1.wdr.de", publisher: "WDR" },
+    "WDR – Ruhrgebiet"      => { url: "https://www1.wdr.de/nrw/ruhrgebiet/uebersicht-ruhrgebiet-100.feed",                    category: "local",   site: "https://www1.wdr.de", publisher: "WDR" },
+    "WDR – Westfalen-Lippe" => { url: "https://www1.wdr.de/nrw/ostwestfalen-lippe/uebersicht-westfalen-lippe-100.feed",       category: "local",   site: "https://www1.wdr.de", publisher: "WDR" },
+    "WDR – Wissen"          => { url: "https://www1.wdr.de/wissen/uebersicht-nachrichten-100.feed",                           category: "science", site: "https://www1.wdr.de", publisher: "WDR" },
+    "WDR – Kultur"          => { url: "https://www1.wdr.de/kultur/uebersicht-kultur-100.feed",                                category: "arts",    site: "https://www1.wdr.de", publisher: "WDR" },
+
+    "NDR – Hamburg"                => { url: "https://www.ndr.de/nachrichten/hamburg/index~rss2.xml",                category: "local", site: "https://www.ndr.de", publisher: "NDR" },
+    "NDR – Niedersachsen"          => { url: "https://www.ndr.de/nachrichten/niedersachsen/index~rss2.xml",          category: "local", site: "https://www.ndr.de", publisher: "NDR" },
+    "NDR – Mecklenburg-Vorpommern" => { url: "https://www.ndr.de/nachrichten/mecklenburg-vorpommern/index~rss2.xml", category: "local", site: "https://www.ndr.de", publisher: "NDR" },
+    "NDR – Schleswig-Holstein"     => { url: "https://www.ndr.de/nachrichten/schleswig-holstein/index~rss2.xml",     category: "local", site: "https://www.ndr.de", publisher: "NDR" },
+    "NDR – Info"                   => { url: "https://www.ndr.de/nachrichten/info/index~rss2.xml",                   category: "top",    site: "https://www.ndr.de", publisher: "NDR" },
+    "NDR – Sport"                  => { url: "https://www.ndr.de/sport/index~rss2.xml",                              category: "sports", site: "https://www.ndr.de", publisher: "NDR" },
+    "NDR – Kultur"                 => { url: "https://www.ndr.de/kultur/index~rss2.xml",                             category: "arts",   site: "https://www.ndr.de", publisher: "NDR" }
+  }.freeze
+
+  # Publisher metadata per germannews feed URL — the same key seed_feeds!
+  # upserts on, so a seeded feed always finds its publisher.
+  GERMANNEWS_PUBLISHERS = build_publisher_index(GERMANNEWS_FEEDS).freeze
+
+  # The Australian news catalog from https://rss.feedspot.com/australian_news_rss_feeds/
+  # (as of 2026-09-20). Same multi-publisher shape as GERMANNEWS_FEEDS. Of the
+  # 45 listed outlets, these are the ones that (a) actually serve a working
+  # feed and (b) are a real news outlet rather than a syndication scraper,
+  # satire site, or content mill — checked by sampling each candidate feed's
+  # actual entries on 2026-09-20. Left out:
+  #   - News.com.au, 9News, Herald Sun, NT News: no working feed URL found —
+  #     the News Corp/Nine properties either 404 or bounce through a
+  #     cookie-check redirect FeedFetcher can't follow.
+  #   - Perth Herald / Sydney Sun ("feeds.perthherald.com" / "feeds.sydneysun.com"):
+  #     syndication-scraper feeds — entries are reposted wire copy (some
+  #     literally credited to abc.net.au) with mangled whitespace-padded
+  #     titles, not original publishing.
+  #   - Cairns News: real feed, but its actual content is conspiracy-adjacent
+  #     ("weapon", "globalists" in ordinary headlines) — excluded on quality,
+  #     not availability.
+  #   - 16 News, Independent Australia, IBTimes AU, Kalkine Media, The Shovel,
+  #     Tasmanian Times, Tech Business News, Australian Newsagency Blog,
+  #     Ozzie News: respectively an advocacy blog with editorializing
+  #     headlines, a polemic opinion outlet, a tabloid/clickbait aggregator, a
+  #     stock-promotion content mill, satire, and three sites returning
+  #     403/SSL errors.
+  AUSTRALIANEWS_FEEDS = {
+    "ABC News"                => { url: "https://www.abc.net.au/news/feed/2942460/rss.xml", category: "top",      site: "https://www.abc.net.au/news" },
+    "SBS News"                => { url: "https://www.sbs.com.au/news/feed",                 category: "top",      site: "https://www.sbs.com.au/news" },
+    "The Sydney Morning Herald" => { url: "https://www.smh.com.au/rss/feed.xml",             category: "top",      site: "https://www.smh.com.au" },
+    "The Age"                 => { url: "https://www.theage.com.au/rss/feed.xml",           category: "top",      site: "https://www.theage.com.au" },
+    "The Canberra Times"      => { url: "https://www.canberratimes.com.au/rss.xml",         category: "top",      site: "https://www.canberratimes.com.au" },
+    "Brisbane Times"          => { url: "https://www.brisbanetimes.com.au/rss/feed.xml",    category: "top",      site: "https://www.brisbanetimes.com.au" },
+    "WAtoday"                 => { url: "https://www.watoday.com.au/rss/feed.xml",          category: "top",      site: "https://www.watoday.com.au" },
+    "The West Australian"     => { url: "https://thewest.com.au/rss",                       category: "top",      site: "https://thewest.com.au" },
+    "PerthNow"                => { url: "https://www.perthnow.com.au/feed",                 category: "top",      site: "https://www.perthnow.com.au" },
+    "Business News"           => { url: "https://www.businessnews.com.au/rssfeed/latest.rss", category: "business", site: "https://www.businessnews.com.au" },
+    "Crikey"                  => { url: "https://www.crikey.com.au/feed/",                  category: "opinion",  site: "https://www.crikey.com.au" },
+    "The GC Minute"           => { url: "https://www.thegcminute.com.au/feed",              category: "local",    site: "https://www.thegcminute.com.au" },
+    "Werribee News"           => { url: "https://www.werribeenews.com.au/feed/",            category: "local",    site: "https://www.werribeenews.com.au" },
+    "Alice Springs News"      => { url: "https://www.alicespringsnews.com.au/feed",         category: "local",    site: "https://www.alicespringsnews.com.au" },
+    "Goulburn Post"           => { url: "https://www.goulburnpost.com.au/rss.xml",          category: "local",    site: "https://www.goulburnpost.com.au" }
+  }.freeze
+
+  AUSTRALIANEWS_PUBLISHERS = build_publisher_index(AUSTRALIANEWS_FEEDS).freeze
+
+  # The Israeli news catalog from https://rss.feedspot.com/israel_news_rss_feeds/
+  # (as of 2026-09-20). Kept deliberately small: of the 18 listed outlets,
+  # these 4 are the ones that (a) serve a working feed and (b) publish in
+  # English — every other translatable source in this app (BBC/NYT/Ad Hoc
+  # News/heise/German News) is English or German, and `Prompt` ships one
+  # "translate" prompt written and tuned specifically for
+  # English-to-Farsi (see db/seeds.rb / Prompt.seed_defaults!), so Hebrew or
+  # Russian input would go through a prompt that doesn't expect it. Left out:
+  #   - Davar, Hamodia, Maariv, Israel News Agency, DEBKAfile: feed
+  #     unreachable (403/404/SSL error) even after trying known alternate
+  #     URLs, including Davar's separate English edition.
+  #   - Cursorinfo, Vesty: working feeds, but both are Russian-language
+  #     editions (for Israel's Russian-speaking readership) — skipped for the
+  #     English-prompt reason above, not availability.
+  #   - The Jerusalem Post's Feedspot-listed URL 308-redirects (its path is
+  #     case-sensitive and Feedspot has it mis-cased); used the working
+  #     lowercase URL it redirects to instead, since FeedFetcher doesn't
+  #     follow redirects.
+  ISRAELNEWS_FEEDS = {
+    "Haaretz"               => { url: "https://www.haaretz.com/srv/haaretz-latest-headlines",                       category: "top",      site: "https://www.haaretz.com" },
+    "Globes"                => { url: "https://en.globes.co.il/WebService/Rss/RssFeeder.asmx/FeederNode?iID=942",   category: "business", site: "https://en.globes.co.il/en" },
+    "Israel National News"  => { url: "https://www.israelnationalnews.com/Rss.aspx",                                category: "top",      site: "https://www.israelnationalnews.com" },
+    "The Jerusalem Post"    => { url: "https://www.jpost.com/rss/rssfeedsfrontpage.aspx",                           category: "top",      site: "https://www.jpost.com" }
+  }.freeze
+
+  ISRAELNEWS_PUBLISHERS = build_publisher_index(ISRAELNEWS_FEEDS).freeze
+
   def self.seed_bbc_feeds!
     seed_feeds!(BBC_FEEDS, source: "bbc")
   end
@@ -184,6 +407,42 @@ class Feed < ApplicationRecord
   def self.seed_adhocnews_feeds!
     seed_feeds!(ADHOCNEWS_FEEDS, source: "adhocnews")
   end
+
+  def self.seed_heise_feeds!
+    seed_feeds!(HEISE_FEEDS, source: "heise")
+  end
+
+  def self.seed_germannews_feeds!
+    seed_feeds!(GERMANNEWS_FEEDS, source: "germannews")
+  end
+
+  def self.seed_australianews_feeds!
+    seed_feeds!(AUSTRALIANEWS_FEEDS, source: "australianews")
+  end
+
+  def self.seed_israelnews_feeds!
+    seed_feeds!(ISRAELNEWS_FEEDS, source: "israelnews")
+  end
+
+  # Every article-host domain across every multi-publisher catalog, with and
+  # without `www.` — used by ArticleImageFetcher to allow-list og:image
+  # lookups without hardcoding a per-source list that would drift from the
+  # catalogs above.
+  def self.all_catalogued_publisher_domains
+    MULTI_PUBLISHER_SOURCES.flat_map { |source| const_get("#{source.upcase}_PUBLISHERS").values }
+                            .flat_map { |publisher| [ publisher[:domain], "www.#{publisher[:domain]}" ] }
+                            .uniq
+  end
+
+  # Publisher for a germannews feed an admin added by hand, so it still gets a
+  # sensible "read the original on …" link instead of a blank domain.
+  def derived_publisher_info
+    host = URI.parse(url.to_s).host.to_s.delete_prefix("www.")
+    { name:, domain: host, url: host.present? ? "https://#{host}" : "" }
+  rescue URI::InvalidURIError
+    { name:, domain: "", url: "" }
+  end
+  private :derived_publisher_info
 
   def self.seed_feeds!(feed_definitions, source:)
     feed_definitions.each do |name, attrs|

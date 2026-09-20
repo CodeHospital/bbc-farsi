@@ -1,14 +1,26 @@
 # Resolves the main image for an article by reading the `og:image` meta tag
-# from its original source page (BBC or NYT). Result is cached (Rails.cache /
-# Solid Cache) so the source page is fetched at most once per article, and
-# only from allow-listed hosts (SSRF guard). Returns the image URL string, or nil.
+# from its original source page. Result is cached (Rails.cache / Solid Cache)
+# so the source page is fetched at most once per article, and only from
+# allow-listed hosts (SSRF guard). Returns the image URL string, or nil.
 #
 # No schema change: the image is looked up on demand at render time rather than
 # stored on the article.
 require "open-uri"
 
 class ArticleImageFetcher
-  ALLOWED_HOSTS = %w[www.bbc.com www.bbc.co.uk bbc.com bbc.co.uk www.nytimes.com nytimes.com].freeze
+  # Hosts ARTICLES live on — not the hosts their feeds live on, which often
+  # differ (ZEIT publishes newsfeed.zeit.de but links www.zeit.de). Every
+  # German publisher we ship a feed for is included, with and without `www.`,
+  # so their stories get a lead image like the BBC/NYT ones do.
+  ALLOWED_HOSTS = (
+    %w[
+      www.bbc.com www.bbc.co.uk bbc.com bbc.co.uk
+      www.nytimes.com nytimes.com
+      www.ad-hoc-news.de ad-hoc-news.de
+      www.heise.de heise.de www.telepolis.de telepolis.de
+    ] +
+    Feed.all_catalogued_publisher_domains
+  ).uniq.freeze
   CACHE_TTL     = 1.week
   READ_LIMIT    = 300_000 # bytes — enough to reach <head> meta tags
   OG_IMAGE_RE   = %r{<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']}i
@@ -56,7 +68,7 @@ class ArticleImageFetcher
   private
 
   def fetch_og_image
-    uri = URI.parse(@article.url.to_s)
+    uri = article_uri
     return unless uri.is_a?(URI::HTTP) && ALLOWED_HOSTS.include?(uri.host)
 
     html = URI.open(uri.to_s, # rubocop:disable Security/Open
@@ -68,5 +80,14 @@ class ArticleImageFetcher
     Rails.logger.warn "ArticleImageFetcher failed for article #{@article.id} (#{@article.url}): #{e.message}"
     Sentry.capture_exception(e)
     nil
+  end
+
+  # German publishers put umlauts straight in the path (junge Welt's
+  # /artikel/…böse-banden.html), which URI.parse rejects as non-ASCII. Escape
+  # and retry rather than treating those articles as having no image.
+  def article_uri
+    URI.parse(@article.url.to_s)
+  rescue URI::InvalidURIError
+    URI.parse(URI::DEFAULT_PARSER.escape(@article.url.to_s))
   end
 end

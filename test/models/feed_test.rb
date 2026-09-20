@@ -59,14 +59,128 @@ class FeedTest < ActiveSupport::TestCase
     assert_equal [ "adhocnews" ], Feed.pluck(:source).uniq
   end
 
-  test "seeding BBC, NYT, and Ad Hoc News feeds keeps them distinct" do
+  test "seed_heise_feeds! creates the heise catalog idempotently" do
+    Feed.seed_heise_feeds!
+    count_after_first = Feed.count
+    Feed.seed_heise_feeds!
+    assert_equal count_after_first, Feed.count, "seed is not idempotent"
+    assert_equal Feed::HEISE_FEEDS.size, count_after_first
+    assert_equal [ "heise" ], Feed.pluck(:source).uniq
+  end
+
+  test "seed_germannews_feeds! creates the German News catalog idempotently" do
+    Feed.seed_germannews_feeds!
+    count_after_first = Feed.count
+    Feed.seed_germannews_feeds!
+    assert_equal count_after_first, Feed.count, "seed is not idempotent"
+    assert_equal Feed::GERMANNEWS_FEEDS.size, count_after_first
+    assert_equal [ "germannews" ], Feed.pluck(:source).uniq
+  end
+
+  test "seeding every catalog keeps the sources distinct" do
     Feed.seed_bbc_feeds!
     Feed.seed_nyt_feeds!
     Feed.seed_adhocnews_feeds!
-    assert_equal Feed::BBC_FEEDS.size + Feed::NYT_FEEDS.size + Feed::ADHOCNEWS_FEEDS.size, Feed.count
-    assert_equal Feed::BBC_FEEDS.size, Feed.where(source: "bbc").count
-    assert_equal Feed::NYT_FEEDS.size, Feed.where(source: "nyt").count
-    assert_equal Feed::ADHOCNEWS_FEEDS.size, Feed.where(source: "adhocnews").count
+    Feed.seed_heise_feeds!
+    Feed.seed_germannews_feeds!
+    Feed.seed_australianews_feeds!
+    Feed.seed_israelnews_feeds!
+    catalogs = {
+      "bbc" => Feed::BBC_FEEDS, "nyt" => Feed::NYT_FEEDS, "adhocnews" => Feed::ADHOCNEWS_FEEDS,
+      "heise" => Feed::HEISE_FEEDS, "germannews" => Feed::GERMANNEWS_FEEDS,
+      "australianews" => Feed::AUSTRALIANEWS_FEEDS, "israelnews" => Feed::ISRAELNEWS_FEEDS
+    }
+    assert_equal catalogs.values.sum(&:size), Feed.count
+    catalogs.each { |source, catalog| assert_equal catalog.size, Feed.where(source:).count }
+  end
+
+  test "every heise feed url is unique and points at an allowed host" do
+    urls = Feed::HEISE_FEEDS.values.map { |attrs| attrs[:url] }
+    assert_equal urls.uniq.size, urls.size, "duplicate URLs in HEISE_FEEDS would silently no-op in seed_feeds!"
+
+    urls.each do |url|
+      host = URI.parse(url).host
+      assert_includes %w[www.heise.de www.telepolis.de], host, "#{url} is not on an allowed heise host"
+    end
+  end
+
+  test "every German News feed url is unique and carries publisher metadata" do
+    urls = Feed::GERMANNEWS_FEEDS.values.map { |attrs| attrs[:url] }
+    assert_equal urls.uniq.size, urls.size, "duplicate URLs in GERMANNEWS_FEEDS would silently no-op in seed_feeds!"
+
+    Feed::GERMANNEWS_FEEDS.each do |name, attrs|
+      publisher = Feed::GERMANNEWS_PUBLISHERS[attrs[:url]]
+      assert_equal attrs[:publisher] || name, publisher[:name]
+      assert_equal URI.parse(attrs[:site]).host.delete_prefix("www."), publisher[:domain]
+      assert publisher[:url].start_with?("https://"), "#{name} publisher url must be absolute"
+    end
+  end
+
+  test "a public broadcaster with several sections attributes them all to itself" do
+    Feed.seed_germannews_feeds!
+    inland = Feed.find_by(url: Feed::GERMANNEWS_FEEDS["tagesschau – Inland"][:url])
+    ausland = Feed.find_by(url: Feed::GERMANNEWS_FEEDS["tagesschau – Ausland"][:url])
+
+    assert_equal "tagesschau", inland.publisher_info[:name]
+    assert_equal "tagesschau", ausland.publisher_info[:name]
+    assert_equal inland.publisher_info, ausland.publisher_info
+  end
+
+  test "seed_australianews_feeds! creates the Australian News catalog idempotently" do
+    Feed.seed_australianews_feeds!
+    count_after_first = Feed.count
+    Feed.seed_australianews_feeds!
+    assert_equal count_after_first, Feed.count, "seed is not idempotent"
+    assert_equal Feed::AUSTRALIANEWS_FEEDS.size, count_after_first
+    assert_equal [ "australianews" ], Feed.pluck(:source).uniq
+  end
+
+  test "every Australian News feed url is unique and points at an allowed host" do
+    urls = Feed::AUSTRALIANEWS_FEEDS.values.map { |attrs| attrs[:url] }
+    assert_equal urls.uniq.size, urls.size, "duplicate URLs in AUSTRALIANEWS_FEEDS would silently no-op in seed_feeds!"
+
+    Feed::AUSTRALIANEWS_FEEDS.each do |name, attrs|
+      publisher = Feed::AUSTRALIANEWS_PUBLISHERS[attrs[:url]]
+      assert_equal name, publisher[:name]
+      assert publisher[:url].start_with?("https://"), "#{name} publisher url must be absolute"
+    end
+  end
+
+  test "seed_israelnews_feeds! creates the Israel News catalog idempotently" do
+    Feed.seed_israelnews_feeds!
+    count_after_first = Feed.count
+    Feed.seed_israelnews_feeds!
+    assert_equal count_after_first, Feed.count, "seed is not idempotent"
+    assert_equal Feed::ISRAELNEWS_FEEDS.size, count_after_first
+    assert_equal [ "israelnews" ], Feed.pluck(:source).uniq
+  end
+
+  test "every Israel News feed url is unique and carries publisher metadata" do
+    urls = Feed::ISRAELNEWS_FEEDS.values.map { |attrs| attrs[:url] }
+    assert_equal urls.uniq.size, urls.size, "duplicate URLs in ISRAELNEWS_FEEDS would silently no-op in seed_feeds!"
+
+    Feed::ISRAELNEWS_FEEDS.each do |name, attrs|
+      publisher = Feed::ISRAELNEWS_PUBLISHERS[attrs[:url]]
+      assert_equal name, publisher[:name]
+    end
+  end
+
+  test "publisher_info names the actual publisher for a catalogued German News feed" do
+    Feed.seed_germannews_feeds!
+    feed = Feed.find_by(url: Feed::GERMANNEWS_FEEDS["ZEIT ONLINE"][:url])
+
+    assert_equal({ name: "ZEIT ONLINE", domain: "zeit.de", url: "https://www.zeit.de" }, feed.publisher_info)
+  end
+
+  test "publisher_info falls back to the feed host for an admin-added German News feed" do
+    feed = build_feed(source: "germannews", name: "Neues Blatt", url: "https://www.beispiel.de/rss.xml")
+
+    assert_equal({ name: "Neues Blatt", domain: "beispiel.de", url: "https://beispiel.de" }, feed.publisher_info)
+  end
+
+  test "publisher_info is nil for single-publisher sources so SOURCE_INFO answers instead" do
+    assert_nil build_feed(source: "bbc").publisher_info
+    assert_nil build_feed(source: "heise", url: "https://www.heise.de/rss/heise-atom.xml").publisher_info
   end
 
   test "every NYT feed url is unique and points at an allowed host" do

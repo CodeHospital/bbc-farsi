@@ -36,9 +36,13 @@ class Admin::FeedsController < Admin::BaseController
   end
 
   SEED_METHODS = {
-    "bbc"       => [ :seed_bbc_feeds!, "BBC" ],
-    "nyt"       => [ :seed_nyt_feeds!, "NYT" ],
-    "adhocnews" => [ :seed_adhocnews_feeds!, "Ad Hoc News" ]
+    "bbc"        => [ :seed_bbc_feeds!, "BBC" ],
+    "nyt"        => [ :seed_nyt_feeds!, "NYT" ],
+    "adhocnews"  => [ :seed_adhocnews_feeds!, "Ad Hoc News" ],
+    "heise"      => [ :seed_heise_feeds!, "heise" ],
+    "germannews"    => [ :seed_germannews_feeds!, "German News" ],
+    "australianews" => [ :seed_australianews_feeds!, "Australian News" ],
+    "israelnews"    => [ :seed_israelnews_feeds!, "Israel News" ]
   }.freeze
 
   def seed

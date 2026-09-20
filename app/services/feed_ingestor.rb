@@ -6,9 +6,13 @@
 # needs no Ollama access, so it stays inside the Rails app.
 class FeedIngestor
   FETCHER_CLASSES = {
-    "bbc"       => BbcFeedFetcher,
-    "nyt"       => NytFeedFetcher,
-    "adhocnews" => AdhocnewsFeedFetcher
+    "bbc"        => BbcFeedFetcher,
+    "nyt"        => NytFeedFetcher,
+    "adhocnews"  => AdhocnewsFeedFetcher,
+    "heise"      => HeiseFeedFetcher,
+    "germannews"    => GermanNewsFeedFetcher,
+    "australianews" => AustraliaNewsFeedFetcher,
+    "israelnews"    => IsraelNewsFeedFetcher
   }.freeze
 
   # Attributes an existing Article is refreshed from when its feed entry

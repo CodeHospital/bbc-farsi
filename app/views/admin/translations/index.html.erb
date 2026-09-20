@@ -52,7 +52,9 @@
                 id: "translation_select_#{t.id}", form: "bulk_translations_form",
                 class: "form-check-input bulk-select", data: { bulk_group: "translations" } %>
         </td>
-        <td><small class="<%= 'posted-title' if t.article&.status == 'posted' %>"><%= t.article&.title&.truncate(50) %></small></td>
+        <td><small class="<%= 'posted-title' if t.article&.status == 'posted' %>">
+          <a href="<%= admin_translation_path(t) %>"><%= t.article&.title&.truncate(50) %></a>
+        </small></td>
         <td dir="rtl">
           <%= t.translated_title&.truncate(50) %>
           <% if t.needs_manual_edit? %><span class="badge bg-warning text-dark">Needs edit</span><% end %>
@@ -70,7 +72,7 @@
           <br />
           <small><%= t.updated_at.strftime("%b %d %H:%M") %></small></td>
         <td>
-          <%= link_to "View / Post", admin_translation_path(t), class: "btn btn-xs btn-outline-success" %>
+          <%= link_to "Edit", edit_admin_translation_path(t), class: "btn btn-xs btn-outline-success" %>
         </td>
       </tr>
     <% end %>

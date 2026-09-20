@@ -228,6 +228,38 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "adhocnews" ], Feed.where(source: "adhocnews").pluck(:source).uniq
   end
 
+  test "seeds heise feeds" do
+    assert_difference("Feed.count", Feed::HEISE_FEEDS.size) do
+      post seed_admin_feeds_path(source: "heise")
+    end
+    assert_response :redirect
+    assert_equal [ "heise" ], Feed.where(source: "heise").pluck(:source).uniq
+  end
+
+  test "seeds German News feeds" do
+    assert_difference("Feed.count", Feed::GERMANNEWS_FEEDS.size) do
+      post seed_admin_feeds_path(source: "germannews")
+    end
+    assert_response :redirect
+    assert_equal [ "germannews" ], Feed.where(source: "germannews").pluck(:source).uniq
+  end
+
+  test "seeds Australian News feeds" do
+    assert_difference("Feed.count", Feed::AUSTRALIANEWS_FEEDS.size) do
+      post seed_admin_feeds_path(source: "australianews")
+    end
+    assert_response :redirect
+    assert_equal [ "australianews" ], Feed.where(source: "australianews").pluck(:source).uniq
+  end
+
+  test "seeds Israel News feeds" do
+    assert_difference("Feed.count", Feed::ISRAELNEWS_FEEDS.size) do
+      post seed_admin_feeds_path(source: "israelnews")
+    end
+    assert_response :redirect
+    assert_equal [ "israelnews" ], Feed.where(source: "israelnews").pluck(:source).uniq
+  end
+
   test "toggles feed enabled state" do
     assert @feed.enabled
     patch toggle_admin_feed_path(@feed)

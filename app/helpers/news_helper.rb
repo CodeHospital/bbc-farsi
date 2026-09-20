@@ -22,7 +22,8 @@ module NewsHelper
     "travel"     => "سفر",
     "education"  => "آموزش",
     "climate"    => "اقلیم",
-    "opinion"    => "دیدگاه"
+    "opinion"    => "دیدگاه",
+    "local"      => "اخبار محلی"
   }.freeze
 
   # English labels for the original-language edition, in the same canonical order.
@@ -42,15 +43,19 @@ module NewsHelper
     "travel"     => "Travel",
     "education"  => "Education",
     "climate"    => "Climate",
-    "opinion"    => "Opinion"
+    "opinion"    => "Opinion",
+    "local"      => "Local"
   }.freeze
 
   # Publisher metadata per Feed#source, used for the "read original" link and
   # article structured data so both stay correct for non-BBC feeds (e.g. NYT).
+  # Only single-publisher sources belong here; a feed from a source that mixes
+  # publishers answers for itself via Feed#publisher_info (see #publisher_info).
   SOURCE_INFO = {
     "bbc"       => { name: "BBC News", domain: "bbc.com", url: "https://www.bbc.com/news" },
     "nyt"       => { name: "The New York Times", domain: "nytimes.com", url: "https://www.nytimes.com" },
-    "adhocnews" => { name: "Ad Hoc News", domain: "ad-hoc-news.de", url: "https://www.ad-hoc-news.de" }
+    "adhocnews" => { name: "Ad Hoc News", domain: "ad-hoc-news.de", url: "https://www.ad-hoc-news.de" },
+    "heise"     => { name: "heise online", domain: "heise.de", url: "https://www.heise.de" }
   }.freeze
 
   # Per-category accent colors — the signature tagDiv "Newspaper" look, where
@@ -71,7 +76,8 @@ module NewsHelper
     "travel"     => "#00b894",
     "education"  => "#0f4c81",
     "climate"    => "#27ae60",
-    "opinion"    => "#636e72"
+    "opinion"    => "#636e72",
+    "local"      => "#16a085"
   }.freeze
 
   # UI chrome strings per edition (kept here rather than in I18n yml so the whole
@@ -182,11 +188,17 @@ module NewsHelper
     CATEGORY_NAMES_FA[category.to_s] || category.to_s
   end
 
-  # Publisher name/domain/url for a feed's source (falls back to the raw
-  # source code if it's not in SOURCE_INFO, e.g. a newly added feed source).
-  def source_name(feed)   = SOURCE_INFO.dig(feed&.source, :name)   || feed&.source.to_s
-  def source_domain(feed) = SOURCE_INFO.dig(feed&.source, :domain) || ""
-  def source_url(feed)    = SOURCE_INFO.dig(feed&.source, :url)    || ""
+  # Publisher name/domain/url for a feed. A feed from a multi-publisher source
+  # (German News) names its own publisher; everything else is identified by its
+  # `source`, falling back to the raw source code for a newly added one.
+  def publisher_info(feed)
+    feed&.publisher_info || SOURCE_INFO[feed&.source] ||
+      { name: feed&.source.to_s, domain: "", url: "" }
+  end
+
+  def source_name(feed)   = publisher_info(feed)[:name]
+  def source_domain(feed) = publisher_info(feed)[:domain]
+  def source_url(feed)    = publisher_info(feed)[:url]
 
   # "Read the original on <domain>" link text, localized and feed-aware.
   def read_source_label(feed) = format(news_ui(:read_source), domain: source_domain(feed))

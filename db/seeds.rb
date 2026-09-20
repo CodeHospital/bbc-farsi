@@ -1,6 +1,10 @@
 Feed.seed_bbc_feeds!
 Feed.seed_nyt_feeds!
 Feed.seed_adhocnews_feeds!
+Feed.seed_heise_feeds!
+Feed.seed_germannews_feeds!
+Feed.seed_australianews_feeds!
+Feed.seed_israelnews_feeds!
 puts "Seeded #{Feed.count} feeds."
 
 Prompt.seed_defaults!

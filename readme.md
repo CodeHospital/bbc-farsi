@@ -224,6 +224,44 @@ See [worker/README.md](worker/README.md) for full configuration.
 Browse the queue at **`/admin/tasks`** — filter by status/kind, inspect a task's
 requests/responses, and retry failed tasks.
 
+### Feed sources
+
+Every feed has a `source`, which decides two things: the fetcher used to pull it
+(`FeedIngestor::FETCHER_CLASSES`) and the SSRF host allowlist that fetcher
+enforces. `/admin/feeds` has a **Seed … Feeds** button per source that upserts
+that source's whole catalog (idempotent — it matches on URL, so re-seeding never
+duplicates or overwrites an edited feed).
+
+| Source | Catalog | Feeds | Allowed hosts |
+|---|---|---|---|
+| `bbc` | `Feed::BBC_FEEDS` | 7 | `feeds.bbci.co.uk`, `www.bbc.co.uk`, `www.bbc.com` |
+| `nyt` | `Feed::NYT_FEEDS` | 74 | `rss.nytimes.com`, `www.nytimes.com` |
+| `adhocnews` | `Feed::ADHOCNEWS_FEEDS` | 12 | `www.ad-hoc-news.de` |
+| `heise` | `Feed::HEISE_FEEDS` | 22 | `www.heise.de`, `www.telepolis.de` |
+| `germannews` | `Feed::GERMANNEWS_FEEDS` | 50 | derived from the catalog (one host per publisher) |
+| `australianews` | `Feed::AUSTRALIANEWS_FEEDS` | 15 | derived from the catalog |
+| `israelnews` | `Feed::ISRAELNEWS_FEEDS` | 4 | derived from the catalog |
+
+`germannews`, `australianews`, and `israelnews` are the odd ones: each is
+**many publishers under one source** (germannews alone spans tagesschau, ZEIT,
+SPIEGEL, FAZ, SZ, taz, 14 regional papers, and the ARD/ZDF-family public
+broadcasters SWR/BR/WDR/NDR), so their allowlists are computed from the
+catalog itself rather than hardcoded — a host is reachable only because a
+shipped feed lives there. For the same reason those feeds carry a `site:` key
+(the host their *articles* live on, which the fetcher's own host often isn't —
+a broadcaster's several sections all resolve to one `publisher:`, e.g. every
+NDR/WDR/tagesschau section attributes back to "NDR"/"WDR"/"tagesschau"), and
+the public portal attributes each story to its real publisher via
+`Feed#publisher_info` (`Feed.build_publisher_index`) instead of
+`NewsHelper::SOURCE_INFO`. `israelnews` is deliberately small: it's limited to
+English-language outlets, since `Prompt`'s "translate" prompt is written and
+tuned specifically for English-to-Farsi (see the catalog's own comment in
+`app/models/feed.rb` for what was tried and excluded, and why).
+
+`FeedFetcher` never follows redirects, so a catalog entry must be the
+**canonical** feed URL — a publisher that 301s its old feed path will otherwise
+come back empty rather than erroring.
+
 ### Periodic work (RSS fetch + autopost)
 
 These need no Ollama access, so they stay in the app.
