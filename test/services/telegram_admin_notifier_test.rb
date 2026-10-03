@@ -242,6 +242,66 @@ class TelegramAdminNotifierTest < ActiveSupport::TestCase
     assert_includes @answered[:text], "no longer exists"
   end
 
+  test "publish menu covers Bale channels too, labelled so the admin can tell them apart" do
+    create_channel(name: "Main channel")
+    bale_channel = create_channel(name: "Bale News", provider: "bale", channel_id: "@balenews")
+    translation  = create_translation
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) { TelegramAdminNotifier.notify(translation) }
+    publish = @sent[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data.to_s.start_with?("channels:", "post:") }
+    assert_equal "📤 انتشار در کانال‌های تلگرام و بله", publish.text
+
+    create_notification(translation)
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.handle_callback(callback_query_for(translation, action: "channels"))
+    end
+    bale_button = @edited[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data == "post:#{translation.id}:#{bale_channel.id}" }
+    assert_equal "Bale News (بله)", bale_button.text
+  end
+
+  test "tapping a Bale channel in the admin bot queues the post for that Bale channel" do
+    create_channel(name: "Main channel")
+    bale_channel = create_channel(name: "Bale News", provider: "bale", channel_id: "@balenews")
+    translation  = create_translation
+    create_notification(translation)
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.handle_callback(callback_query_for(translation, action: "post", extra_id: bale_channel.id))
+    end
+
+    assert_equal "pending", TelegramPost.find_by(translation:, telegram_channel: bale_channel).status
+    assert_includes @answered[:text], "Bale News"
+  end
+
+  test "one-tap publish button names the only enabled channel when it is a Bale channel" do
+    bale_channel = create_channel(name: "Bale News", provider: "bale", channel_id: "@balenews")
+    translation  = create_translation
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) { TelegramAdminNotifier.notify(translation) }
+    publish = @sent[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data.to_s.start_with?("channels:", "post:") }
+    assert_equal "post:#{translation.id}:#{bale_channel.id}", publish.callback_data
+    assert_equal "📤 انتشار در Bale News (بله)", publish.text
+  end
+
+  test "publish menu lists custom-provider channels under their own provider name" do
+    create_channel(name: "Main channel")
+    create_channel(name: "Bale News", provider: "bale", channel_id: "@balenews")
+    custom_channel = create_channel(name: "Other News", provider: "custom", custom_provider_name: "پیام‌رسان دیگر",
+                                    api_base_url: "https://bots.other.example", message_format: "plain", channel_id: "@othernews")
+    translation = create_translation
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) { TelegramAdminNotifier.notify(translation) }
+    publish = @sent[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data.to_s.start_with?("channels:", "post:") }
+    assert_equal "📤 انتشار در کانال‌های تلگرام و بله و پیام‌رسان دیگر", publish.text
+
+    create_notification(translation)
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.handle_callback(callback_query_for(translation, action: "channels"))
+    end
+    custom_button = @edited[:reply_markup].inline_keyboard.flatten.find { |b| b.callback_data == "post:#{translation.id}:#{custom_channel.id}" }
+    assert_equal "Other News (پیام‌رسان دیگر)", custom_button.text
+  end
+
   private
 
   # Returns [fake_bot, sent, edited, answered] — the last three are Hash

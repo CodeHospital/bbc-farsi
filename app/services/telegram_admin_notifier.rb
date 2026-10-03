@@ -8,7 +8,7 @@ require "telegram/bot"
 # Task#complete!). The notification carries an inline keyboard so the admin
 # can act directly from Telegram without opening the web admin:
 #
-#   1. request rewrite        4. publish to a Telegram channel
+#   1. request rewrite        4. publish to a channel (any provider)
 #   2. request retranslation  5. publish / unpublish on the news portal
 #   3. request refine         6. mark for manual edit by editors
 #
@@ -16,7 +16,9 @@ require "telegram/bot"
 # story's English/Persian portal pages, so the admin can read it in context
 # before deciding.
 #
-# When exactly one TelegramChannel is enabled, option 4's channel picker is
+# Option 4 covers every enabled TelegramChannel row on any Telegram-compatible
+# provider — Telegram, Bale (bale.ai), custom; non-Telegram ones carry their
+# provider as a suffix, e.g. "(بله)", so the admin can tell them apart. When exactly one channel is enabled, option 4's picker is
 # skipped — there's nothing to choose, so the button posts straight to that one
 # channel in a single tap (callback post:<id>:<channel_id>) instead of opening a
 # submenu. It does NOT auto-publish: the admin still taps once to send, keeping
@@ -217,17 +219,30 @@ class TelegramAdminNotifier
       label = channel_status_label(translation, channel)
       button(label, "post:#{translation.id}:#{channel.id}")
     else
-      button("📤 انتشار در کانال تلگرام", "channels:#{translation.id}")
+      button("📤 انتشار در #{channel_picker_target(enabled_channels)}", "channels:#{translation.id}")
     end
+  end
+
+  # Names the provider(s) the picker submenu offers, so the main-menu button
+  # doesn't promise "Telegram" when other providers' channels are in there too.
+  # Built-in providers come first in PROVIDERS order, then custom ones by name.
+  def channel_picker_target(enabled_channels)
+    provider_order = TelegramChannel::PROVIDERS.keys
+    provider_labels = enabled_channels
+      .sort_by { |channel| [ provider_order.index(channel.provider) || provider_order.size, channel.provider_persian_label ] }
+      .map(&:provider_persian_label).uniq
+    return "کانال تلگرام" if provider_labels.empty?
+
+    provider_labels.one? ? "کانال #{provider_labels.first}" : "کانال‌های #{provider_labels.join(' و ')}"
   end
 
   def channel_status_label(translation, channel)
     if Publisher.already_posted?(translation, channel)
-      "✅ ارسال شد به #{channel.name}"
+      "✅ ارسال شد به #{channel.persian_display_name}"
     elsif Publisher.already_queued?(translation, channel)
-      "⏳ در صف انتشار در #{channel.name}"
+      "⏳ در صف انتشار در #{channel.persian_display_name}"
     else
-      "📤 انتشار در #{channel.name}"
+      "📤 انتشار در #{channel.persian_display_name}"
     end
   end
 
@@ -257,7 +272,7 @@ class TelegramAdminNotifier
       elsif Publisher.already_queued?(translation, channel) then "⏳ "
       else ""
       end
-      [ button("#{prefix}#{channel.name}", "post:#{id}:#{channel.id}") ]
+      [ button("#{prefix}#{channel.persian_display_name}", "post:#{id}:#{channel.id}") ]
     end
     rows << [ button("⬅️ بازگشت", "back:#{id}") ]
     keyboard_markup(rows)

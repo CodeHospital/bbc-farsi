@@ -7,6 +7,42 @@
     <%= f.text_field :name, class: "form-control", placeholder: "e.g. BBC Farsi Main" %>
   </div>
   <div class="mb-3">
+    <%= f.label :provider, class: "form-label" %>
+    <%= f.select :provider, TelegramChannel::PROVIDERS.map { |provider, settings| [ settings[:label], provider ] },
+          {}, class: "form-select" %>
+    <div class="form-text">
+      Any messenger whose bot API is Telegram-compatible
+      (<code>&lt;API base URL&gt;/bot&lt;token&gt;/sendMessage</code>). Create the
+      bot on that messenger and add it as an admin of the channel.
+      Telegram posts use HTML formatting; Bale posts go out as plain text.
+    </div>
+  </div>
+  <fieldset class="border rounded p-3 mb-3">
+    <legend class="fs-6 w-auto px-1 mb-0">Provider details</legend>
+    <div class="form-text mb-2">
+      Required for <strong>Other Telegram-compatible API</strong>. For Telegram
+      or Bale, leave blank to use the official endpoint, or set the API base URL
+      to point at e.g. a self-hosted Telegram Bot API server.
+    </div>
+    <div class="mb-2">
+      <%= f.label :custom_provider_name, "Provider name", class: "form-label" %>
+      <%= f.text_field :custom_provider_name, class: "form-control", placeholder: "e.g. My Messenger" %>
+    </div>
+    <div class="mb-2">
+      <%= f.label :api_base_url, "API base URL", class: "form-label" %>
+      <%= f.url_field :api_base_url, class: "form-control font-monospace",
+            placeholder: channel.custom? ? "https://api.example.com" : (channel.effective_api_base_url || "https://api.example.com") %>
+      <div class="form-text">Without the <code>/bot&lt;token&gt;</code> part.</div>
+    </div>
+    <div>
+      <%= f.label :message_format, "Message format", class: "form-label" %>
+      <%= f.select :message_format,
+            [ [ "Plain text (works everywhere)", "plain" ], [ "HTML (bold title; provider must support parse_mode HTML)", "html" ] ],
+            { include_blank: "Provider default" }, class: "form-select" %>
+      <div class="form-text">Only used by Other Telegram-compatible API channels.</div>
+    </div>
+  </fieldset>
+  <div class="mb-3">
     <%= f.label :token, "Bot Token", class: "form-label" %>
     <%= f.text_field :token, class: "form-control font-monospace", placeholder: "123456:ABC-..." %>
   </div>

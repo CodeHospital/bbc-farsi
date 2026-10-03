@@ -73,7 +73,7 @@
             <span class="text-truncate me-2" style="max-width:260px">
               <%= post.translation&.article&.title %>
             </span>
-            <span class="badge bg-secondary"><%= post.telegram_channel&.name %></span>
+            <span class="badge bg-secondary"><%= post.telegram_channel&.display_name %></span>
             <%= render "admin/shared/status_badge", status: post.status %>
           </div>
         <% end %>

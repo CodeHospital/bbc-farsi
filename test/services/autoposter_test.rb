@@ -116,13 +116,59 @@ class AutoposterTest < ActiveSupport::TestCase
     end
   end
 
+  test "post_translation queues for every one of the feed's autopost channels, across providers" do
+    telegram_channel = create_channel(autopost: true)
+    bale_channel     = create_channel(provider: "bale", channel_id: "@balechannel", autopost: true)
+    feed = create_feed(url: "https://feeds.bbci.co.uk/news/both-#{SecureRandom.hex(4)}.rss",
+                        autopost_target_channels: [ telegram_channel, bale_channel ])
+    translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)),
+                                     attrs: { status: "completed", active: true })
+
+    assert_no_telegram_calls { Autoposter.post_translation(translation) }
+
+    assert_equal "pending", TelegramPost.find_by(translation:, telegram_channel: telegram_channel).status
+    assert_equal "pending", TelegramPost.find_by(translation:, telegram_channel: bale_channel).status
+  end
+
+  test "run_all queues and delivers to a Bale autopost channel through Bale's API" do
+    bale_channel = create_channel(provider: "bale", token: "1:bale", channel_id: "@balechannel", autopost: true)
+    feed = create_feed(url: "https://feeds.bbci.co.uk/news/bale-#{SecureRandom.hex(4)}.rss", autopost_target_channels: [ bale_channel ])
+    translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)),
+                                     attrs: { status: "completed", active: true })
+    bale_send = stub_request(:post, "https://tapi.bale.ai/bot1:bale/sendMessage")
+      .to_return(status: 200, body: { ok: true, result: { message_id: 1 } }.to_json, headers: { "Content-Type" => "application/json" })
+
+    delivered = assert_no_telegram_calls { Autoposter.run_all }
+
+    assert_equal 1, delivered
+    assert_requested bale_send
+    assert_equal "posted", TelegramPost.find_by(translation:, telegram_channel: bale_channel).status
+  end
+
+  test "run_all delivers to a custom-provider channel through its own API base URL" do
+    custom_channel = create_channel(provider: "custom", custom_provider_name: "Other Messenger", api_base_url: "https://bots.other.example/api",
+                                    message_format: "html", token: "7:other", channel_id: "@othernews", autopost: true)
+    feed = create_feed(url: "https://feeds.bbci.co.uk/news/custom-#{SecureRandom.hex(4)}.rss", autopost_target_channels: [ custom_channel ])
+    translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)),
+                                     attrs: { status: "completed", active: true })
+    custom_send = stub_request(:post, "https://bots.other.example/api/bot7:other/sendMessage")
+      .with(body: hash_including("chat_id" => "@othernews", "parse_mode" => "HTML"))
+      .to_return(status: 200, body: { ok: true, result: { message_id: 1 } }.to_json, headers: { "Content-Type" => "application/json" })
+
+    delivered = assert_no_telegram_calls { Autoposter.run_all }
+
+    assert_equal 1, delivered
+    assert_requested custom_send
+    assert_equal "posted", TelegramPost.find_by(translation:, telegram_channel: custom_channel).status
+  end
+
   private
 
   # A completed, active translation whose article's feed is configured to
-  # autopost to `channel` (Feed#autopost_telegram_channel).
+  # autopost to `channel` (Feed#autopost_target_channels).
   def create_translation_for(channel:, attrs: {})
     feed = create_feed(url: "https://feeds.bbci.co.uk/news/autoposter-test-#{SecureRandom.hex(6)}.rss",
-                        autopost_telegram_channel: channel)
+                        autopost_target_channels: [ channel ])
     rewrite = create_rewrite(article: create_article(feed:))
     create_translation(rewrite:, attrs: { status: "completed", active: true }.merge(attrs))
   end

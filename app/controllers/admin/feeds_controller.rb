@@ -1,7 +1,7 @@
 class Admin::FeedsController < Admin::BaseController
   before_action :require_admin!
   before_action :set_feed, only: %i[edit update destroy toggle fetch schedule autopost_channel]
-  before_action :set_telegram_channel_options, only: %i[index toggle fetch schedule autopost_channel]
+  before_action :set_autopost_channel_options, only: %i[index toggle fetch schedule autopost_channel]
 
   def index
     load_filtered_feeds
@@ -78,17 +78,21 @@ class Admin::FeedsController < Admin::BaseController
     end
   end
 
-  # Sets (or clears, on a blank value) a feed's autopost target channel
-  # straight from the index row. An unknown channel id just re-renders the
-  # unchanged row (belongs_to's default validation already rejects it).
+  # Replaces a feed's set of autopost target channels (any provider) straight
+  # from the index row's checkboxes; an empty set disables autoposting. An
+  # unknown channel id leaves the set unchanged and just re-renders the row.
   def autopost_channel
-    @feed.reload unless @feed.update(autopost_telegram_channel_id: params[:autopost_telegram_channel_id].presence)
+    requested_channel_ids = Array(params[:autopost_target_channel_ids]).compact_blank.map(&:to_i).uniq
+    if TelegramChannel.where(id: requested_channel_ids).count == requested_channel_ids.size
+      @feed.update!(autopost_target_channel_ids: requested_channel_ids)
+    end
+    @feed.reload
     @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
     respond_to do |format|
       format.turbo_stream
       format.html do
         redirect_back fallback_location: admin_feeds_path,
-                      notice: "#{@feed.name} autopost channel: #{@feed.autopost_channel_label}."
+                      notice: "#{@feed.name} autopost channels: #{@feed.autopost_channel_label}."
       end
     end
   end
@@ -112,12 +116,12 @@ class Admin::FeedsController < Admin::BaseController
   private
 
   def set_feed = @feed = Feed.find(params[:id])
-  def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled, :fetch_hour, :autopost_telegram_channel_id)
+  def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled, :fetch_hour, autopost_target_channel_ids: [])
 
   # Computed once per request instead of once per row — the inline autopost
-  # channel picker on every feed row needs the same [name, id] option list.
-  def set_telegram_channel_options
-    @telegram_channel_options = TelegramChannel.order(:name).pluck(:name, :id)
+  # checkboxes on every feed row need the same channel list.
+  def set_autopost_channel_options
+    @autopost_channel_options = TelegramChannel.order(:name).to_a
   end
 
   def load_filtered_feeds
@@ -126,7 +130,7 @@ class Admin::FeedsController < Admin::BaseController
     @source_counts    = Feed.group(:source).count
     @category_counts  = Feed.group(:category).count
 
-    @feeds = filtered_feeds.includes(:autopost_telegram_channel).order(:name)
+    @feeds = filtered_feeds.includes(:autopost_target_channels).order(:name)
     @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
   end
 
@@ -145,11 +149,14 @@ class Admin::FeedsController < Admin::BaseController
     filtered_feeds.exists?(feed.id)
   end
 
-  # One grouped query for all feeds, instead of an N+1 count per row.
+  # One grouped query for all feeds, instead of an N+1 count per row. Counts
+  # distinct posted *articles*, so a story sent to both a Telegram and a Bale
+  # channel (or to several channels) counts once and "Posted %" stays <= 100%.
   def telegram_posts_counts_by_feed_id
     TelegramPost.posted
                 .joins(translation: :article)
                 .group("articles.feed_id")
-                .count
+                .distinct
+                .count("articles.id")
   end
 end

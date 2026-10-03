@@ -4,6 +4,7 @@ class Admin::TelegramChannelsController < Admin::BaseController
 
   SORT_COLUMNS = {
     "name"     => "telegram_channels.name",
+    "provider" => "telegram_channels.provider",
     "enabled"  => "telegram_channels.enabled",
     "autopost" => "telegram_channels.autopost"
   }.freeze
@@ -50,5 +51,6 @@ class Admin::TelegramChannelsController < Admin::BaseController
   private
 
   def set_channel = @channel = TelegramChannel.find(params[:id])
-  def channel_params = params.require(:telegram_channel).permit(:name, :token, :channel_id, :enabled, :autopost)
+  def channel_params = params.require(:telegram_channel).permit(:name, :provider, :custom_provider_name, :api_base_url, :message_format,
+                                                                        :token, :channel_id, :enabled, :autopost)
 end

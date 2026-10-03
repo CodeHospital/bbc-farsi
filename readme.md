@@ -1,6 +1,6 @@
 # BBC Farsi Rails App
 
-A Rails 8 admin web app that fetches BBC Persian RSS feeds, rewrites articles using a local LLM (Ollama), translates them to Persian, and autoposts to Telegram channels.
+A Rails 8 admin web app that fetches BBC Persian RSS feeds, rewrites articles using a local LLM (Ollama), translates them to Persian, and autoposts to Telegram, Bale (bale.ai) and other Telegram-compatible channels.
 
 LLM work is **not** done inside the web app. The app enqueues **tasks** in a
 database-backed queue; a separate [worker client](worker/README.md) — which has
@@ -297,19 +297,39 @@ button, the per-feed **Fetch** button, or `bin/rails bbc:fetch` (which ignores
 */30 * * * *  cd /path/to/app && bin/rails bbc:fetch >> log/cron.log 2>&1
 ```
 
-**Telegram autoposting is per-feed**: each feed has an **Autopost to**
-setting (`/admin/feeds` → Edit, or the inline picker on the index row) —
-either *Disabled* (the default) or one specific Telegram channel. Once a
-translation for that feed completes, `Autoposter.post_translation` queues it
-for that one channel only (no fan-out to every autopost-enabled channel).
-Delivery still requires the channel itself to be both `enabled` **and** have
-its own Autopost toggle on (`/admin/telegram_channels`) — a deliberate second
-gate, so a channel's autoposting can be paused without editing every feed
-pointed at it (`Feed#autoposts?`). The Feeds index flags a feed in red when
-its chosen channel isn't currently enabled/autoposting, so a misconfiguration
-doesn't fail silently.
+**Channels can be on any Telegram-compatible provider** — any messenger
+whose bot API answers `<API base URL>/bot<token>/sendMessage` with
+`chat_id` + `text`. At `/admin/telegram_channels` → New Channel, pick a
+**Provider**:
 
-**Telegram posting** is queue-then-deliver, not instant, on every path —
+| Provider | Endpoint | Message format |
+|---|---|---|
+| Telegram | `https://api.telegram.org` (or your own, e.g. a self-hosted Telegram Bot API server) | HTML (bold title) |
+| Bale (bale.ai) | `https://tapi.bale.ai` | Plain text — Bale has no `parse_mode` |
+| Other Telegram-compatible API | **required**: its API base URL (without `/bot<token>`) | You choose: plain, or HTML if it supports `parse_mode: "HTML"` |
+
+"Other" also needs a **Provider name**, which is how its channels are labelled
+in the admin and the Telegram admin bot. Create the bot on that messenger and
+add it as an admin of the channel. Every provider shares the same queue,
+pacing, posts log and enable/autopost toggles (all are `TelegramChannel` rows
+with a `provider`). Telegram is sent through telegram-bot-ruby
+(`TelegramPoster`); every other provider through plain HTTP (`BotApiPoster`),
+whose posts end with "follow @<that channel> for more" when the channel id is
+an `@username`. No env vars are needed: tokens live on the channel row.
+
+**Autoposting is per-feed**: each feed has an **Autopost to** set of channels
+(`/admin/feeds` → Edit, or the inline checkboxes on the index row), from any
+provider — none by default. Once a translation for that feed completes,
+`Autoposter.post_translation` queues it for exactly those channels (no fan-out
+to every autopost-enabled channel). Delivery still requires each channel to be
+both `enabled` **and** have its own Autopost toggle on
+(`/admin/telegram_channels`) — a deliberate second gate, so a channel's
+autoposting can be paused without editing every feed pointed at it
+(`Feed#autopost_channels`). The Feeds index flags a checked channel in red
+when it isn't currently enabled/autoposting, so a misconfiguration doesn't
+fail silently.
+
+**Channel posting** is queue-then-deliver, not instant, on every path —
 autopost, a completed translation task, the web admin's "📤 Post" button, and
 the Telegram admin bot's one-tap publish button all just *queue* a post
 (`Publisher.post_to_channel`); actual delivery to Telegram is paced to
@@ -344,7 +364,9 @@ without opening the web admin at all:
 1. 🔁 Request rewrite
 2. 🌐 Request retranslation
 3. ✨ Request refine
-4. 📤 Publish to a Telegram channel (opens a channel-picker submenu)
+4. 📤 Publish to a channel on any provider (opens a channel-picker submenu;
+   non-Telegram channels are suffixed with their provider, e.g. "(بله)"; with
+   exactly one enabled channel it's a one-tap button instead)
 5. 🌍 Publish / unpublish on the news portal
 6. ✋ Mark for manual edit by editors
 
@@ -439,7 +461,7 @@ filterable by model type or user.
 | `/admin/articles` | Browse articles, trigger rewrite |
 | `/admin/rewrites` | View/edit rewrites, activate versions, edit history |
 | `/admin/translations` | View/edit translations, post to Telegram, flag for manual edit, edit history |
-| `/admin/telegram_channels` | Manage Telegram channels and autopost settings *(admin-only)* |
+| `/admin/telegram_channels` | Manage channels on any Telegram-compatible provider (provider, API URL, token, enable, autopost) *(admin-only)* |
 | `/admin/ollama_servers` | Manage Ollama servers and their model lists *(admin-only)* |
 | `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |
 | `/admin/users` | Manage admin/editor accounts *(admin-only)* |
@@ -498,6 +520,11 @@ Production runs on **PostgreSQL**. The connection comes entirely from the
 `DATABASE_URL` environment variable (Solid Cache shares the same database — no
 separate cache database). On boot the entrypoint runs `bin/rails db:prepare`,
 which creates the schema (app tables + `solid_cache_entries`) on first deploy.
+On later deploys it runs any pending migrations instead. Note that a fresh
+`db:prepare` loads `db/schema.rb` and marks every migration as run without
+executing it, so `schema.rb` must always match the migrations. Migration
+`20261003000003` repairs databases built while `schema.rb` was missing the
+`telegram_posts` unique index (it does nothing where the index already exists).
 
 Build and run with Docker:
 

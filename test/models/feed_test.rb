@@ -234,28 +234,29 @@ class FeedTest < ActiveSupport::TestCase
     assert_not_includes Feed.scheduled, unscheduled
   end
 
-  test "autopost_telegram_channel_id is nil (disabled) by default" do
-    assert_nil Feed.new.autopost_telegram_channel_id
+  test "autoposts nowhere (disabled) by default" do
+    assert_empty Feed.new.autopost_target_channels
     assert_equal "Disabled", Feed.new.autopost_channel_label
   end
 
-  test "invalid with an autopost_telegram_channel_id that doesn't reference a real channel" do
-    assert_not build_feed(autopost_telegram_channel_id: 999_999).valid?
+  test "assigning an autopost channel id that doesn't reference a real channel raises" do
+    assert_raises(ActiveRecord::RecordNotFound) { build_feed(autopost_target_channel_ids: [ 999_999 ]) }
   end
 
-  test "valid with an autopost_telegram_channel_id that references a real channel" do
+  test "persists autopost target channels through the join table" do
     channel = create_channel
-    assert build_feed(autopost_telegram_channel_id: channel.id).valid?
+    feed = create_feed(autopost_target_channel_ids: [ channel.id ])
+    assert_equal [ channel ], feed.reload.autopost_target_channels
   end
 
   test "autopost_channel_label renders the channel name" do
     channel = create_channel(name: "News Channel")
-    assert_equal "News Channel", build_feed(autopost_telegram_channel: channel).autopost_channel_label
+    assert_equal "News Channel", build_feed(autopost_target_channels: [ channel ]).autopost_channel_label
   end
 
   test "autoposting scope returns only feeds with a channel set" do
     channel = create_channel
-    autoposting  = create_feed(url: "https://feeds.bbci.co.uk/news/autoposting.rss", autopost_telegram_channel: channel)
+    autoposting  = create_feed(url: "https://feeds.bbci.co.uk/news/autoposting.rss", autopost_target_channels: [ channel ])
     not_autoposting = create_feed(url: "https://feeds.bbci.co.uk/news/not-autoposting.rss")
     assert_includes Feed.autoposting, autoposting
     assert_not_includes Feed.autoposting, not_autoposting
@@ -266,13 +267,51 @@ class FeedTest < ActiveSupport::TestCase
     disabled              = create_channel(enabled: false, autopost: true)
     not_autopost          = create_channel(enabled: true, autopost: false)
 
-    assert build_feed(autopost_telegram_channel: enabled_and_autopost).autoposts?
-    assert_not build_feed(autopost_telegram_channel: disabled).autoposts?
-    assert_not build_feed(autopost_telegram_channel: not_autopost).autoposts?
-    assert_not build_feed(autopost_telegram_channel: nil).autoposts?
+    assert build_feed(autopost_target_channels: [ enabled_and_autopost ]).autoposts?
+    assert_not build_feed(autopost_target_channels: [ disabled ]).autoposts?
+    assert_not build_feed(autopost_target_channels: [ not_autopost ]).autoposts?
+    assert_not build_feed(autopost_target_channels: []).autoposts?
   end
 
   test "defaults to bbc source" do
     assert_equal "bbc", Feed.new.source
+  end
+
+  test "autopost_channel_label lists every target channel, marking non-Telegram providers" do
+    telegram_channel = create_channel(name: "A Telegram")
+    bale_channel     = create_channel(name: "B Bale", provider: "bale", channel_id: "@balechannel")
+    feed = create_feed(autopost_target_channels: [ telegram_channel, bale_channel ])
+    assert_equal "A Telegram, B Bale (Bale)", feed.autopost_channel_label
+  end
+
+  test "autoposting scope includes a feed targeting only a non-Telegram channel" do
+    bale_channel = create_channel(provider: "bale", channel_id: "@balechannel")
+    bale_only    = create_feed(url: "https://feeds.bbci.co.uk/news/bale-only.rss", autopost_target_channels: [ bale_channel ])
+    assert_includes Feed.autoposting, bale_only
+  end
+
+  test "autopost_channels returns every accepting target across providers, skipping paused ones" do
+    telegram_channel = create_channel(name: "A", autopost: true)
+    bale_channel     = create_channel(name: "B", provider: "bale", channel_id: "@balechannel", autopost: true)
+    custom_channel   = create_channel(name: "C", provider: "custom", custom_provider_name: "Other Messenger",
+                                      api_base_url: "https://api.other.example", message_format: "plain",
+                                      channel_id: "@other", autopost: true)
+    paused_bale      = create_channel(name: "D", provider: "bale", channel_id: "@pausedbale", autopost: false)
+
+    feed = create_feed(autopost_target_channels: [ telegram_channel, bale_channel, custom_channel, paused_bale ])
+    assert_equal [ telegram_channel, bale_channel, custom_channel ], feed.autopost_channels
+    assert feed.autoposts?
+
+    paused_feed = build_feed(autopost_target_channels: [ paused_bale ])
+    assert_empty paused_feed.autopost_channels
+    assert_not paused_feed.autoposts?
+  end
+
+  test "deleting a feed removes its autopost links but keeps the channels" do
+    channel = create_channel
+    feed = create_feed(autopost_target_channels: [ channel ])
+
+    assert_difference("FeedAutopostChannel.count", -1) { feed.destroy }
+    assert TelegramChannel.exists?(channel.id)
   end
 end

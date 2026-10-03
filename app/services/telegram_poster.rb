@@ -7,7 +7,9 @@ require "telegram/bot"
 # HTML mode only cares about `<`/`>`/`&`, which CGI.escapeHTML neutralizes.
 class TelegramPoster
   def post(translation:, channel:)
-    bot     = Telegram::Bot::Client.new(channel.token)
+    # url: honours a per-channel override (e.g. a self-hosted Telegram Bot API
+    # server); defaults to api.telegram.org. See TelegramChannel#effective_api_base_url.
+    bot     = Telegram::Bot::Client.new(channel.token, url: channel.effective_api_base_url)
     message = build_message(translation)
 
     bot.api.send_message(

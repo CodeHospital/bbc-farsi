@@ -2,8 +2,10 @@ class Feed < ApplicationRecord
   has_paper_trail
 
   has_many :articles, dependent: :destroy
-  belongs_to :autopost_telegram_channel, class_name: "TelegramChannel", optional: true,
-                                          inverse_of: :autoposting_feeds
+  # The channels (any Telegram-compatible provider) this feed autoposts to —
+  # none by default. See #autopost_channels for the delivery gating.
+  has_many :feed_autopost_channels, dependent: :delete_all
+  has_many :autopost_target_channels, -> { order(:name) }, through: :feed_autopost_channels, source: :telegram_channel
 
   SOURCES = %w[bbc nyt adhocnews heise germannews australianews israelnews].freeze
 
@@ -21,15 +23,10 @@ class Feed < ApplicationRecord
   validates :category, presence: true
   validates :source, presence: true, inclusion: { in: SOURCES }
   validates :fetch_hour, inclusion: { in: FETCH_HOURS }, allow_nil: true
-  # belongs_to(optional: true) only validates presence-when-required, not that
-  # the id actually resolves — without this, a bogus id from the inline picker
-  # would hit the raw DB foreign-key constraint (an exception) instead of
-  # failing validation gracefully like an out-of-range fetch_hour does.
-  validates :autopost_telegram_channel_id, inclusion: { in: ->(_feed) { TelegramChannel.ids } }, allow_nil: true
 
   scope :enabled, -> { where(enabled: true) }
   scope :scheduled, -> { where.not(fetch_hour: nil) }
-  scope :autoposting, -> { where.not(autopost_telegram_channel_id: nil) }
+  scope :autoposting, -> { where(id: FeedAutopostChannel.select(:feed_id)) }
 
   def title
     "#{name} (#{source.upcase})"
@@ -42,17 +39,21 @@ class Feed < ApplicationRecord
   end
 
   def autopost_channel_label
-    autopost_telegram_channel&.name || "Disabled"
+    autopost_target_channels.map(&:display_name).join(", ").presence || "Disabled"
   end
 
-  # Whether Autoposter should actually deliver this feed's translations to its
-  # chosen channel — the channel must still be enabled AND have its own
-  # Autopost toggle on (deliberately a second gate: the feed says WHERE, the
-  # channel says whether it's currently accepting any autoposted content at
-  # all, e.g. to pause every feed's autopost to a channel without editing
-  # every feed). See Autoposter.
+  # The chosen target channels Autoposter should actually deliver this feed's
+  # translations to — each must still be enabled AND have its own Autopost
+  # toggle on (deliberately a second gate: the feed says WHERE, the channel
+  # says whether it's currently accepting any autoposted content at all, e.g.
+  # to pause every feed's autopost to a channel without editing every feed).
+  def autopost_channels
+    autopost_target_channels.select(&:accepts_autopost?)
+  end
+
+  # Whether Autoposter delivers this feed's translations anywhere. See Autoposter.
   def autoposts?
-    autopost_telegram_channel.present? && autopost_telegram_channel.enabled? && autopost_telegram_channel.autopost?
+    autopost_channels.any?
   end
 
   def multi_publisher_source? = MULTI_PUBLISHER_SOURCES.include?(source)

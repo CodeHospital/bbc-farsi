@@ -466,9 +466,9 @@
                 class: "d-flex align-items-center gap-2" do |f| %>
             <%= f.select :telegram_channel_id,
                   @telegram_channels.map { |ch|
-                    label = if posted_channel_ids.include?(ch.id) then "✓ #{ch.name}"
-                            elsif queued_channel_ids.include?(ch.id) then "⏳ #{ch.name} (queued)"
-                            else ch.name end
+                    label = if posted_channel_ids.include?(ch.id) then "✓ #{ch.display_name}"
+                            elsif queued_channel_ids.include?(ch.id) then "⏳ #{ch.display_name} (queued)"
+                            else ch.display_name end
                     [label, ch.id]
                   },
                   {}, class: "form-select form-select-sm", style: "width:auto; min-width:160px" %>

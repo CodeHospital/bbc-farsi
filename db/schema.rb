@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_19_010000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_03_000003) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -41,6 +41,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_19_010000) do
     t.index ["url"], name: "index_articles_on_url", unique: true
   end
 
+  create_table "feed_autopost_channels", force: :cascade do |t|
+    t.integer "feed_id", null: false
+    t.integer "telegram_channel_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["feed_id", "telegram_channel_id"], name: "index_feed_autopost_channels_on_feed_and_channel", unique: true
+    t.index ["feed_id"], name: "index_feed_autopost_channels_on_feed_id"
+    t.index ["telegram_channel_id"], name: "index_feed_autopost_channels_on_telegram_channel_id"
+  end
+
   create_table "feeds", force: :cascade do |t|
     t.string "name"
     t.string "url"
@@ -51,8 +61,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_19_010000) do
     t.string "source", default: "bbc", null: false
     t.integer "fetch_hour"
     t.datetime "last_scheduled_fetch_at"
-    t.integer "autopost_telegram_channel_id"
-    t.index ["autopost_telegram_channel_id"], name: "index_feeds_on_autopost_telegram_channel_id"
     t.index ["url"], name: "index_feeds_on_url", unique: true
   end
 
@@ -208,6 +216,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_19_010000) do
     t.boolean "autopost", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "provider", default: "telegram", null: false
+    t.string "api_base_url"
+    t.string "custom_provider_name"
+    t.string "message_format"
   end
 
   create_table "telegram_posts", force: :cascade do |t|
@@ -219,6 +231,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_19_010000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["telegram_channel_id"], name: "index_telegram_posts_on_telegram_channel_id"
+    t.index ["translation_id", "telegram_channel_id"], name: "index_telegram_posts_on_translation_and_channel", unique: true
     t.index ["translation_id"], name: "index_telegram_posts_on_translation_id"
   end
 
@@ -270,7 +283,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_19_010000) do
 
   add_foreign_key "article_views", "articles"
   add_foreign_key "articles", "feeds"
-  add_foreign_key "feeds", "telegram_channels", column: "autopost_telegram_channel_id"
+  add_foreign_key "feed_autopost_channels", "feeds"
+  add_foreign_key "feed_autopost_channels", "telegram_channels"
   add_foreign_key "prompt_version_usages", "prompt_versions"
   add_foreign_key "prompt_version_usages", "tasks"
   add_foreign_key "prompt_versions", "prompts"

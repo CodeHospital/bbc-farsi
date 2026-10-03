@@ -29,14 +29,23 @@
     </div>
   </div>
   <div class="mb-3">
-    <%= f.label :autopost_telegram_channel_id, "Autopost to", class: "form-label" %>
-    <%= f.collection_select :autopost_telegram_channel_id, TelegramChannel.order(:name), :id, :name,
-          { include_blank: "Disabled — never autoposted" },
-          class: "form-select" %>
+    <%= f.label :autopost_target_channel_ids, "Autopost to", class: "form-label d-block" %>
+    <% autopost_channel_choices = TelegramChannel.order(:name).to_a %>
+    <% if autopost_channel_choices.empty? %>
+      <div class="text-muted small">No channels yet — add one under Channels.</div>
+    <% else %>
+      <%= f.collection_check_boxes :autopost_target_channel_ids, autopost_channel_choices, :id, :display_name do |choice| %>
+        <div class="form-check">
+          <%= choice.check_box class: "form-check-input" %>
+          <%= choice.label class: "form-check-label" %>
+        </div>
+      <% end %>
+    <% end %>
     <div class="form-text">
-      Telegram channel this feed's translations autopost to once a translation
-      completes. The channel must also be enabled with its own Autopost toggle
-      on for delivery to actually happen. Disabled by default.
+      Channels (Telegram, Bale, or any other Telegram-compatible provider) this
+      feed's translations autopost to once a translation completes. Each channel
+      must also be enabled with its own Autopost toggle on for delivery to
+      actually happen. None by default.
     </div>
   </div>
   <div class="form-check mb-3">

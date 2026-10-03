@@ -117,15 +117,15 @@
   </div>
 </div>
 
-<h5>Post to Telegram channel</h5>
+<h5>Post to channel</h5>
 <div class="row g-2">
   <% @telegram_channels.each do |channel| %>
     <div class="col-auto">
       <% already_posted = @posted_channel_ids.include?(channel.id) %>
       <% already_queued = @queued_channel_ids.include?(channel.id) %>
-      <% label = if already_posted then "✓ #{channel.name}"
-                 elsif already_queued then "⏳ #{channel.name}"
-                 else "📤 #{channel.name}" end %>
+      <% label = if already_posted then "✓ #{channel.display_name}"
+                 elsif already_queued then "⏳ #{channel.display_name}"
+                 else "📤 #{channel.display_name}" end %>
       <% btn_class = if already_posted then "btn-success"
                      elsif already_queued then "btn-warning"
                      else "btn-outline-success" end %>

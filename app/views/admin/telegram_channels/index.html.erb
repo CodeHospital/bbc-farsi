@@ -1,5 +1,5 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Telegram Channels</h2>
+  <h2>Channels <small class="text-muted fs-6">Telegram &amp; compatible providers</small></h2>
   <%= link_to "New Channel", new_admin_telegram_channel_path, class: "btn btn-primary" %>
 </div>
 
@@ -7,6 +7,7 @@
   <thead>
     <tr>
       <th><%= sort_link "name", "Name" %></th>
+      <th><%= sort_link "provider", "Provider" %></th>
       <th>Channel ID</th>
       <th><%= sort_link "enabled", "Enabled" %></th>
       <th><%= sort_link "autopost", "Autopost" %></th>
@@ -18,6 +19,14 @@
     <% @channels.each do |channel| %>
       <tr>
         <td><%= channel.name %></td>
+        <td>
+          <span class="badge <%= channel.telegram? ? 'bg-info text-dark' : 'bg-success' %>">
+            <i class="bi <%= channel.telegram? ? 'bi-telegram' : 'bi-chat-dots' %>"></i> <%= channel.provider_label %>
+          </span>
+          <% if channel.api_base_url.present? %>
+            <small class="text-muted d-block"><code><%= channel.api_base_url %></code></small>
+          <% end %>
+        </td>
         <td><code><%= channel.channel_id %></code></td>
         <td>
           <%= button_to channel.enabled? ? "✓ On" : "Off",

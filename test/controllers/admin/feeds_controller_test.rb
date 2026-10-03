@@ -132,88 +132,93 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_match "100%", response.body
   end
 
-  test "the edit form offers a disable option plus every existing channel" do
-    channel = create_channel(name: "News Channel")
+  test "the edit form offers a checkbox for every existing channel, across providers" do
+    telegram_channel = create_channel(name: "News Channel")
+    bale_channel     = create_channel(name: "Bale News", provider: "bale", channel_id: "@balenews")
 
     get edit_admin_feed_path(@feed)
     assert_response :success
-    assert_select "select[name=?]", "feed[autopost_telegram_channel_id]" do
-      assert_select "option", count: 2 # "Disabled" + the one channel
-      assert_select "option[value='']"
-      assert_select "option[value='#{channel.id}']", channel.name
-    end
+    assert_select "input[type=checkbox][name=?]", "feed[autopost_target_channel_ids][]", count: 2
+    assert_select "input[type=checkbox][value='#{telegram_channel.id}']"
+    assert_select "input[type=checkbox][value='#{bale_channel.id}']"
+    assert_select "label", text: "Bale News (Bale)"
   end
 
-  test "sets a feed's autopost channel" do
-    channel = create_channel
+  test "sets a feed's autopost channels from the edit form" do
+    telegram_channel = create_channel
+    bale_channel     = create_channel(provider: "bale", channel_id: "@balenews")
+
+    patch admin_feed_path(@feed), params: { feed: { name: @feed.name, url: @feed.url, category: @feed.category, source: @feed.source,
+                                                    autopost_target_channel_ids: [ "", telegram_channel.id, bale_channel.id ] } }
+    assert_response :redirect
+    assert_equal [ telegram_channel.id, bale_channel.id ].sort, @feed.reload.autopost_target_channel_ids.sort
+  end
+
+  test "unchecking every channel in the edit form disables autoposting for the feed" do
+    @feed.update!(autopost_target_channels: [ create_channel ])
 
     patch admin_feed_path(@feed), params: { feed: { name: @feed.name, url: @feed.url, category: @feed.category,
-                                                    source: @feed.source, autopost_telegram_channel_id: channel.id } }
+                                                    source: @feed.source, autopost_target_channel_ids: [ "" ] } }
     assert_response :redirect
-    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
+    assert_empty @feed.reload.autopost_target_channels
   end
 
-  test "a blank autopost channel disables autoposting for the feed" do
-    @feed.update!(autopost_telegram_channel: create_channel)
+  test "sets the autopost channels inline from the index row" do
+    telegram_channel = create_channel
+    bale_channel     = create_channel(provider: "bale", channel_id: "@balenews")
 
-    patch admin_feed_path(@feed), params: { feed: { name: @feed.name, url: @feed.url, category: @feed.category,
-                                                    source: @feed.source, autopost_telegram_channel_id: "" } }
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_target_channel_ids: [ "", telegram_channel.id, bale_channel.id ] }
     assert_response :redirect
-    assert_nil @feed.reload.autopost_telegram_channel_id
+    assert_equal [ telegram_channel.id, bale_channel.id ].sort, @feed.reload.autopost_target_channel_ids.sort
   end
 
-  test "sets the autopost channel inline from the index row" do
-    channel = create_channel
+  test "clears the autopost channels inline when every box is unchecked" do
+    @feed.update!(autopost_target_channels: [ create_channel ])
 
-    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: channel.id }
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_target_channel_ids: [ "" ] }
     assert_response :redirect
-    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
-  end
-
-  test "clears the autopost channel inline with a blank value" do
-    @feed.update!(autopost_telegram_channel: create_channel)
-
-    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: "" }
-    assert_response :redirect
-    assert_nil @feed.reload.autopost_telegram_channel_id
+    assert_empty @feed.reload.autopost_target_channels
   end
 
   test "inline autopost channel change replaces just the row via turbo stream" do
     channel = create_channel
 
-    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: channel.id }, as: :turbo_stream
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_target_channel_ids: [ "", channel.id ] }, as: :turbo_stream
     assert_response :success
     assert_equal Mime[:turbo_stream], response.media_type
-    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
+    assert_equal [ channel.id ], @feed.reload.autopost_target_channel_ids
     assert_match "replace", response.body
     assert_match ActionView::RecordIdentifier.dom_id(@feed), response.body
   end
 
   test "a bogus inline autopost channel id leaves the setting unchanged" do
     channel = create_channel
-    @feed.update!(autopost_telegram_channel: channel)
+    @feed.update!(autopost_target_channels: [ channel ])
 
-    patch autopost_channel_admin_feed_path(@feed), params: { autopost_telegram_channel_id: "999999" }
+    patch autopost_channel_admin_feed_path(@feed), params: { autopost_target_channel_ids: [ channel.id, "999999" ] }
     assert_response :redirect
-    assert_equal channel.id, @feed.reload.autopost_telegram_channel_id
+    assert_equal [ channel.id ], @feed.reload.autopost_target_channel_ids
   end
 
-  test "the index row renders an inline autopost channel selector" do
-    channel = create_channel(name: "News Channel")
+  test "the index row renders an inline autopost checkbox per channel, across providers" do
+    telegram_channel = create_channel(name: "News Channel")
+    bale_channel     = create_channel(name: "Bale News", provider: "bale", channel_id: "@balenews")
+    @feed.update!(autopost_target_channels: [ bale_channel ])
 
     get admin_feeds_path
     assert_response :success
     assert_select "form[action=?]", autopost_channel_admin_feed_path(@feed) do
-      assert_select "select[name=?]", "autopost_telegram_channel_id" do
-        assert_select "option", count: 2 # "Disabled" + the one channel
-        assert_select "option[value='#{channel.id}']", channel.name
-      end
+      assert_select "input[type=hidden][name=?][value='']", "autopost_target_channel_ids[]"
+      assert_select "input[type=checkbox][name=?]", "autopost_target_channel_ids[]", count: 2
+      assert_select "input[type=checkbox][value='#{telegram_channel.id}']:not([checked])"
+      assert_select "input[type=checkbox][value='#{bale_channel.id}'][checked]"
+      assert_select "label", text: "Bale News (Bale)"
     end
   end
 
   test "a feed pointed at a disabled or non-autoposting channel is flagged in the index row" do
     channel = create_channel(autopost: false)
-    @feed.update!(autopost_telegram_channel: channel)
+    @feed.update!(autopost_target_channels: [ channel ])
 
     get admin_feeds_path
     assert_response :success

@@ -1,4 +1,6 @@
-# Single entry point for getting a Translation onto a Telegram channel.
+# Single entry point for getting a Translation onto a channel on any
+# Telegram-compatible provider (Telegram, Bale, custom — all TelegramChannel
+# rows; see TelegramChannel#poster for the per-provider send).
 #
 # Posting is split into two steps so every trigger — the autopost sweep, the
 # translate/refine task chain, the web admin's "Post" button, and the
@@ -76,7 +78,7 @@ class Publisher
 
   def deliver(post)
     translation = post.translation
-    TelegramPoster.new.post(translation:, channel: post.telegram_channel)
+    post.telegram_channel.poster.post(translation:, channel: post.telegram_channel)
     post.update!(status: "posted", posted_at: Time.current)
     translation.article.update!(status: "posted")
     Result.new(success?: true, message: "Posted to #{post.telegram_channel.name}.", post:)
