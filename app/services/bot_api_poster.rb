@@ -15,14 +15,38 @@
 class BotApiPoster
   MAX_MESSAGE_LENGTH = 4096 # Telegram's limit, which compatible APIs share
   REQUEST_TIMEOUT    = 15   # seconds
+  MAX_CAPTION_LENGTH = 1024 # photo caption limit; longer text is sent as a separate message
 
   class Error < StandardError; end
 
   def post(translation:, channel:)
+    message_text = message_text_for(translation, channel)
+    image_url    = ArticleImageFetcher.call(translation.article)
+
+    return call_api(channel, "sendMessage", text_payload(channel, message_text)) unless image_url
+
+    caption_fits = message_text.length <= MAX_CAPTION_LENGTH
+    photo_payload = { chat_id: channel.channel_id, photo: image_url }
+    photo_payload.merge!(caption_payload(channel, message_text)) if caption_fits
+
+    begin
+      photo_result = call_api(channel, "sendPhoto", photo_payload)
+    rescue StandardError => photo_error
+      # Best-effort: if the provider can't take the photo, the news still goes out as text.
+      Rails.logger.warn "BotApiPoster: photo failed for channel #{channel.id}, sending text only: #{photo_error.message}"
+      return call_api(channel, "sendMessage", text_payload(channel, message_text))
+    end
+
+    caption_fits ? photo_result : call_api(channel, "sendMessage", text_payload(channel, message_text))
+  end
+
+  private
+
+  def call_api(channel, api_method, payload)
     response = HTTParty.post(
-      "#{channel.effective_api_base_url}/bot#{channel.token}/sendMessage",
+      "#{channel.effective_api_base_url}/bot#{channel.token}/#{api_method}",
       headers: { "Content-Type" => "application/json" },
-      body:    request_payload(translation, channel).to_json,
+      body:    payload.to_json,
       timeout: REQUEST_TIMEOUT
     )
 
@@ -32,17 +56,23 @@ class BotApiPoster
     # Deliberately never includes the request URL — it carries the bot token,
     # and this message ends up in TelegramPost#error_message on the admin UI.
     error_description = response_payload.is_a?(Hash) ? response_payload["description"] : response.body.to_s.truncate(200)
-    raise Error, "#{channel.provider_label} sendMessage failed (HTTP #{response.code}): #{error_description}"
+    raise Error, "#{channel.provider_label} #{api_method} failed (HTTP #{response.code}): #{error_description}"
   end
 
-  private
+  def message_text_for(translation, channel)
+    channel.effective_message_format == "html" ? html_message(translation, channel) : plain_message(translation, channel)
+  end
 
-  def request_payload(translation, channel)
-    if channel.effective_message_format == "html"
-      { chat_id: channel.channel_id, text: html_message(translation, channel), parse_mode: "HTML" }
-    else
-      { chat_id: channel.channel_id, text: plain_message(translation, channel) }
-    end
+  def text_payload(channel, message_text)
+    { chat_id: channel.channel_id, text: message_text }.merge(parse_mode_payload(channel))
+  end
+
+  def caption_payload(channel, message_text)
+    { caption: message_text }.merge(parse_mode_payload(channel))
+  end
+
+  def parse_mode_payload(channel)
+    channel.effective_message_format == "html" ? { parse_mode: "HTML" } : {}
   end
 
   def plain_message(translation, channel)

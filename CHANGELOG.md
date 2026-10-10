@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — channel posts include the article image (no migrations)
+
+- User prompt: "when posting news to channels, it should also send the image".
+- `TelegramPoster` and `BotApiPoster` resolve the article's lead image via `ArticleImageFetcher` and send it with `sendPhoto`. The message is the caption when it fits in 1024 chars; otherwise the photo goes alone, followed by the full text message.
+- Best-effort: if the photo is rejected (or the article has no image) the news still goes out as text only.
+
 ### Changed — channels from any Telegram-compatible provider; feeds autopost to any set of channels (migrations `20261003000001`–`20261003000003` — **not run**; dev needs `bin/rails db:migrate`, prod applies them via `db:prepare` on deploy)
 
 - User prompt: "allow adding channels from all compatible providers with Telegram api".

@@ -2,6 +2,9 @@ require "test_helper"
 require "telegram/bot"
 
 class TelegramPosterTest < ActiveSupport::TestCase
+  setup    { stub_article_image_lookup }
+  teardown { restore_article_image_lookup }
+
   setup do
     @channel     = TelegramChannel.new(name: "BBC Farsi", token: "123:abc", channel_id: "@bbcfarsi")
     @article     = Article.new(title: "Original English title", url: "https://bbc.co.uk/news/1")
@@ -90,7 +93,55 @@ class TelegramPosterTest < ActiveSupport::TestCase
     assert_equal({ url: "https://api.telegram.org" }, client_options)
   end
 
+  test "sends the image as a photo with the message as caption when it fits" do
+    calls = record_api_calls(image_url: "https://ichef.bbci.co.uk/a.jpg")
+
+    assert_equal [ :send_photo ], calls.map(&:first)
+    photo_options = calls.first.last
+    assert_equal "https://ichef.bbci.co.uk/a.jpg", photo_options[:photo]
+    assert_equal "HTML", photo_options[:parse_mode]
+    assert_includes photo_options[:caption], "<b>عنوان فارسی</b>"
+  end
+
+  test "sends photo then full text when the message exceeds the caption limit" do
+    @translation.translated_body = "خ" * 2000
+    calls = record_api_calls(image_url: "https://ichef.bbci.co.uk/a.jpg")
+
+    assert_equal [ :send_photo, :send_message ], calls.map(&:first)
+    assert_not calls.first.last.key?(:caption)
+    assert_includes calls.last.last[:text], "<b>عنوان فارسی</b>"
+  end
+
+  test "falls back to text only when the photo is rejected" do
+    calls = record_api_calls(image_url: "https://ichef.bbci.co.uk/a.jpg", photo_error: true)
+
+    assert_equal [ :send_photo, :send_message ], calls.map(&:first)
+  end
+
+  test "sends text only when the article has no image" do
+    assert_equal [ :send_message ], record_api_calls(image_url: nil).map(&:first)
+  end
+
   private
+
+  def record_api_calls(image_url:, photo_error: false)
+    calls = []
+    fake_api = Object.new
+    fake_api.define_singleton_method(:send_message) { |opts| calls << [ :send_message, opts ] }
+    fake_api.define_singleton_method(:send_photo) do |opts|
+      calls << [ :send_photo, opts ]
+      raise "photo rejected" if photo_error
+    end
+    fake_bot = Object.new
+    fake_bot.define_singleton_method(:api) { fake_api }
+
+    ArticleImageFetcher.stub(:call, image_url) do
+      ::Telegram::Bot::Client.stub(:new, fake_bot) do
+        TelegramPoster.new.post(translation: @translation, channel: @channel)
+      end
+    end
+    calls
+  end
 
   # Sends through the real TelegramPoster (stubbing only the Telegram HTTP
   # client) so these assertions exercise actual output instead of a

@@ -2,6 +2,9 @@ require "test_helper"
 require "telegram/bot"
 
 class AutoposterTest < ActiveSupport::TestCase
+  setup    { stub_article_image_lookup }
+  teardown { restore_article_image_lookup }
+
   test "post_translation queues (but does not deliver) for the feed's configured autopost channel only" do
     target_channel = create_channel(name: "Target", autopost: true)
     other_channel  = create_channel(name: "Other", autopost: true)

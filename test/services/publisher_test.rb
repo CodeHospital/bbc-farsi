@@ -2,6 +2,9 @@ require "test_helper"
 require "telegram/bot"
 
 class PublisherTest < ActiveSupport::TestCase
+  setup    { stub_article_image_lookup }
+  teardown { restore_article_image_lookup }
+
   setup do
     @channel     = create_channel
     @translation = create_translation

@@ -149,6 +149,19 @@ module ActiveSupport
       @llmarkt_config_originals = nil
     end
 
+    # ── Article image helpers ─────────────────────────────────────────────────
+    # Channel posters look up the article's og:image over HTTP. Tests that post
+    # without caring about the image call this so WebMock never sees that GET.
+    def stub_article_image_lookup(image_url = nil)
+      @article_image_lookup_original ||= ArticleImageFetcher.method(:call)
+      ArticleImageFetcher.define_singleton_method(:call) { |_article| image_url }
+    end
+
+    def restore_article_image_lookup
+      ArticleImageFetcher.define_singleton_method(:call, @article_image_lookup_original) if @article_image_lookup_original
+      @article_image_lookup_original = nil
+    end
+
     # Run a block with llmarkt forced off (e.g. to create a task without firing
     # the after_create_commit auto-submit), then restore the previous behaviour.
     def with_llmarkt_disabled

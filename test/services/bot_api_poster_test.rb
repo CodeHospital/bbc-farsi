@@ -1,6 +1,9 @@
 require "test_helper"
 
 class BotApiPosterTest < ActiveSupport::TestCase
+  setup    { stub_article_image_lookup }
+  teardown { restore_article_image_lookup }
+
   BALE_SEND_URL   = "https://tapi.bale.ai/bot999:bale-token/sendMessage".freeze
   CUSTOM_SEND_URL = "https://bots.other.example/api/bot5:custom-token/sendMessage".freeze
   JSON_HEADERS    = { "Content-Type" => "application/json" }.freeze
@@ -102,6 +105,34 @@ class BotApiPosterTest < ActiveSupport::TestCase
 
     error = assert_raises(BotApiPoster::Error) { BotApiPoster.new.post(translation: @translation, channel: @custom_channel) }
     assert_includes error.message, "Other Messenger sendMessage failed"
+  end
+
+  test "Bale: sends a photo with the plain text as caption when the article has an image" do
+    photo_url = "https://tapi.bale.ai/bot999:bale-token/sendPhoto"
+    stub_request(:post, photo_url).to_return(status: 200, body: { ok: true, result: {} }.to_json, headers: JSON_HEADERS)
+
+    ArticleImageFetcher.stub(:call, "https://ichef.bbci.co.uk/a.jpg") do
+      BotApiPoster.new.post(translation: @translation, channel: @bale_channel)
+    end
+
+    assert_requested(:post, photo_url) do |request|
+      payload = JSON.parse(request.body)
+      payload["photo"] == "https://ichef.bbci.co.uk/a.jpg" && payload["caption"].include?("عنوان فارسی") && !payload.key?("parse_mode")
+    end
+  end
+
+  test "sends photo then full text when over the caption limit, and falls back to text if the photo fails" do
+    @translation.translated_body = "خ" * 2000
+    photo_url = "https://tapi.bale.ai/bot999:bale-token/sendPhoto"
+    stub_request(:post, photo_url).to_return(status: 400, body: { ok: false, description: "bad image" }.to_json, headers: JSON_HEADERS)
+    stub_request(:post, BALE_SEND_URL).to_return(status: 200, body: { ok: true, result: {} }.to_json, headers: JSON_HEADERS)
+
+    ArticleImageFetcher.stub(:call, "https://ichef.bbci.co.uk/a.jpg") do
+      BotApiPoster.new.post(translation: @translation, channel: @bale_channel)
+    end
+
+    assert_requested(:post, photo_url, times: 1)
+    assert_requested(:post, BALE_SEND_URL, times: 1)
   end
 
   private
