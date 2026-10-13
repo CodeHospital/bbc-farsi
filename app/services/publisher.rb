@@ -32,8 +32,13 @@ class Publisher
     TelegramPost.exists?(translation:, telegram_channel: channel, status: "pending")
   end
 
-  def self.post_to_channel(translation, channel)
-    new.post_to_channel(translation, channel)
+  def self.post_to_channel(translation, channel, front: false)
+    new.post_to_channel(translation, channel, front:)
+  end
+
+  # Queues the translation on every enabled channel. Returns one Result per channel.
+  def self.post_to_all_channels(translation, front: false)
+    TelegramChannel.enabled.order(:name).map { |channel| post_to_channel(translation, channel, front:) }
   end
 
   def self.deliver_pending!(channel)
@@ -42,24 +47,36 @@ class Publisher
 
   # Queues translation+channel for delivery. Does not call Telegram — see the
   # class comment above for why delivery is a separate, throttled step.
-  def post_to_channel(translation, channel)
+  #
+  # By default the post goes to the end of the channel's queue. With
+  # `front: true` it jumps to the top (also moving an already-queued post up).
+  def post_to_channel(translation, channel, front: false)
     existing = TelegramPost.find_by(translation:, telegram_channel: channel)
     case existing&.status
-    when "posted"  then return Result.new(success?: true, message: "Already posted to #{channel.name}.", post: nil)
-    when "pending" then return Result.new(success?: true, message: "Already queued for #{channel.name}.", post: nil)
+    when "posted" then return Result.new(success?: true, message: "Already posted to #{channel.name}.", post: nil)
+    when "pending"
+      return Result.new(success?: true, message: "Already queued for #{channel.name}.", post: nil) unless front
+
+      existing.update!(priority: next_front_priority(channel))
+      return Result.new(success?: true, message: "Moved to the top of the queue for #{channel.name}.", post: existing)
     end
 
-    post = claim_post!(translation, channel, existing)
+    post = claim_post!(translation, channel, existing, front:)
     return Result.new(success?: true, message: "Already queued for #{channel.name}.", post: nil) if post.nil?
 
-    Result.new(success?: true, message: "Queued to post to #{channel.name} — it will go out on the usual posting schedule.", post:)
+    message = if front
+      "Queued at the top for #{channel.name} — it will be the next to go out."
+    else
+      "Queued to post to #{channel.name} — it will go out on the usual posting schedule."
+    end
+    Result.new(success?: true, message:, post:)
   end
 
   # Actually sends the oldest pending post for a channel to Telegram. Returns
   # nil when there's nothing queued (or another concurrent sweep just claimed
   # it first — see `claim_for_delivery!`).
   def deliver_pending!(channel)
-    post = TelegramPost.where(telegram_channel: channel, status: "pending").order(:created_at).first
+    post = TelegramPost.where(telegram_channel: channel, status: "pending").order(priority: :desc, created_at: :asc).first
     return nil unless post
     return nil unless claim_for_delivery!(post)
 
@@ -88,15 +105,22 @@ class Publisher
     Result.new(success?: false, message: "Posting failed: #{e.message}", post:)
   end
 
+  # One above the highest priority currently queued on the channel, so the
+  # most recent "post first" request is always the next to be delivered.
+  def next_front_priority(channel)
+    TelegramPost.where(telegram_channel: channel, status: "pending").maximum(:priority).to_i + 1
+  end
+
   # Atomically claims the right to queue this translation for this channel.
   # Returns nil when another caller just claimed it (the unique index is what
   # actually serializes concurrent callers — a losing `create!` raises
   # RecordNotUnique); otherwise returns the row (reusing a previously-errored
   # row so retries don't pile up duplicates).
-  def claim_post!(translation, channel, existing)
-    return existing.tap { |p| p.update!(status: "pending") } if existing # status was "error"
+  def claim_post!(translation, channel, existing, front: false)
+    priority = front ? next_front_priority(channel) : 0
+    return existing.tap { |p| p.update!(status: "pending", priority:) } if existing # status was "error"
 
-    TelegramPost.create!(translation:, telegram_channel: channel, status: "pending")
+    TelegramPost.create!(translation:, telegram_channel: channel, status: "pending", priority:)
   rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
     Sentry.capture_exception(e)
     nil

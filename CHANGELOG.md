@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Telegram admin bot: post to all channels at once, and post to the top of the queue (migration `20261013000001` — **not run**; dev needs `bin/rails db:migrate`, prod applies it via `db:prepare` on deploy)
+
+- User prompt: "telegram bot should also allow news to be posted to all channels at once, also right now the news is put the end of queue, it should also be possible to put the news at the top of the queue".
+- New `telegram_posts.priority` column (default 0). `Publisher.deliver_pending!` now sends the highest priority first, then oldest; `post_to_channel(..., front: true)` sets a priority above everything queued on that channel (also re-prioritises an already-queued post). New `Publisher.post_to_all_channels`.
+- Admin bot buttons: `📢 انتشار در همه کانال‌ها` and `⏫ همه کانال‌ها (ابتدای صف)` on the main menu (several channels), `⏫ انتشار در ابتدای صف` (single channel), and a `⏫ ابتدای صف` button next to each channel in the picker. New callbacks `postfirst`, `postall`, `postallfirst`.
+
 ### Added — channel posts include the article image (no migrations)
 
 - User prompt: "when posting news to channels, it should also send the image".

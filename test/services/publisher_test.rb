@@ -94,6 +94,40 @@ class PublisherTest < ActiveSupport::TestCase
     assert_equal "boom", captured.message
   end
 
+  test "post_to_channel with front: true is delivered before older queued posts" do
+    older_translation = create_translation
+    Publisher.post_to_channel(older_translation, @channel)
+    Publisher.post_to_channel(@translation, @channel, front: true)
+
+    result = stub_telegram_send { Publisher.deliver_pending!(@channel) }
+
+    assert_equal @translation, result.post.translation
+  end
+
+  test "post_to_channel with front: true moves an already queued post to the top" do
+    other_translation = create_translation
+    Publisher.post_to_channel(@translation, @channel)
+    Publisher.post_to_channel(other_translation, @channel)
+
+    result = Publisher.post_to_channel(other_translation, @channel, front: true)
+
+    assert_includes result.message, "top of the queue"
+    delivered = stub_telegram_send { Publisher.deliver_pending!(@channel) }
+    assert_equal other_translation, delivered.post.translation
+  end
+
+  test "post_to_all_channels queues on every enabled channel and skips disabled ones" do
+    second_channel = create_channel(name: "Second", channel_id: "@second")
+    disabled_channel = create_channel(name: "Off", channel_id: "@off", enabled: false)
+
+    results = Publisher.post_to_all_channels(@translation)
+
+    assert_equal 2, results.size
+    assert TelegramPost.exists?(translation: @translation, telegram_channel: second_channel, status: "pending")
+    assert TelegramPost.exists?(translation: @translation, telegram_channel: @channel, status: "pending")
+    assert_not TelegramPost.exists?(translation: @translation, telegram_channel: disabled_channel)
+  end
+
   private
 
   def assert_no_telegram_calls

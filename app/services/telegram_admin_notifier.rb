@@ -8,7 +8,8 @@ require "telegram/bot"
 # Task#complete!). The notification carries an inline keyboard so the admin
 # can act directly from Telegram without opening the web admin:
 #
-#   1. request rewrite        4. publish to a channel (any provider)
+#   1. request rewrite        4. publish to a channel (any provider), to all
+#                                channels at once, and/or at the top of the queue
 #   2. request retranslation  5. publish / unpublish on the news portal
 #   3. request refine         6. mark for manual edit by editors
 #
@@ -74,6 +75,9 @@ class TelegramAdminNotifier
     when "retranslate" then record!(translation, action, actor) { enqueue_retranslate(translation) }
     when "refine"      then record!(translation, action, actor) { enqueue_refine(translation) }
     when "post"        then record!(translation, action, actor) { post_to_channel(translation, extra_id) }
+    when "postfirst"   then record!(translation, action, actor) { post_to_channel(translation, extra_id, front: true) }
+    when "postall"     then record!(translation, action, actor) { post_to_all_channels(translation) }
+    when "postallfirst" then record!(translation, action, actor) { post_to_all_channels(translation, front: true) }
     when "portal"      then record!(translation, action, actor) { toggle_portal(translation) }
     when "manual_edit" then record!(translation, action, actor) { toggle_manual_edit(translation) }
     when "channels", "back" then nil # pure navigation — no action to record
@@ -111,11 +115,19 @@ class TelegramAdminNotifier
     "Refine queued (#{model})."
   end
 
-  def post_to_channel(translation, channel_id)
+  def post_to_channel(translation, channel_id, front: false)
     channel = TelegramChannel.find_by(id: channel_id)
     return "Channel not found." unless channel
 
-    Publisher.post_to_channel(translation, channel).message
+    Publisher.post_to_channel(translation, channel, front:).message
+  end
+
+  def post_to_all_channels(translation, front: false)
+    results = Publisher.post_to_all_channels(translation, front:)
+    return "No enabled channels." if results.empty?
+
+    destination = front ? "top of the queue" : "the queue"
+    "Added to #{destination} on #{results.size} channel(s)."
   end
 
   def toggle_portal(translation)
@@ -198,8 +210,25 @@ class TelegramAdminNotifier
       [ publish_button(translation),
         button(translation.archived? ? "🌍 انتشار در پورتال" : "🚫 لغو انتشار از پورتال", "portal:#{id}") ]
     ]
+    rows.concat(queue_rows(translation))
     rows.concat(link_rows(translation))
     keyboard_markup(rows)
+  end
+
+  # Extra publishing shortcuts under the main publish button: post to every
+  # enabled channel at once, and/or jump the queue instead of joining its end.
+  # With a single channel "all channels" is the same as the publish button, so
+  # only the "top of queue" shortcut is offered.
+  def queue_rows(translation)
+    id = translation.id
+    enabled_channels = TelegramChannel.enabled.order(:name).to_a
+    case enabled_channels.size
+    when 0 then []
+    when 1 then [ [ button("⏫ انتشار در ابتدای صف", "postfirst:#{id}:#{enabled_channels.first.id}") ] ]
+    else
+      [ [ button("📢 انتشار در همه کانال‌ها", "postall:#{id}"),
+          button("⏫ همه کانال‌ها (ابتدای صف)", "postallfirst:#{id}") ] ]
+    end
   end
 
   # The "publish to a Telegram channel" entry in the main menu. With exactly
@@ -272,8 +301,10 @@ class TelegramAdminNotifier
       elsif Publisher.already_queued?(translation, channel) then "⏳ "
       else ""
       end
-      [ button("#{prefix}#{channel.persian_display_name}", "post:#{id}:#{channel.id}") ]
+      [ button("#{prefix}#{channel.persian_display_name}", "post:#{id}:#{channel.id}"),
+        button("⏫ ابتدای صف", "postfirst:#{id}:#{channel.id}") ]
     end
+    rows << [ button("📢 همه کانال‌ها", "postall:#{id}"), button("⏫ همه (ابتدای صف)", "postallfirst:#{id}") ] if rows.size > 1
     rows << [ button("⬅️ بازگشت", "back:#{id}") ]
     keyboard_markup(rows)
   end

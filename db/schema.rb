@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_03_000003) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_13_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -230,6 +230,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_03_000003) do
     t.text "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "priority", default: 0, null: false
     t.index ["telegram_channel_id"], name: "index_telegram_posts_on_telegram_channel_id"
     t.index ["translation_id", "telegram_channel_id"], name: "index_telegram_posts_on_translation_and_channel", unique: true
     t.index ["translation_id"], name: "index_telegram_posts_on_translation_id"
