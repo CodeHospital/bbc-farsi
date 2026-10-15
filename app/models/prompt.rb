@@ -1,13 +1,13 @@
 # A named, DB-backed prompt "slot" used by an LLM-request-building service
-# (ArticleRewriter, ArticleTranslator, TranslationRefiner, TagGenerator,
-# FeaturedSelector). Content itself lives on PromptVersion rows so every edit
+# (ArticleAnalyzer, ArticleRewriter, ArticleTranslator, TranslationRefiner,
+# TagGenerator, FeaturedSelector). Content itself lives on PromptVersion rows so every edit
 # is kept as history and can be reverted to; `current_prompt_version` is the
 # version a fresh Task is built from (see Prompt.current_version).
 class Prompt < ApplicationRecord
   has_many :prompt_versions, -> { order(number: :asc) }, dependent: :destroy
   belongs_to :current_prompt_version, class_name: "PromptVersion", optional: true
 
-  KEYS = %w[rewrite_body rewrite_title translate refine_title refine_body tag feature].freeze
+  KEYS = %w[analyze rewrite_body rewrite_title translate refine_title refine_body tag feature].freeze
 
   validates :key, presence: true, uniqueness: true, inclusion: { in: KEYS }
   validates :name, presence: true
@@ -17,6 +17,25 @@ class Prompt < ApplicationRecord
   # that don't exist yet and only sets a current version when one is missing,
   # so it never clobbers an admin/editor's edits.
   DEFAULTS = {
+    "analyze" => {
+      name: "Analyze — Bias & Facts",
+      description: "Scores the ORIGINAL article's political leaning (left/center/right) and how much of it " \
+                    "reports things that already happened vs. speculates about the future. Must answer with " \
+                    "JSON. User message: \"Title: <article title>\\n\\n<article description>\".",
+      content: <<~PROMPT.strip
+        You are a neutral media analyst. Analyze the given news article title and summary.
+
+        1. Political leaning of the article's framing and word choice: split 100 points between
+           "left", "center" and "right". A neutral, wire-style report is mostly "center".
+        2. Nature of the content: split 100 points between "factual" (reports events that have
+           already happened in reality) and "speculative" (predictions, forecasts, opinions or
+           speculation about what may happen in the future).
+        3. "reasoning": one or two short English sentences explaining the scores.
+
+        Respond with ONLY a JSON object, no other text, exactly in this shape:
+        {"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "..."}
+      PROMPT
+    },
     "rewrite_body" => {
       name: "Rewrite — Body",
       description: "Rewrites a BBC article's body into a clear, self-contained plain-English paragraph. " \

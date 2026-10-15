@@ -1,0 +1,16 @@
+<%# Compact AI analysis of an article's original text (see ArticleAnalyzer):
+    political leaning L/C/R split and factual/speculative split.
+    Locals: article %>
+<% if article.analyzed? %>
+  <span class="text-nowrap" title="<%= article.analysis_reasoning %>">
+    <span class="badge bg-primary-subtle text-primary-emphasis" title="Left-leaning">L <%= article.bias_left_percent %>%</span>
+    <span class="badge bg-secondary-subtle text-secondary-emphasis" title="Center">C <%= article.bias_center_percent %>%</span>
+    <span class="badge bg-danger-subtle text-danger-emphasis" title="Right-leaning">R <%= article.bias_right_percent %>%</span>
+    <span class="badge bg-success-subtle text-success-emphasis" title="Reports things that already happened">Fact <%= article.factual_percent %>%</span>
+    <span class="badge bg-warning-subtle text-warning-emphasis" title="Speculation about the future">Spec <%= article.speculative_percent %>%</span>
+  </span>
+<% elsif article.analysis_status.present? %>
+  <span class="badge bg-light text-muted border" title="AI bias/fact analysis">analysis <%= article.analysis_status %></span>
+<% else %>
+  <span class="text-muted small">—</span>
+<% end %>

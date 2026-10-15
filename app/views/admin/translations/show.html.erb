@@ -9,6 +9,11 @@
     <%= link_to @translation.article.title, admin_article_path(@translation.article),
           class: "text-decoration-none" %>
   </p>
+  <p class="mb-3">
+    <small class="text-muted">AI analysis:</small>
+    <%= render "admin/shared/analysis_badges", article: @translation.article %>
+    <%= link_to "edit", admin_article_path(@translation.article, anchor: "article_analysis"), class: "small ms-1" %>
+  </p>
 <% end %>
 
 <% if @translation.status == "error" && @translation.error_message.present? %>

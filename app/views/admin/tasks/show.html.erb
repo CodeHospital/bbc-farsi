@@ -11,7 +11,7 @@
     <th>Target</th>
     <td>
       <%= @task.target_type %> #<%= @task.target_id %>
-      <% if (article = @task.target&.article) %>
+      <% if (article = @task.article) %>
         — <%= link_to article.title, admin_article_path(article) %>
       <% end %>
     </td>

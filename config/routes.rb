@@ -26,10 +26,14 @@ Rails.application.routes.draw do
         post :archive
         post :unarchive
         post :bump_priority
+        post :analyze
+        patch :update_analysis
       end
       collection do
         post :bulk_rewrite
         post :bulk_translate
+        post :bulk_analyze
+        post :analyze_missing
       end
     end
 

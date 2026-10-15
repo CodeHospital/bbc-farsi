@@ -1,7 +1,7 @@
 class Admin::ArticlesController < Admin::BaseController
   include Pagy::Method
 
-  before_action :set_article, only: %i[show rewrite multi_rewrite translate translate_original multi_translate archive unarchive bump_priority]
+  before_action :set_article, only: %i[show rewrite multi_rewrite translate translate_original multi_translate archive unarchive bump_priority analyze update_analysis]
 
   SORT_COLUMNS = {
     "title"     => "articles.title",
@@ -184,6 +184,39 @@ class Admin::ArticlesController < Admin::BaseController
                   notice: "Translation task created for #{article_ids.size} article(s) (#{server.name} / #{model})."
   end
 
+  # Queue (or re-queue) the AI bias/fact analysis of the original article.
+  def analyze
+    server, model = OllamaServer.pick(:rewrite)
+    return redirect_back(fallback_location: admin_article_path(@article), alert: "No Ollama servers with rewrite models configured.") unless server
+
+    Task.enqueue_analyze(@article, server:, model:)
+    redirect_back fallback_location: admin_article_path(@article),
+                  notice: "Analysis task created (#{server.name} / #{model})."
+  end
+
+  # Admin override of the AI analysis. Each split must sum to 100 (validated
+  # on Article); an edited analysis counts as completed.
+  def update_analysis
+    if @article.update(analysis_params.merge(analysis_status: "completed", analyzed_at: @article.analyzed_at || Time.current))
+      redirect_to admin_article_path(@article), notice: "Analysis updated."
+    else
+      redirect_to admin_article_path(@article), alert: "Analysis not saved: #{@article.errors.full_messages.to_sentence}"
+    end
+  end
+
+  def bulk_analyze
+    article_ids = Array(params[:article_ids]).reject(&:blank?)
+    return redirect_back(fallback_location: admin_articles_path, alert: "Select at least one article.") if article_ids.empty?
+
+    enqueue_analysis_for(Article.where(id: article_ids), notice_label: "selected")
+  end
+
+  # Backfill: analyze every non-archived article that has no analysis yet
+  # (or whose analysis failed). Same work as `bin/rails bbc:analyze`.
+  def analyze_missing
+    enqueue_analysis_for(ArticleAnalyzer.unanalyzed_candidates, notice_label: "unanalyzed")
+  end
+
   def bump_priority
     rewrite_tasks     = Task.pending.where(target_type: "Rewrite",
                                            target_id: @article.rewrites.select(:id))
@@ -213,6 +246,23 @@ class Admin::ArticlesController < Admin::BaseController
 
   def set_article = @article = Article.find(params[:id])
 
+  def analysis_params
+    params.require(:article).permit(*Article::ANALYSIS_PERCENT_ATTRIBUTES, :analysis_reasoning)
+  end
+
+  def enqueue_analysis_for(articles, notice_label:)
+    server, model = OllamaServer.pick(:rewrite)
+    return redirect_back(fallback_location: admin_articles_path, alert: "No Ollama servers with rewrite models configured.") unless server
+
+    enqueued_count = 0
+    articles.find_each do |article|
+      Task.enqueue_analyze(article, server:, model:)
+      enqueued_count += 1
+    end
+    redirect_back fallback_location: admin_articles_path,
+                  notice: "Analysis task created for #{enqueued_count} #{notice_label} article(s) (#{server.name} / #{model})."
+  end
+
   # The queue Task driving each rewrite/translation on the show page, keyed by
   # [target_type, target_id] so the view can show priority controls next to a
   # pending task. (One task per target; reruns reuse the same row.)
@@ -222,6 +272,7 @@ class Admin::ArticlesController < Admin::BaseController
   def queue_tasks_for_article
     Task.where(target_type: "Rewrite",     target_id: @rewrites.map(&:id))
         .or(Task.where(target_type: "Translation", target_id: @translations.map(&:id)))
+        .or(Task.where(target_type: "Article",     target_id: @article.id))
         .order(created_at: :desc)
         .to_a
   end

@@ -57,7 +57,7 @@ class LlmarktSubmitter
       webhook_url: callback_url(task, key),
       timeout_seconds: Task::LLMARKT_JOB_TIMEOUT.to_i,
       priority:     task.priority,
-      tag:         "task-#{task.target.article.feed.source}-#{key}"
+      tag:         "task-#{task.article.feed.source}-#{key}"
     )
 
     task.update_columns(external_job_id: result["job_id"].to_s, updated_at: Time.current)

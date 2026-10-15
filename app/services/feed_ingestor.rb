@@ -1,5 +1,6 @@
-# Fetches all enabled RSS feeds, upserts new articles, and creates a rewrite
-# Task for each new article. Replaces the old FetchFeedsJob.
+# Fetches all enabled RSS feeds, upserts new articles, and creates an analyze
+# Task (bias/fact scores, see ArticleAnalyzer) plus a rewrite Task for each new
+# article. The two run in parallel — the rewrite never waits for the analysis. Replaces the old FetchFeedsJob.
 #
 # Runs synchronously — invoked from the admin "Fetch now" button and from the
 # `bbc:fetch` rake task (which an external scheduler/cron can call). RSS fetching
@@ -78,7 +79,7 @@ class FeedIngestor
       next unless article.save
 
       new_count += 1
-      Task.enqueue_rewrite(article, server:, model:) if server && model
+      enqueue_pipeline(article, server, model)
     end
 
     new_count
@@ -103,7 +104,7 @@ class FeedIngestor
         article.assign_attributes(attrs.merge(feed:))
         if article.save
           new_count += 1
-          Task.enqueue_rewrite(article, server:, model:) if server && model
+          enqueue_pipeline(article, server, model)
         else
           skipped << { title: attrs[:title], url: attrs[:url], reason: article.errors.full_messages.to_sentence }
         end
@@ -120,6 +121,20 @@ class FeedIngestor
     end
 
     { new_count:, updated_count:, skipped:, error: nil }
+  end
+
+  # Analysis is display-only, so a failure to enqueue it (e.g. a broken
+  # prompt) must never stop the article from being rewritten.
+  def self.enqueue_pipeline(article, server, model)
+    return unless server && model
+
+    begin
+      Task.enqueue_analyze(article, server:, model:)
+    rescue StandardError => e
+      Rails.logger.error "Enqueue analyze for article #{article.id} failed: #{e.message}"
+      Sentry.capture_exception(e)
+    end
+    Task.enqueue_rewrite(article, server:, model:)
   end
 
   def self.fetcher_for(source)

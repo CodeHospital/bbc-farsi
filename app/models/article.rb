@@ -14,6 +14,18 @@ class Article < ApplicationRecord
   STATUSES = %w[pending rewriting rewritten translating translated posted error].freeze
   validates :status, inclusion: { in: STATUSES }
 
+  # AI analysis of the original article (see ArticleAnalyzer); admins can
+  # edit these. Each split must add up to 100 once any part of it is set.
+  BIAS_PERCENT_ATTRIBUTES   = %i[bias_left_percent bias_center_percent bias_right_percent].freeze
+  NATURE_PERCENT_ATTRIBUTES = %i[factual_percent speculative_percent].freeze
+  ANALYSIS_PERCENT_ATTRIBUTES = (BIAS_PERCENT_ATTRIBUTES + NATURE_PERCENT_ATTRIBUTES).freeze
+  ANALYSIS_STATUSES = %w[pending completed failed].freeze
+
+  validates(*ANALYSIS_PERCENT_ATTRIBUTES,
+            numericality: { only_integer: true, in: 0..100 }, allow_nil: true)
+  validates :analysis_status, inclusion: { in: ANALYSIS_STATUSES }, allow_nil: true
+  validate :analysis_splits_sum_to_hundred
+
   scope :not_archived, -> { where(archived: false) }
   scope :pending_rewrite, -> { where(status: "pending") }
   scope :rewritten, -> { where(status: "rewritten") }
@@ -60,7 +72,25 @@ class Article < ApplicationRecord
     translations.order(created_at: :desc).first
   end
 
+  def analyzed?
+    ANALYSIS_PERCENT_ATTRIBUTES.all? { |attribute| self[attribute].present? }
+  end
+
   private
+
+  def analysis_splits_sum_to_hundred
+    { "Political leaning (left + center + right)" => BIAS_PERCENT_ATTRIBUTES,
+      "Factual + speculative"                    => NATURE_PERCENT_ATTRIBUTES }.each do |label, attributes|
+      values = attributes.map { |attribute| self[attribute] }
+      next if values.all?(&:nil?)
+
+      if values.any?(&:nil?)
+        errors.add(:base, "#{label} must all be filled in")
+      elsif values.sum != 100
+        errors.add(:base, "#{label} must add up to 100 (currently #{values.sum})")
+      end
+    end
+  end
 
   # Populate the slug column once from the English article title.
   # Appends "-2", "-3", … to resolve collisions. Skips when the slug column

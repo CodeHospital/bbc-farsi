@@ -267,4 +267,74 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select ".alert-danger"
   end
+
+  # ── AI bias/fact analysis ─────────────────────────────────────────────────
+
+  def create_rewrite_server
+    OllamaServer.create!(name: "Local", url: "http://localhost:11434",
+                         rewrite_models: "qwen3:14b", translate_models: "aya-expanse:32b", refine_models: "qwen3:14b")
+  end
+
+  def analyzed_attributes
+    { bias_left_percent: 20, bias_center_percent: 70, bias_right_percent: 10,
+      factual_percent: 85, speculative_percent: 15, analysis_reasoning: "Wire-style.", analysis_status: "completed" }
+  end
+
+  test "index and show display the analysis badges" do
+    article = create_article(attrs: analyzed_attributes)
+
+    get admin_articles_path
+    assert_select "span.badge", text: "L 20%"
+
+    get admin_article_path(article)
+    assert_response :success
+    assert_select "#article_analysis span.badge", text: "Spec 15%"
+    assert_select "form[action=?]", update_analysis_admin_article_path(article)
+  end
+
+  test "analyze queues an analyze task for the article" do
+    create_rewrite_server
+    article = create_article
+
+    assert_difference -> { Task.where(kind: "analyze", target: article).count }, 1 do
+      post analyze_admin_article_path(article)
+    end
+    assert_equal "pending", article.reload.analysis_status
+  end
+
+  test "update_analysis saves admin-edited percentages" do
+    article = create_article
+
+    patch update_analysis_admin_article_path(article), params: { article: analyzed_attributes.except(:analysis_status).merge(bias_left_percent: 30, bias_center_percent: 60) }
+
+    article.reload
+    assert_equal [ 30, 60, 10 ], [ article.bias_left_percent, article.bias_center_percent, article.bias_right_percent ]
+    assert_equal "completed", article.analysis_status
+    assert_not_nil article.analyzed_at
+  end
+
+  test "update_analysis rejects splits that do not add up to 100" do
+    article = create_article
+
+    patch update_analysis_admin_article_path(article), params: { article: analyzed_attributes.except(:analysis_status).merge(bias_left_percent: 50) }
+    follow_redirect!
+
+    assert_select ".alert-danger", /must add up to 100/
+    assert_nil article.reload.bias_left_percent
+  end
+
+  test "bulk_analyze and analyze_missing queue analyze tasks" do
+    create_rewrite_server
+    one = create_article
+    two = create_article
+    create_article(attrs: analyzed_attributes)
+
+    assert_difference -> { Task.where(kind: "analyze").count }, 1 do
+      post bulk_analyze_admin_articles_path, params: { article_ids: [ one.id ] }
+    end
+    assert_difference -> { Task.where(kind: "analyze").count }, 1 do
+      post analyze_missing_admin_articles_path # only `two` is still unanalyzed
+    end
+    assert_equal "pending", two.reload.analysis_status
+  end
 end

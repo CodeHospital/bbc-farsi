@@ -99,8 +99,9 @@ class Admin::TasksController < Admin::BaseController
   end
 
   # Filter tasks whose target's article matches the free-text query. `target` is
-  # polymorphic (Rewrite or Translation), so resolve matching article ids first,
-  # then the rewrite/translation ids that point at them.
+  # polymorphic (Rewrite, Translation, or the Article itself for `analyze`),
+  # so resolve matching article ids first, then the rewrite/translation ids
+  # that point at them.
   def filter_by_article_text(tasks, query)
     article_ids     = Article.where("LOWER(title) LIKE LOWER(:q) OR LOWER(description) LIKE LOWER(:q)", q: "%#{query}%").pluck(:id)
     rewrite_ids     = Rewrite.where(article_id: article_ids).pluck(:id)
@@ -108,8 +109,9 @@ class Admin::TasksController < Admin::BaseController
 
     tasks.where(
       "(tasks.target_type = 'Rewrite'     AND tasks.target_id IN (:rewrites)) OR " \
-      "(tasks.target_type = 'Translation' AND tasks.target_id IN (:translations))",
-      rewrites: rewrite_ids, translations: translation_ids
+      "(tasks.target_type = 'Translation' AND tasks.target_id IN (:translations)) OR " \
+      "(tasks.target_type = 'Article'     AND tasks.target_id IN (:articles))",
+      rewrites: rewrite_ids, translations: translation_ids, articles: article_ids
     )
   end
 end

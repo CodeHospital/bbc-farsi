@@ -71,6 +71,25 @@ namespace :bbc do
     puts "\nBackfilled #{translation_count} translation(s) and #{article_count} article(s)."
   end
 
+  desc "Enqueue AI bias/fact analysis tasks for non-archived articles that have no analysis yet (backfill)"
+  task analyze: :environment do
+    candidates = ArticleAnalyzer.unanalyzed_candidates
+    if candidates.none?
+      puts "No unanalyzed articles."
+      next
+    end
+
+    server, model = OllamaServer.pick(:rewrite)
+    abort "No Ollama servers with rewrite models configured." unless server
+
+    enqueued_count = 0
+    candidates.find_each do |article|
+      Task.enqueue_analyze(article, server:, model:)
+      enqueued_count += 1
+    end
+    puts "Enqueued #{enqueued_count} analyze task(s) (#{server.name} / #{model})."
+  end
+
   desc "Enqueue AI tag-generation tasks for translated articles that have no tags yet"
   task tag: :environment do
     candidates = TagGenerator.untagged_candidates

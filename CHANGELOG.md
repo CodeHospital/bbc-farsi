@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — AI bias / fact analysis of the original article (migration `20261015000001` — **not run**; dev needs `bin/rails db:migrate`, prod applies it via `db:prepare` on deploy)
+
+- User prompt: "check original news with ai to see if it's left leaning news or right leaning news? also if it's about things that has happened in the past in reality or it's especulation about the future? we want this to be visible to admin, this should happen before rewriting and translation, admin can edit these percentages". Answers to the follow-up questions: split percentages plus a short AI reasoning; run in parallel with the rewrite; display only; show on the article list and show page, translation pages, and Telegram admin notifications; backfill existing articles.
+- New `articles` columns: `bias_left_percent`, `bias_center_percent`, `bias_right_percent`, `factual_percent`, `speculative_percent`, `analysis_reasoning`, `analysis_status`, `analyzed_at`. The model validates that each split sums to 100. Edits are tracked by paper_trail.
+- New `ArticleAnalyzer` service and a DB-backed `analyze` prompt. The prompt asks for a JSON answer, and the parsed splits are clamped and normalized to 100. The prompt is seeded on first use if an existing DB lacks it.
+- New `analyze` Task kind, targeting the Article. It never changes `article.status`; progress is tracked in `article.analysis_status`. Complete, fail, requeue and abort are all handled. New `Task#article` helper, now used by the llmarkt job tag and the task views. `FeedIngestor` queues analyze alongside rewrite for every new article. A failed analyze enqueue never blocks the rewrite.
+- Admin: **AI analysis** card on the article page with an edit form and Analyze/Re-analyze. "Bias / Facts" badge column on the articles and translations lists. Badges plus an edit link on the translation show/edit pages. Bulk **Analyze** action and **⚖ Analyze unanalyzed** backfill button. Analyze tasks appear in the article's task list and in the task search.
+- Telegram admin-bot notifications include the leaning and fact/speculation lines once an article has been analyzed.
+- New `bin/rails bbc:analyze` backfill task.
+- Fix: `Task#requeue!` (retrying a task) no longer resets the target status of read-only `feature`/`tag` tasks. Previously, retrying a tag task flipped its completed translation back to "pending".
+
 ### Added — Telegram admin bot: post to all channels at once, and post to the top of the queue (migration `20261013000001` — **not run**; dev needs `bin/rails db:migrate`, prod applies it via `db:prepare` on deploy)
 
 - User prompt: "telegram bot should also allow news to be posted to all channels at once, also right now the news is put the end of queue, it should also be possible to put the news at the top of the queue".

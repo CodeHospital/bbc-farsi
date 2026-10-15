@@ -467,6 +467,25 @@ filterable by model type or user.
 | `/admin/users` | Manage admin/editor accounts *(admin-only)* |
 | `/admin/activity_logs` | System-wide audit log of who changed what *(admin-only)* |
 
+### AI bias / fact analysis
+
+Every newly ingested article also gets an `analyze` task, running in parallel
+with its rewrite (nothing waits for it). It scores the **original** article for
+political leaning (Left / Center / Right %, summing to 100) and for how much of
+it reports things that already happened vs. speculation about the future
+(Fact / Spec %, summing to 100), plus a short reasoning sentence. Display only:
+the scores never change the pipeline or autoposting.
+
+- Shown as badges on the articles and translations lists, the translation
+  show/edit pages, and in the Telegram admin-bot notification.
+- Editable on the article page (**AI analysis** card). The card also has a
+  **Re-analyze** button. Each split must add up to 100.
+- The prompt is the editable `analyze` prompt (`/admin/prompts`). It runs on
+  the first configured **rewrite** model.
+- To backfill existing articles, use **⚖ Analyze unanalyzed** on the articles
+  page, the bulk **Analyze** action, or `bin/rails bbc:analyze`. This needs
+  migration `20261015000001`.
+
 ### Multi-server comparison
 
 Each article's show page has two collapsible panels — **Run Rewrites on Targets** and **Run Translations on Targets** — that display every enabled server and its configured models as checkboxes. Selecting multiple server/model combos and clicking submit creates one task per selection. All results appear on the same page so you can compare outputs and activate the best version for posting.

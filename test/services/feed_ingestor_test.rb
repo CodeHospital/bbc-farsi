@@ -7,19 +7,32 @@ class FeedIngestorTest < ActiveSupport::TestCase
                                    rewrite_models: "qwen3:14b", translate_models: "aya-expanse:32b")
   end
 
-  test "creates articles and a rewrite Task per new article" do
+  test "creates articles and an analyze + rewrite Task per new article" do
     new_articles = [
       { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" },
       { title: "Story B", url: "https://bbc.co.uk/news/b", description: "d", published_at: Time.current, status: "pending" }
     ]
 
     stub_fetcher(returns: new_articles) do
-      assert_difference([ "Article.count", "Task.count" ], 2) do
-        assert_equal 2, FeedIngestor.run
+      assert_difference("Article.count", 2) do
+        assert_difference("Task.count", 4) { assert_equal 2, FeedIngestor.run }
       end
     end
 
-    assert_equal %w[rewrite rewrite], Task.order(:id).last(2).map(&:kind)
+    assert_equal %w[analyze rewrite analyze rewrite], Task.order(:id).last(4).map(&:kind)
+    assert_equal %w[pending pending], Article.order(:id).last(2).map(&:analysis_status)
+  end
+
+  test "a failing analyze enqueue never blocks the rewrite" do
+    new_articles = [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ]
+
+    Task.stub(:enqueue_analyze, ->(*) { raise "broken prompt" }) do
+      stub_fetcher(returns: new_articles) do
+        assert_difference("Task.count", 1) { FeedIngestor.run }
+      end
+    end
+
+    assert_equal "rewrite", Task.order(:id).last.kind
   end
 
   test "skips already-existing articles and creates no tasks for them" do
@@ -160,7 +173,9 @@ class FeedIngestorTest < ActiveSupport::TestCase
 
     result = nil
     stub_fetcher_report(returns: report) do
-      assert_difference([ "Article.count", "Task.count" ], 1) { result = FeedIngestor.run_one(@feed) }
+      assert_difference("Article.count", 1) do
+        assert_difference("Task.count", 2) { result = FeedIngestor.run_one(@feed) }
+      end
     end
 
     assert_equal 1, result[:new_count]
@@ -252,8 +267,8 @@ class FeedIngestorTest < ActiveSupport::TestCase
 
     result = nil
     stub_fetcher(returns: new_articles) do
-      assert_difference([ "Article.count", "Task.count" ], 1) do
-        result = FeedIngestor.run_scheduled(at_hour(8))
+      assert_difference("Article.count", 1) do
+        assert_difference("Task.count", 2) { result = FeedIngestor.run_scheduled(at_hour(8)) }
       end
     end
 

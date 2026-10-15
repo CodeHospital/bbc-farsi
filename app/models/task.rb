@@ -13,13 +13,18 @@ class Task < ApplicationRecord
   has_many :prompt_version_usages, dependent: :destroy
   has_many :prompt_versions, through: :prompt_version_usages
 
-  KINDS    = %w[rewrite translate refine feature tag].freeze
+  KINDS    = %w[analyze rewrite translate refine feature tag].freeze
   STATUSES = %w[pending claimed completed failed].freeze
 
   # Kinds that read their target but never change its status. `feature` anchors
   # on a candidate only to satisfy the NOT NULL target; `tag` annotates an
   # already-completed translation. Their results live in Rails.cache.
   CACHE_RESULT_KINDS = %w[feature tag].freeze
+
+  # Kinds whose target's pipeline `status` is never driven by the task
+  # lifecycle. `analyze` targets an Article and records its own progress in
+  # article.analysis_status instead (see ArticleAnalyzer).
+  READ_ONLY_TARGET_KINDS = (CACHE_RESULT_KINDS + %w[analyze]).freeze
 
   # The timeout llmarkt is told to enforce on a job it's running for us (see
   # LlmarktSubmitter#submit_request). STALE_AFTER (below) must stay
@@ -119,6 +124,19 @@ class Task < ApplicationRecord
     )
   end
 
+  # Enqueue an AI bias/fact analysis of the ORIGINAL article. Runs in
+  # parallel with the rewrite (nothing waits for it); the result is written
+  # onto the article's analysis columns when the worker completes.
+  def self.enqueue_analyze(article, server:, model:)
+    task = create!(
+      priority: 0,
+      kind: "analyze", target: article, ollama_server: server, model:,
+      requests: ArticleAnalyzer.requests(article)
+    )
+    article.update_columns(analysis_status: "pending", updated_at: Time.current)
+    task
+  end
+
   # ── Worker: claim the next pending task atomically ────────────────────────
 
   # Pass `models:` with a non-empty array to restrict to tasks whose model
@@ -169,12 +187,15 @@ class Task < ApplicationRecord
     count = pending_tasks.count
     return 0 if count.zero?
 
-    target_owning = pending_tasks.where.not(kind: CACHE_RESULT_KINDS)
+    target_owning = pending_tasks.where.not(kind: READ_ONLY_TARGET_KINDS)
     { "Rewrite" => Rewrite, "Translation" => Translation }.each do |type_name, klass|
       target_ids = target_owning.where(target_type: type_name).pluck(:target_id)
       klass.where(id: target_ids)
            .update_all(status: "error", error_message: ABORT_MESSAGE, updated_at: Time.current)
     end
+
+    analyzed_article_ids = pending_tasks.where(kind: "analyze").pluck(:target_id)
+    Article.where(id: analyzed_article_ids).update_all(analysis_status: "failed", updated_at: Time.current)
 
     pending_tasks.update_all(status: "failed", error_message: ABORT_MESSAGE, updated_at: Time.current)
     count
@@ -182,7 +203,7 @@ class Task < ApplicationRecord
 
   def mark_claimed!
     update!(status: "claimed", claimed_at: Time.current, attempts: attempts + 1, error_message: nil)
-    return if CACHE_RESULT_KINDS.include?(kind) # don't touch the (read-only) target
+    return if READ_ONLY_TARGET_KINDS.include?(kind) # don't touch the (read-only) target
 
     target.update!(status: "running", error_message: nil)
     case kind
@@ -193,6 +214,13 @@ class Task < ApplicationRecord
   end
 
   def completed? = status == "completed"
+
+  # The article this task works on, whatever its target type (an `analyze`
+  # task targets the Article itself; every other kind targets a record that
+  # belongs to one).
+  def article
+    target.is_a?(Article) ? target : target&.article
+  end
 
   # ── Worker: post results back ─────────────────────────────────────────────
 
@@ -226,6 +254,8 @@ class Task < ApplicationRecord
         FeaturedSelector.store(FeaturedSelector.process(responses))
       when "tag"
         TagGenerator.store(target.article_id, TagGenerator.process(responses))
+      when "analyze"
+        target.update!(ArticleAnalyzer.process(responses))
       end
 
       update!(status: "completed", completed_at: Time.current)
@@ -248,8 +278,11 @@ class Task < ApplicationRecord
   def fail!(message)
     return if completed?
 
-    if CACHE_RESULT_KINDS.include?(kind)
-      return update!(status: "failed", error_message: message.to_s)
+    if READ_ONLY_TARGET_KINDS.include?(kind)
+      target.update!(analysis_status: "failed") if kind == "analyze"
+      update!(status: "failed", error_message: message.to_s)
+      broadcast_article_refresh if kind == "analyze"
+      return
     end
 
     target.update!(status: "error", error_message: message.to_s)
@@ -283,7 +316,11 @@ class Task < ApplicationRecord
   # webhook for it must be recognized as stale (see
   # LlmarktSubmitter.handle_callback/handle_failure).
   def requeue!
-    target.update!(status: "pending", error_message: nil)
+    if kind == "analyze"
+      target.update!(analysis_status: "pending")
+    elsif !READ_ONLY_TARGET_KINDS.include?(kind)
+      target.update!(status: "pending", error_message: nil)
+    end
     update!(status: "pending", claimed_at: nil, completed_at: nil,
             error_message: nil, responses: nil, external_job_id: nil)
   end
@@ -364,7 +401,6 @@ class Task < ApplicationRecord
   end
 
   def broadcast_article_refresh
-    article = target&.article
     return unless article
 
     Turbo::StreamsChannel.broadcast_refresh_to("article_#{article.id}_tasks")

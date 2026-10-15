@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_13_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_15_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -36,6 +36,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_13_000001) do
     t.datetime "updated_at", null: false
     t.boolean "archived", default: false, null: false
     t.string "slug"
+    t.integer "bias_left_percent"
+    t.integer "bias_center_percent"
+    t.integer "bias_right_percent"
+    t.integer "factual_percent"
+    t.integer "speculative_percent"
+    t.text "analysis_reasoning"
+    t.string "analysis_status"
+    t.datetime "analyzed_at"
     t.index ["feed_id"], name: "index_articles_on_feed_id"
     t.index ["slug"], name: "index_articles_on_slug", unique: true
     t.index ["url"], name: "index_articles_on_url", unique: true

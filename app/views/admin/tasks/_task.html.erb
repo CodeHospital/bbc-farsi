@@ -15,7 +15,7 @@
   </td>
   <td><span class="badge bg-secondary"><%= task.kind %></span></td>
   <td>
-    <% article = task.target&.article %>
+    <% article = task.article %>
     <% if article %>
       <%= link_to article.title.to_s.truncate(60), admin_article_path(article),
             class: ("posted-title" if article.status == "posted") %>

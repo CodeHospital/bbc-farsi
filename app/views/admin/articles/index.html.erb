@@ -1,7 +1,13 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h2>Articles</h2>
-  <%= button_to "▶ Fetch Feeds Now", admin_articles_path, method: :get,
-        params: { trigger_fetch: 1 }, class: "btn btn-outline-primary" %>
+  <div class="d-flex gap-2">
+    <%= button_to "⚖ Analyze unanalyzed", analyze_missing_admin_articles_path, method: :post,
+          class: "btn btn-outline-secondary",
+          title: "Queue an AI bias/fact analysis for every non-archived article that has none yet",
+          data: { turbo_confirm: "Queue an AI analysis for every non-archived article without one?" } %>
+    <%= button_to "▶ Fetch Feeds Now", admin_articles_path, method: :get,
+          params: { trigger_fetch: 1 }, class: "btn btn-outline-primary" %>
+  </div>
 </div>
 
 <%= render "admin/shared/filter_group",
@@ -28,6 +34,7 @@
     </span>
     <button type="submit" formaction="<%= bulk_rewrite_admin_articles_path %>" class="btn btn-sm btn-outline-info">Rewrite</button>
     <button type="submit" formaction="<%= bulk_translate_admin_articles_path %>" class="btn btn-sm btn-outline-primary">Translate</button>
+    <button type="submit" formaction="<%= bulk_analyze_admin_articles_path %>" class="btn btn-sm btn-outline-secondary">Analyze</button>
   </div>
 <% end %>
 
@@ -39,6 +46,7 @@
       <th><%= sort_link "feed", "Feed" %></th>
       <th><%= sort_link "published", "Published" %></th>
       <th><%= sort_link "status", "Status" %></th>
+      <th>Bias / Facts</th>
       <th></th>
     </tr>
   </thead>
@@ -57,6 +65,7 @@
         <td><span class="badge bg-secondary"><%= article.feed&.name %></span></td>
         <td><small><%= article.published_at&.strftime("%b %d %H:%M") %></small></td>
         <td><%= render "admin/shared/status_badge", status: article.status %></td>
+        <td><%= render "admin/shared/analysis_badges", article: %></td>
         <td class="text-end text-nowrap">
           <% portal_tr = @portal_translation_by_article_id[article.id] %>
           <% if portal_tr %>

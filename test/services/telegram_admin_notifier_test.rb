@@ -41,6 +41,29 @@ class TelegramAdminNotifierTest < ActiveSupport::TestCase
     assert_equal "sent", notification.status
   end
 
+  test "notify includes the article's AI bias/fact analysis once it has one" do
+    translation = create_translation(attrs: { translated_title: "عنوان خبر" })
+    translation.article.update!(bias_left_percent: 20, bias_center_percent: 70, bias_right_percent: 10,
+                                factual_percent: 85, speculative_percent: 15, analysis_status: "completed")
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.notify(translation)
+    end
+
+    assert_includes @sent[:text], "چپ 20٪"
+    assert_includes @sent[:text], "گمانه‌زنی درباره آینده 15٪"
+  end
+
+  test "notify omits the analysis line for an unanalyzed article" do
+    translation = create_translation
+
+    ::Telegram::Bot::Client.stub(:new, @fake_bot) do
+      TelegramAdminNotifier.notify(translation)
+    end
+
+    assert_not_includes @sent[:text], "گرایش"
+  end
+
   test "notify includes a source link button but not portal links when app_base_url isn't configured" do
     translation = create_translation
 

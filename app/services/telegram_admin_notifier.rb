@@ -168,10 +168,21 @@ class TelegramAdminNotifier
 
       #{escape(translation.translated_body.to_s.truncate(BODY_PREVIEW_LENGTH))}
 
-      #{status_line}
+      #{[ status_line, analysis_lines(article) ].compact.join("\n")}
 
       منبع: #{escape(article.url.to_s.split('?').first)}
     TEXT
+  end
+
+  # AI bias/fact analysis of the original article (see ArticleAnalyzer);
+  # nil until the article has been analyzed.
+  def analysis_lines(article)
+    return nil unless article&.analyzed?
+
+    [
+      "⚖️ گرایش: چپ #{article.bias_left_percent}٪ | میانه #{article.bias_center_percent}٪ | راست #{article.bias_right_percent}٪",
+      "📅 رخ‌داده (واقعیت) #{article.factual_percent}٪ | گمانه‌زنی درباره آینده #{article.speculative_percent}٪"
+    ].join("\n")
   end
 
   def escape(text) = CGI.escapeHTML(text.to_s)

@@ -15,6 +15,11 @@
         <div class="card-body">
           <h5 class="card-title"><%= @translation.article.title %></h5>
           <p class="card-text text-muted"><%= @translation.article.description %></p>
+          <p class="card-text">
+            <small class="text-muted">AI analysis:</small>
+            <%= render "admin/shared/analysis_badges", article: @translation.article %>
+            <%= link_to "edit", admin_article_path(@translation.article, anchor: "article_analysis"), class: "small ms-1" %>
+          </p>
           <%= link_to "View original article ↗", @translation.article.url, target: "_blank", rel: "noopener",
                 class: "btn btn-outline-secondary btn-sm" %>
         </div>

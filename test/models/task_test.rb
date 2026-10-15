@@ -433,4 +433,63 @@ class TaskTest < ActiveSupport::TestCase
   ensure
     Rails.cache = original
   end
+
+  # ── analyze kind (bias/fact scores stored on the article) ─────────────────
+
+  ANALYSIS_JSON = '{"left": 20, "center": 70, "right": 10, "factual": 85, "speculative": 15, "reasoning": "Wire-style report."}'.freeze
+
+  test "enqueue_analyze targets the article, marks it pending, and claiming leaves its status alone" do
+    task = Task.enqueue_analyze(@article, server: @server, model: "qwen3:14b")
+
+    assert_equal "analyze", task.kind
+    assert_equal @article, task.target
+    assert_equal @article, task.article
+    assert_equal "pending", @article.reload.analysis_status
+    assert_equal "analyze", task.prompt_version_usages.first.prompt_version.prompt.key
+
+    Task.claim_next!
+    assert_equal "pending", @article.reload.status # pipeline status untouched
+  end
+
+  test "analyze task complete! stores the scores on the article" do
+    task = Task.enqueue_analyze(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    task.complete!("analysis" => "<think>hmm</think>#{ANALYSIS_JSON}")
+
+    @article.reload
+    assert_equal [ 20, 70, 10 ], [ @article.bias_left_percent, @article.bias_center_percent, @article.bias_right_percent ]
+    assert_equal [ 85, 15 ], [ @article.factual_percent, @article.speculative_percent ]
+    assert_equal "Wire-style report.", @article.analysis_reasoning
+    assert_equal "completed", @article.analysis_status
+    assert_equal "pending", @article.status
+  end
+
+  test "analyze task fail! marks the analysis failed without touching the article status" do
+    task = Task.enqueue_analyze(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    task.fail!("boom")
+
+    assert_equal "failed", task.reload.status
+    assert_equal "failed", @article.reload.analysis_status
+    assert_equal "pending", @article.status
+  end
+
+  test "requeuing an analyze task resets only the analysis status" do
+    task = Task.enqueue_analyze(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    task.fail!("boom")
+    task.requeue!
+
+    assert_equal "pending", task.reload.status
+    assert_equal "pending", @article.reload.analysis_status
+    assert_equal "pending", @article.status
+  end
+
+  test "abort_pending! fails a pending analysis without touching the article status" do
+    Task.enqueue_analyze(@article, server: @server, model: "qwen3:14b")
+    Task.abort_pending!
+
+    assert_equal "failed", @article.reload.analysis_status
+    assert_equal "pending", @article.status
+  end
 end
