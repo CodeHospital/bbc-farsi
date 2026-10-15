@@ -137,7 +137,7 @@ end
 
 def build_message(article, translated_title, translated_description, prompt_index, model)
   text = "📢 *#{translated_title}*\n\n#{translated_description}\n\n\n" \
-         "#{article[:url]}\n\nfollow @realbbcfarsi for more\n\n*#{article[:title]}*"
+         "#{article[:url]}\n\nfollow @khabarestan for more\n\n*#{article[:title]}*"
   text += "\n\n_Translation prompt: #{prompt_index + 1}, Model: #{model}_" if multi_mode?
   text
 end

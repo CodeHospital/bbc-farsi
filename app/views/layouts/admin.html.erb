@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BBC Farsi Admin</title>
+  <title>Khabarestan Admin</title>
   <%= csrf_meta_tags %>
   <%= javascript_importmap_tags %>
   <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
@@ -52,12 +54,12 @@
 <%# Mobile-only top bar with hamburger toggle %>
 <div class="admin-topbar d-md-none">
   <button class="btn-hamburger" onclick="toggleSidebar()" aria-label="Toggle menu">&#9776;</button>
-  <span class="brand">📡 BBC Farsi</span>
+  <span class="brand"><img src="/logo.png" alt="" width="26" height="26" class="rounded me-1 align-text-bottom">Khabarestan</span>
 </div>
 <div class="container-fluid">
   <div class="row">
     <nav class="col-md-2 sidebar p-3" id="adminSidebar">
-      <div class="text-white fw-bold fs-5 mb-4">📡 BBC Farsi</div>
+      <div class="text-white fw-bold fs-5 mb-4"><img src="/logo.png" alt="" width="30" height="30" class="rounded me-1 align-text-bottom">Khabarestan</div>
       <ul class="nav flex-column">
         <li class="nav-item">
           <%= link_to admin_root_path, class: "nav-link #{'active' if controller_name == 'dashboard'}" do %>

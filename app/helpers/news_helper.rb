@@ -84,8 +84,8 @@ module NewsHelper
   # bilingual surface of the public site lives in one place).
   UI_STRINGS = {
     "fa" => {
-      site_name:    "بی‌بی‌سی فارسی",
-      tagline:      "بازنویسی و ترجمهٔ خودکار اخبار بی‌بی‌سی — نسخهٔ نمایشی.",
+      site_name:    "خبرستان",
+      tagline:      "بازنویسی و ترجمهٔ خودکار اخبار جهان به فارسی.",
       home:         "خانه",
       latest_news:  "آخرین اخبار",
       categories:   "دسته‌بندی‌ها",
@@ -112,11 +112,11 @@ module NewsHelper
       copy_link:        "کپی پیوند",
       link_copied:      "پیوند کپی شد ✓",
       rss_title:        "خبرخوان آخرین اخبار",
-      category_description: "آخرین اخبار دستهٔ «%{category}» — ترجمه و بازنویسی خودکار خبرهای بی‌بی‌سی به فارسی."
+      category_description: "آخرین اخبار دستهٔ «%{category}» — ترجمه و بازنویسی خودکار خبرهای جهان به فارسی."
     },
     "en" => {
-      site_name:    "BBC Persian",
-      tagline:      "Automatic rewriting and translation of BBC news — demo edition.",
+      site_name:    "Khabarestan",
+      tagline:      "Automatic rewriting and translation of world news into Persian.",
       home:         "Home",
       latest_news:  "Latest News",
       categories:   "Categories",
@@ -143,7 +143,7 @@ module NewsHelper
       copy_link:        "Copy link",
       link_copied:      "Link copied ✓",
       rss_title:        "Latest news feed",
-      category_description: "Latest %{category} news from the BBC — automatically rewritten and translated into Persian and English."
+      category_description: "Latest %{category} news — automatically rewritten and translated into Persian and English."
     }
   }.freeze
 

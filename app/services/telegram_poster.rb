@@ -51,7 +51,7 @@ class TelegramPoster
     "📢 <b>#{escape(translation.translated_title)}</b>\n\n" \
       "#{escape(translation.translated_body)}\n\n\n" \
       "#{escape(article.url.to_s.split('?').first)}\n\n" \
-      "follow @realbbcfarsi for more"
+      "follow @khabarestan for more"
   end
 
   def escape(text) = CGI.escapeHTML(text.to_s)

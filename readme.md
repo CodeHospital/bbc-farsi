@@ -1,6 +1,6 @@
-# BBC Farsi Rails App
+# Khabarestan Rails App
 
-A Rails 8 admin web app that fetches BBC Persian RSS feeds, rewrites articles using a local LLM (Ollama), translates them to Persian, and autoposts to Telegram, Bale (bale.ai) and other Telegram-compatible channels.
+A Rails 8 admin web app that fetches international news RSS feeds (BBC, NYT and others), rewrites articles using a local LLM (Ollama), translates them to Persian, and autoposts to Telegram, Bale (bale.ai) and other Telegram-compatible channels.
 
 LLM work is **not** done inside the web app. The app enqueues **tasks** in a
 database-backed queue; a separate [worker client](worker/README.md) — which has
@@ -58,7 +58,7 @@ template with every key. Copy the ones you need into `credentials:edit`.
 |---|---|---|
 | `admin_username` / `admin_password` / `admin_email` | **yes** (app won't boot without them, except in test) | Bootstrap admin, used once by `bin/rails db:seed` to create the first admin `User` row if no users exist yet. After that, manage users at `/admin/users`. |
 | `worker_api_token` | **yes** (worker API rejects every call without it) | Shared bearer token for the worker API (`/api/tasks`). Must match the worker's own `WORKER_API_TOKEN` env. |
-| `database_url` | production only | PostgreSQL connection string, e.g. `postgres://user:password@host:5432/bbcfarsi_production`. Development/test use SQLite. |
+| `database_url` | production only | PostgreSQL connection string, e.g. `postgres://user:password@host:5432/khabarestan_production`. Development/test use SQLite. |
 | `app_base_url` | for llmarkt / Telegram admin bot / mail links | Public URL of this app. Also added to production's allowed hosts. |
 | `llmarkt_api_url` / `llmarkt_api_key` / `llmarkt_model_match` | optional | llmarkt LLM grid (see below) |
 | `resend_api_key` / `sender_email` | optional | Outgoing mail via Resend (see below) |
@@ -572,10 +572,10 @@ executing it, so `schema.rb` must always match the migrations. Migration
 Build and run with Docker:
 
 ```bash
-docker build -t bbcfarsi .
+docker build -t khabarestan .
 docker run -d -p 80:80 \
   -e RAILS_MASTER_KEY=$(cat config/master.key) \
-  --name bbcfarsi bbcfarsi
+  --name khabarestan khabarestan
 ```
 
 `RAILS_MASTER_KEY` is the only value the container needs. Everything else

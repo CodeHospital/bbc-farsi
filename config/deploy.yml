@@ -1,8 +1,8 @@
 # Name of your application. Used to uniquely configure containers.
-service: bbcfarsi
+service: khabarestan
 
 # Name of the container image.
-image: your-user/bbcfarsi
+image: your-user/khabarestan
 
 # Deploy to these servers.
 servers:
@@ -42,7 +42,7 @@ env:
     # WEB_CONCURRENCY: 2
 
     # Match this to any external database server to configure Active Record correctly
-    # Use bbcfarsi-db for a db accessory server on same machine via local kamal docker network.
+    # Use khabarestan-db for a db accessory server on same machine via local kamal docker network.
     # DB_HOST: 192.168.0.2
 
     # Log everything from Rails
@@ -60,7 +60,7 @@ aliases:
 # Persistent storage volume for local files (e.g. Active Storage). The database
 # is PostgreSQL (DATABASE_URL), so no database files live here anymore.
 volumes:
-  - "bbcfarsi_storage:/rails/storage"
+  - "khabarestan_storage:/rails/storage"
 
 
 # Bridge fingerprinted assets, like JS and CSS, between versions to avoid
@@ -89,7 +89,7 @@ builder:
 # Use accessory services (secrets come from .kamal/secrets).
 # Only needed if you self-host PostgreSQL on a server; managed Postgres just
 # needs DATABASE_URL set in .kamal/secrets. Point DATABASE_URL at this host
-# (e.g. postgres://postgres:PASSWORD@bbcfarsi-db:5432/bbcfarsi_production).
+# (e.g. postgres://postgres:PASSWORD@khabarestan-db:5432/khabarestan_production).
 # accessories:
 #   db:
 #     image: postgres:16
@@ -99,7 +99,7 @@ builder:
 #     env:
 #       clear:
 #         POSTGRES_USER: postgres
-#         POSTGRES_DB: bbcfarsi_production
+#         POSTGRES_DB: khabarestan_production
 #       secret:
 #         - POSTGRES_PASSWORD
 #     directories:

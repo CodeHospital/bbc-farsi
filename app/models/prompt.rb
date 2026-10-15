@@ -38,10 +38,10 @@ class Prompt < ApplicationRecord
     },
     "rewrite_body" => {
       name: "Rewrite — Body",
-      description: "Rewrites a BBC article's body into a clear, self-contained plain-English paragraph. " \
+      description: "Rewrites a news article's body into a clear, self-contained plain-English paragraph. " \
                     "User message: \"Title: <article title>\\n\\n<article description>\".",
       content: <<~PROMPT.strip
-        You are a news editor. Given a BBC news article title and its summary, rewrite the body as a
+        You are a news editor. Given a news article title and its summary, rewrite the body as a
         clear, self-contained paragraph in plain English. Expand any abbreviations, add brief factual
         context where helpful, and make it easy to understand for a general international audience, specially people with limited English proficiency. Do not assume the reader has any prior knowledge of the article's topic. Output only the rewritten body — no title, no punctuation at the end, no metadata, no commentary.
         Do not use any HTML tags or formatting.
@@ -52,14 +52,14 @@ class Prompt < ApplicationRecord
       description: "Writes a concise headline from the rewritten body. User message includes the " \
                     "original title and the rewritten body as {{body}}.",
       content: <<~PROMPT.strip
-        You are a news editor. Given a BBC news article title and its rewritten body, produce a concise,
+        You are a news editor. Given a news article title and its rewritten body, produce a concise,
         accurate headline for the article, so it's easy to understand for people with limited English proficiency. Output only the headline — no punctuation at the end, no
         metadata, no commentary.
       PROMPT
     },
     "translate" => {
       name: "Translate — English → Persian",
-      description: "Translates the rewritten English title/body into Persian (BBC Farsi editorial " \
+      description: "Translates the rewritten English title/body into Persian (Khabarestan editorial " \
                     "style). Used for both the title and body requests of a translate task.",
       content: <<~PROMPT.strip
         You are an expert English-to-Farsi news translator.

@@ -72,7 +72,7 @@ class ArticleImageFetcher
     return unless uri.is_a?(URI::HTTP) && ALLOWED_HOSTS.include?(uri.host)
 
     html = URI.open(uri.to_s, # rubocop:disable Security/Open
-      "User-Agent" => "Mozilla/5.0 (compatible; bbcfarsi/1.0)",
+      "User-Agent" => "Mozilla/5.0 (compatible; khabarestan/1.0)",
       read_timeout: 8, open_timeout: 5).read(READ_LIMIT)
 
     html[OG_IMAGE_RE, 1] || html[OG_IMAGE_ALT, 1]

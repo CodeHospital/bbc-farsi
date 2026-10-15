@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — logo switched to `khabarestan_icon.jpeg` (globe + news page + signal); Telegram handle restored to `@khabarestan`
+
+- Regenerated all `public/` icons (icon.png, favicon-32.png, apple-touch-icon.png, icon-maskable.png, logo.png, icon.svg) from `khabarestan_icon.jpeg` on a white rounded tile (the source has an off-white background, so a tile keeps it legible in dark UI areas). PWA `background_color` is now white; `theme_color` stays navy.
+- Reverted the accidental `@realbbcfarsi` handle in `TelegramPoster`, `update.rb` and its test back to `@khabarestan`.
+
+### Changed — new "خ" letterform logo (`letterform_logo.jpeg`) used everywhere
+
+- Generated `public/icon.png` (512), `favicon-32.png`, `apple-touch-icon.png` (180), `icon-maskable.png` (safe-zone padded for PWA), `logo.png` (128, in-page) and `icon.svg` from the supplied image.
+- Public masthead/footer, admin topbar/sidebar, login and password-reset pages now show the logo instead of the "KH" box / 📡 emoji; favicons and apple-touch icon declared in every layout; Open Graph/JSON-LD fall back to `/icon.png` (already the case); PWA manifest uses the maskable icon and navy `#09233e` theme/background colours.
+- Telegram/Bale channel avatars must still be set manually in BotFather / Bale (use `public/icon.png`).
+
+### Changed — project rebranded from "BBC Farsi" to Khabarestan (خبرستان, khabarestan.com)
+
+- Removed every BBC Farsi / BBC Persian / بی‌بی‌سی فارسی reference from public site copy, meta descriptions, llms.txt, JSON-LD, masthead/footer logo (now "KH" + خبرستان), admin UI, password-reset mailers, PWA manifest, worker, prompts, readme, credentials example, deploy config and tests.
+- Default Telegram follow handle is now `@khabarestan`; Ruby module renamed `Bbcfarsi` → `Khabarestan`; Kamal service/image/volume and DB names renamed to `khabarestan*` (rename the existing storage volume / production DB on the server before the next deploy, or keep the old names in `config/deploy.yml`).
+- BBC remains only as an ingested news *source* (feeds, source labels), not as branding.
+
 ### Added — news pages made SEO, social and LLM friendly (no migrations)
 
 - User prompt: "make the news pages social media friendly, llm friendly, seo friendly".

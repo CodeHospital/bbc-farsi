@@ -7,8 +7,8 @@
   <meta name="theme-color" content="#dd3333">
 
   <% default_description = english_edition? ?
-       "The latest world news from the BBC — automatically rewritten and translated into Persian and English." :
-       "آخرین اخبار جهان به فارسی — ترجمه و بازنویسی خودکار خبرهای بی‌بی‌سی." %>
+       "The latest world news — automatically rewritten and translated into Persian and English." :
+       "آخرین اخبار جهان به فارسی — ترجمه و بازنویسی خودکار خبرهای رسانه‌های معتبر جهان." %>
   <% page_title       = content_for(:title).presence || news_ui(:site_name) %>
   <% page_description = content_for(:description).presence || default_description %>
   <% canonical_url    = content_for(:canonical).presence || request.original_url %>
@@ -69,7 +69,9 @@
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 
-  <link rel="icon" href="/icon.png" type="image/png">
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/icon.png" type="image/png" sizes="512x512">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
   <% if english_edition? %>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
@@ -98,8 +100,7 @@
     /* ── Masthead ────────────────────────────────────────────── */
     .masthead { padding: 22px 0; text-align: center; }
     .logo-box { display: inline-flex; align-items: center; gap: 10px; }
-    .logo-mark { background: #000; color: #fff; font-weight: 800; letter-spacing: 2px;
-                 padding: 4px 10px; border-radius: 3px; font-family: system-ui, sans-serif; }
+    .logo-mark { width: 44px; height: 44px; border-radius: 10px; display: block; }
     .logo-text { font-size: 2rem; font-weight: 800; }
     .logo-text small { color: var(--accent); }
 
@@ -297,8 +298,8 @@
   <%# ── Masthead ─────────────────────────────────────────────── %>
   <header class="masthead">
     <%= link_to home_path, class: "logo-box" do %>
-      <span class="logo-mark">BBC</span>
-      <span class="logo-text"><%= english_edition? ? "Persian" : "فارسی" %><small>.</small></span>
+      <%= image_tag "/logo.png", alt: "", class: "logo-mark", width: 44, height: 44 %>
+      <span class="logo-text"><%= english_edition? ? "World News" : "خبر فارسی" %><small>.</small></span>
     <% end %>
   </header>
 
@@ -345,8 +346,8 @@
       <div class="row gy-3">
         <div class="col-md-5">
           <div class="logo-box mb-2">
-            <span class="logo-mark">BBC</span>
-            <span class="logo-text" style="font-size:1.4rem;color:#fff"><%= english_edition? ? "Persian" : "فارسی" %></span>
+            <%= image_tag "/logo.png", alt: "", class: "logo-mark", width: 44, height: 44 %>
+            <span class="logo-text" style="font-size:1.4rem;color:#fff"><%= english_edition? ? "Khabarestan" : "خبرستان" %></span>
           </div>
           <p class="small"><%= news_ui(:tagline) %></p>
         </div>

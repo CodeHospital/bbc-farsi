@@ -4,7 +4,7 @@
 #
 # Read from Rails credentials (see AppCredentials):
 #   resend_api_key  Resend API key (used as the SMTP password)
-#   sender_email    e.g. "BBC Farsi <noreply@yourdomain.com>"
+#   sender_email    e.g. "Khabarestan <noreply@yourdomain.com>"
 #
 # See config/initializers/action_mailer.rb (applies these as smtp_settings)
 # and Llmarkt.app_base_url (reused here for mailer default_url_options).

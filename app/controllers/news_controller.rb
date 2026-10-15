@@ -176,21 +176,21 @@ class NewsController < ApplicationController
   def llms
     base = request.base_url
     content = <<~LLMS
-      # BBC Persian (بی‌بی‌سی فارسی)
+      # Khabarestan (خبرستان)
 
-      > An automated bilingual news digest that rewrites and translates BBC world
+      > An automated bilingual news digest that rewrites and translates international world
       > news articles into Persian using large language models, with an English
       > edition for side-by-side reading.
 
       ## About
-      This site ingests BBC English news articles via RSS, rewrites them with an
+      This site ingests English-language international news articles via RSS, rewrites them with an
       LLM, translates the rewrites into Persian (Farsi), and publishes the results
       as a magazine-style news portal. Content is available in both Persian and
       English editions. The project is a demonstration and is not affiliated with
-      or endorsed by the BBC.
+      or endorsed by the original publishers.
 
       ## What you will find here
-      - Persian-language news articles (automatically translated from BBC sources)
+      - Persian-language news articles (automatically translated from international news sources)
       - English-language originals (accessible via the /en/ URL prefix)
       - AI-generated topic tags per article
       - Category sections: #{NewsHelper::CATEGORY_NAMES_EN.values.join(', ')}
@@ -270,7 +270,7 @@ class NewsController < ApplicationController
       body,
       "",
       "---",
-      (@news_lang == "en" ? "Original BBC text, summarised by this site." :
+      (@news_lang == "en" ? "Original text, summarised by this site." :
                             "ترجمه و بازنویسی خودکار با هوش مصنوعی از منبع اصلی.")
     ].compact
     response.set_header("Link", %(<#{view.news_story_url(@translation)}>; rel="canonical"))

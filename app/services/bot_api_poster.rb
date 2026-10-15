@@ -108,7 +108,7 @@ class BotApiPoster
 
   def article_link(translation) = translation.article.url.to_s.split("?").first
 
-  # TelegramPoster's "follow @realbbcfarsi" points at the Telegram channel, so
+  # TelegramPoster's "follow @khabarestan" points at the Telegram channel, so
   # other providers advertise their own channel instead — but only when the
   # channel id is a public @username (a numeric id isn't something to follow).
   def follow_line(channel)

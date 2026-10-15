@@ -1,6 +1,6 @@
-# BBC Farsi Task Worker
+# Khabarestan Task Worker
 
-A standalone client that performs the LLM work for the BBC Farsi app. The Rails
+A standalone client that performs the LLM work for the Khabarestan app. The Rails
 app no longer talks to Ollama itself — it only enqueues **tasks**. This worker
 (which has access to Ollama) claims tasks over a protected API, runs them
 against Ollama, and posts the results back.

@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-# BBC Farsi Task Worker — improved parallel edition
+# Khabarestan Task Worker — improved parallel edition
 
 require "bundler/setup"
 require "dotenv"
@@ -486,7 +486,7 @@ def render_status_html(snapshot)
       <meta charset="utf-8">
       <meta http-equiv="refresh" content="3">
       <meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>BBC Farsi Worker — Status</title>
+      <title>Khabarestan Worker — Status</title>
       <style>
         :root { color-scheme: light dark; }
         body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
@@ -527,7 +527,7 @@ def render_status_html(snapshot)
       </style>
     </head>
     <body>
-      <h1>BBC Farsi Worker</h1>
+      <h1>Khabarestan Worker</h1>
       <div class="sub">
         app: <code>#{h(CONFIG.app_url)}</code> &nbsp;·&nbsp;
         ollama: <code>#{h(CONFIG.default_ollama_url)}</code> &nbsp;·&nbsp;

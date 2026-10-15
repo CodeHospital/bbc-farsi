@@ -5,7 +5,7 @@ class UserMailerTest < ActionMailer::TestCase
     user = create_admin_user
     mail = UserMailer.password_reset(user)
 
-    assert_equal "Reset your BBC Farsi admin password", mail.subject
+    assert_equal "Reset your Khabarestan admin password", mail.subject
     assert_equal [ user.email ], mail.to
     assert_match "/admin/password_resets/", mail.body.encoded
   end

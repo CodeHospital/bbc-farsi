@@ -3,6 +3,6 @@ class UserMailer < ApplicationMailer
     @user  = user
     @token = user.generate_token_for(:password_reset)
 
-    mail to: user.email, subject: "Reset your BBC Farsi admin password"
+    mail to: user.email, subject: "Reset your Khabarestan admin password"
   end
 end

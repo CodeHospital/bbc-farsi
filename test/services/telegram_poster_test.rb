@@ -6,7 +6,7 @@ class TelegramPosterTest < ActiveSupport::TestCase
   teardown { restore_article_image_lookup }
 
   setup do
-    @channel     = TelegramChannel.new(name: "BBC Farsi", token: "123:abc", channel_id: "@bbcfarsi")
+    @channel     = TelegramChannel.new(name: "Khabarestan", token: "123:abc", channel_id: "@khabarestan")
     @article     = Article.new(title: "Original English title", url: "https://bbc.co.uk/news/1")
     @translation = Translation.new(
       article:          @article,
@@ -29,7 +29,7 @@ class TelegramPosterTest < ActiveSupport::TestCase
     end
 
     assert_not_nil sent
-    assert_equal "@bbcfarsi",  sent[:chat_id]
+    assert_equal "@khabarestan",  sent[:chat_id]
     assert_equal "HTML",       sent[:parse_mode]
     assert_includes sent[:text], "<b>عنوان فارسی</b>"
   end
@@ -61,7 +61,7 @@ class TelegramPosterTest < ActiveSupport::TestCase
   end
 
   test "message includes channel attribution" do
-    assert_includes actual_message, "@realbbcfarsi"
+    assert_includes actual_message, "@khabarestan"
   end
 
   test "connects to the channel's API base URL override (e.g. a self-hosted Bot API server)" do

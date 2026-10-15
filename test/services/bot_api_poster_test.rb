@@ -9,7 +9,7 @@ class BotApiPosterTest < ActiveSupport::TestCase
   JSON_HEADERS    = { "Content-Type" => "application/json" }.freeze
 
   setup do
-    @bale_channel   = TelegramChannel.new(name: "BBC Farsi Bale", provider: "bale", token: "999:bale-token", channel_id: "@bbcfarsi_bale")
+    @bale_channel   = TelegramChannel.new(name: "Khabarestan Bale", provider: "bale", token: "999:bale-token", channel_id: "@khabarestan_bale")
     @custom_channel = TelegramChannel.new(name: "Other News", provider: "custom", custom_provider_name: "Other Messenger",
                                           api_base_url: "https://bots.other.example/api", message_format: "html",
                                           token: "5:custom-token", channel_id: "@othernews")
@@ -20,7 +20,7 @@ class BotApiPosterTest < ActiveSupport::TestCase
   test "Bale: sends a plain-text message (no parse_mode) through Bale's endpoint" do
     sent_payload = capture_payload(BALE_SEND_URL, @bale_channel)
 
-    assert_equal "@bbcfarsi_bale", sent_payload["chat_id"]
+    assert_equal "@khabarestan_bale", sent_payload["chat_id"]
     assert_not sent_payload.key?("parse_mode")
     assert_includes sent_payload["text"], "📢 عنوان فارسی"
     assert_includes sent_payload["text"], "متن فارسی خبر"
@@ -38,8 +38,8 @@ class BotApiPosterTest < ActiveSupport::TestCase
 
   test "advertises the channel's own @username, not the Telegram one" do
     sent_text = capture_payload(BALE_SEND_URL, @bale_channel)["text"]
-    assert_includes sent_text, "follow @bbcfarsi_bale for more"
-    assert_not_includes sent_text, "@realbbcfarsi"
+    assert_includes sent_text, "follow @khabarestan_bale for more"
+    assert_not_includes sent_text, "follow @khabarestan for more"
   end
 
   test "omits the follow line for a numeric channel id" do
@@ -51,7 +51,7 @@ class BotApiPosterTest < ActiveSupport::TestCase
     @translation.translated_body = "خ" * 10_000
     sent_text = capture_payload(BALE_SEND_URL, @bale_channel)["text"]
     assert_operator sent_text.length, :<=, BotApiPoster::MAX_MESSAGE_LENGTH
-    assert sent_text.end_with?("follow @bbcfarsi_bale for more")
+    assert sent_text.end_with?("follow @khabarestan_bale for more")
   end
 
   test "custom provider: posts to its own API base URL with HTML formatting when configured" do
