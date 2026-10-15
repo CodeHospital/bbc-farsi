@@ -2,7 +2,7 @@ require "test_helper"
 
 class Api::TasksControllerTest < ActionDispatch::IntegrationTest
   setup do
-    ENV["WORKER_API_TOKEN"] = "test-worker-token"
+    stub_credentials(worker_api_token: "test-worker-token")
     @article = create_article
     @server  = OllamaServer.create!(name: "Local", url: "http://gpu.local:11434",
                                     rewrite_models: "qwen3:14b", translate_models: "aya-expanse:32b")

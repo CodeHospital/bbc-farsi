@@ -1,5 +1,5 @@
 # Resend SMTP relay for outgoing mail (password resets, etc.) — see
-# MailerConfig for where credentials/ENV come from. Skipped in test, where
+# MailerConfig for which credentials it reads. Skipped in test, where
 # config/environments/test.rb sets delivery_method to :test instead so specs
 # never attempt a real network connection.
 #

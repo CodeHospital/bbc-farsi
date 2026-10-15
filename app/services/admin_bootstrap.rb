@@ -2,31 +2,24 @@
 # first admin `User` row when the `users` table is empty (after that, admins
 # manage everyone, including themselves, from /admin/users).
 #
-# Credentials are read from Rails credentials first, then ENV as a fallback:
-#   credentials.admin_username / ENV["ADMIN_USERNAME"]
-#   credentials.admin_password / ENV["ADMIN_PASSWORD"]
-#   credentials.admin_email    / ENV["ADMIN_EMAIL"]
+# Read from Rails credentials (see AppCredentials): admin_username,
+# admin_password, admin_email.
 module AdminBootstrap
   module_function
 
   def username
-    fetch(:admin_username, "ADMIN_USERNAME").presence
+    AppCredentials.fetch(:admin_username).presence
   end
 
   def password
-    fetch(:admin_password, "ADMIN_PASSWORD").presence
+    AppCredentials.fetch(:admin_password).presence
   end
 
   def email
-    fetch(:admin_email, "ADMIN_EMAIL").presence
+    AppCredentials.fetch(:admin_email).presence
   end
 
   def configured?
     username.present? && password.present? && email.present?
   end
-
-  def fetch(credential_key, env_key)
-    Rails.application.credentials.dig(credential_key) || ENV[env_key]
-  end
-  private_class_method :fetch
 end

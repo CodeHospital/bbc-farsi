@@ -81,7 +81,8 @@ bundle exec ruby worker.rb
 WORKER_API_TOKEN=your-shared-secret bundle exec ruby worker.rb
 ```
 
-The same `WORKER_API_TOKEN` must be set in the Rails app's environment so the
+The same value must be set as the Rails app's `worker_api_token` credential
+(`bin/rails credentials:edit`) so the
 two sides agree on the bearer token.
 
 ## Status page

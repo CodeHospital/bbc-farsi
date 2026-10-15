@@ -11,7 +11,7 @@ on a different, GPU-equipped machine).
 ## Tech Stack
 
 - **Ruby** 3.3.8 / **Rails** 8
-- **SQLite3** (development/test) / **PostgreSQL** (production, via `DATABASE_URL`) — database
+- **SQLite3** (development/test) / **PostgreSQL** (production, via the `database_url` credential) — database
 - **DB-backed task queue** + standalone worker client — LLM work
 - **Solid Cache** — `Rails.cache` store
 - **Ollama** — local LLM inference, called by the worker (not the app)
@@ -39,25 +39,46 @@ on a different, GPU-equipped machine).
 bundle install
 ```
 
-### 2. Configure environment
+### 2. Configure credentials
 
-Copy the example env file and fill in your values:
+All app configuration lives in **Rails encrypted credentials**
+(`config/credentials.yml.enc`). It's decrypted with `config/master.key`
+locally, or with the `RAILS_MASTER_KEY` env var in production. The app does
+**not** read ENV for any of these settings.
 
 ```bash
-cp .env.example .env
+bin/rails credentials:edit     # opens the decrypted YAML in $EDITOR
+bin/rails bbc:credentials      # lists which keys are set / MISSING (never prints values)
 ```
 
-| Variable | Description |
-|---|---|
-| `WORKER_API_TOKEN` | Shared bearer token for the worker API (`/api/tasks`). Must match the worker's env. |
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token |
-| `TELEGRAM_CHANNEL` | Default Telegram channel (e.g. `@YourChannel`) |
-| `ADMIN_USERNAME` | Bootstrap admin username (or Rails credentials `admin_username`, preferred) — used once by `bin/rails db:seed` to create the first admin `User` row (if no users exist yet). After that, log in with users managed at `/admin/users`. |
-| `ADMIN_PASSWORD` | Bootstrap admin password (or credentials `admin_password`, see above) |
-| `ADMIN_EMAIL` | Bootstrap admin email (or credentials `admin_email`, see above) — also where their password-reset emails would go |
-| `OLLAMA_URL` | Only used for the admin "debug curl" panels now — the app itself never calls Ollama (default `http://localhost:11434`) |
-| `RESEND_API_KEY` | Optional — [Resend](https://resend.com) API key, used as the SMTP password for outgoing mail (password resets). Prefer Rails credentials (`resend_api_key`) instead. |
-| `SENDER_EMAIL` | Optional — the `From:` address for outgoing mail, e.g. `BBC Farsi <noreply@yourdomain.com>`. Prefer Rails credentials (`sender_email`) instead. Without this + `RESEND_API_KEY`, mail sending is a no-op. |
+[`config/credentials.example.yml`](config/credentials.example.yml) is a
+template with every key. Copy the ones you need into `credentials:edit`.
+
+| Credential key | Required? | Purpose |
+|---|---|---|
+| `admin_username` / `admin_password` / `admin_email` | **yes** (app won't boot without them, except in test) | Bootstrap admin, used once by `bin/rails db:seed` to create the first admin `User` row if no users exist yet. After that, manage users at `/admin/users`. |
+| `worker_api_token` | **yes** (worker API rejects every call without it) | Shared bearer token for the worker API (`/api/tasks`). Must match the worker's own `WORKER_API_TOKEN` env. |
+| `database_url` | production only | PostgreSQL connection string, e.g. `postgres://user:password@host:5432/bbcfarsi_production`. Development/test use SQLite. |
+| `app_base_url` | for llmarkt / Telegram admin bot / mail links | Public URL of this app. Also added to production's allowed hosts. |
+| `llmarkt_api_url` / `llmarkt_api_key` / `llmarkt_model_match` | optional | llmarkt LLM grid (see below) |
+| `resend_api_key` / `sender_email` | optional | Outgoing mail via Resend (see below) |
+| `sentry_dsn` | optional | Error tracking (see below) |
+| `telegram_admin_bot_token` / `telegram_admin_chat_id` / `telegram_admin_webhook_secret` | optional | Telegram admin notification bot (see below) |
+| `ollama_url` | optional | Only used for the admin "debug curl" panels (default `http://localhost:11434`). The app itself never calls Ollama. |
+
+Only runtime/boot knobs are still read from the environment: `RAILS_MASTER_KEY`,
+`RAILS_ENV`, `PORT`, `RAILS_MAX_THREADS`, `WEB_CONCURRENCY`, `PIDFILE`,
+`RAILS_LOG_LEVEL`, and `CI` (tests). The standalone worker (`worker/`) is a
+separate program and keeps its own env config (see
+[worker/README.md](worker/README.md)).
+
+> **Migrating from `.env`:** each old env var maps to the lower-case credential
+> of the same name (`WORKER_API_TOKEN` → `worker_api_token`, `DATABASE_URL` →
+> `database_url`, `APP_BASE_URL` → `app_base_url`, …). Copy every value into
+> `bin/rails credentials:edit`, then run `bin/rails bbc:credentials` to confirm.
+> The old `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHANNEL` vars were only used by the
+> legacy `update.rb` script. Channel tokens live on `/admin/telegram_channels`
+> rows.
 
 ### 3. Set up the database
 
@@ -66,11 +87,10 @@ bin/rails db:prepare
 bin/rails db:seed
 ```
 
-`db:seed` also creates the first admin account (username/password/email from
-`ADMIN_USERNAME`/`ADMIN_PASSWORD`/`ADMIN_EMAIL`) — but only if the `users`
+`db:seed` also creates the first admin account (from the `admin_username` /
+`admin_password` / `admin_email` credentials), but only if the `users`
 table is empty. Once at least one admin exists, manage everyone (including
-yourself) from `/admin/users` instead; the env vars are no longer read at
-login time.
+yourself) from `/admin/users`. The credentials are not read at login time.
 
 ### 4. Start the server
 
@@ -83,7 +103,7 @@ enqueues tasks — to actually process them you also need to run the
 [worker client](worker/README.md) somewhere with access to Ollama:
 
 ```bash
-WORKER_API_TOKEN=your-shared-secret ruby worker/worker.rb
+WORKER_API_TOKEN=<same value as the worker_api_token credential> ruby worker/worker.rb
 ```
 
 Visit `http://localhost:3000/admin` and log in with the admin account seeded above.
@@ -136,10 +156,11 @@ ollama pull aya-expanse:32b
 ollama serve
 ```
 
-By default Ollama listens on `http://localhost:11434`. Set `OLLAMA_URL` in your `.env` if you run it on a different host or port (e.g. a remote GPU server):
+By default Ollama listens on `http://localhost:11434`. If you run it on a different host or port (e.g. a remote GPU server), set `OLLAMA_URL` in the **worker's** environment. For the admin "debug curl" panels, also set the `ollama_url` credential:
 
 ```
-OLLAMA_URL=http://192.168.1.50:11434
+OLLAMA_URL=http://192.168.1.50:11434          # worker env
+ollama_url: http://192.168.1.50:11434         # bin/rails credentials:edit
 ```
 
 ### Verify Ollama is reachable
@@ -165,15 +186,14 @@ refine, feature, tag). There are two ways a task gets executed:
     Rails app ──POST /v1/jobs──▶ llmarkt grid ──webhook──▶ POST /api/llm_callbacks ──▶ Rails app
    ```
 
-   Configure it in **Rails credentials** (preferred) or env vars — credentials
-   win when both are set:
+   Configure it in **Rails credentials**:
 
-   | Credential key | Env fallback | Purpose |
-   |---|---|---|
-   | `llmarkt_api_url` | `LLMARKT_API_URL` | API base incl. version, e.g. `https://llmarkt.codehospital.com/api/v1` |
-   | `llmarkt_api_key` | `LLMARKT_API_KEY` | Bearer token |
-   | `app_base_url` | `APP_BASE_URL` | Public URL of **this** app, so llmarkt's webhook can reach it |
-   | `llmarkt_model_match` | `LLMARKT_MODEL_MATCH` | `family` (default) or `exact` |
+   | Credential key | Purpose |
+   |---|---|
+   | `llmarkt_api_url` | API base incl. version, e.g. `https://llmarkt.codehospital.com/api/v1` |
+   | `llmarkt_api_key` | Bearer token |
+   | `app_base_url` | Public URL of **this** app, so llmarkt's webhook can reach it |
+   | `llmarkt_model_match` | `family` (default) or `exact` |
 
    ```bash
    bin/rails credentials:edit
@@ -202,7 +222,7 @@ refine, feature, tag). There are two ways a task gets executed:
  Rails app (task queue)  <──/api/tasks──>  worker  <──/api/chat──>  Ollama
 ```
 
-Task API (all require `Authorization: Bearer $WORKER_API_TOKEN`):
+Task API (all require `Authorization: Bearer <worker_api_token>`):
 
 | Endpoint | Purpose |
 |---|---|
@@ -213,7 +233,7 @@ Task API (all require `Authorization: Bearer $WORKER_API_TOKEN`):
 Run the worker wherever Ollama is reachable (it uses only the Ruby stdlib):
 
 ```bash
-export WORKER_API_TOKEN=your-shared-secret   # must match the Rails app
+export WORKER_API_TOKEN=your-shared-secret   # must match the app's worker_api_token credential
 export APP_URL=http://localhost:3000
 export OLLAMA_URL=http://localhost:11434
 ruby worker/worker.rb
@@ -383,14 +403,13 @@ without opening the web admin at all:
                                               equivalent admin-UI buttons)
 ```
 
-Configure it in **Rails credentials** (preferred) or env vars — credentials win
-when both are set:
+Configure it in **Rails credentials**:
 
-| Credential key | Env fallback | Purpose |
-|---|---|---|
-| `telegram_admin_bot_token` | `TELEGRAM_ADMIN_BOT_TOKEN` | The admin bot's token (from [@BotFather](https://t.me/BotFather)) |
-| `telegram_admin_chat_id` | `TELEGRAM_ADMIN_CHAT_ID` | The user/group chat id to notify |
-| `telegram_admin_webhook_secret` | `TELEGRAM_ADMIN_WEBHOOK_SECRET` | Random secret Telegram echoes back on every webhook call, verified before trusting it |
+| Credential key | Purpose |
+|---|---|
+| `telegram_admin_bot_token` | The admin bot's token (from [@BotFather](https://t.me/BotFather)) |
+| `telegram_admin_chat_id` | The user/group chat id to notify |
+| `telegram_admin_webhook_secret` | Random secret Telegram echoes back on every webhook call, verified before trusting it |
 
 ```bash
 bin/rails credentials:edit
@@ -399,7 +418,7 @@ bin/rails credentials:edit
 # telegram_admin_webhook_secret: <long random string>
 ```
 
-Then register the webhook once (needs `app_base_url`/`APP_BASE_URL` set — the
+Then register the webhook once (needs the `app_base_url` credential set — the
 same value used by llmarkt — so Telegram can reach this app):
 
 ```bash
@@ -499,13 +518,12 @@ Password reset emails are the only mail this app sends, delivered through
 `ActionMailer`'s built-in `:smtp` delivery method — no extra gem required.
 
 1. Create a Resend account, verify a sending domain, and grab an API key.
-2. Set `RESEND_API_KEY` and `SENDER_EMAIL` (env or, preferred, Rails
-   credentials as `resend_api_key` / `sender_email`) — see
-   `app/services/mailer_config.rb`.
-3. Set `APP_BASE_URL` (env or credentials — the same value used for llmarkt
+2. Set the `resend_api_key` and `sender_email` credentials (see
+   `app/services/mailer_config.rb`).
+3. Set the `app_base_url` credential (the same value used for llmarkt
    webhooks) so reset links point at the right host.
 
-Without `RESEND_API_KEY`/`SENDER_EMAIL` configured, `perform_deliveries`
+Without `resend_api_key`/`sender_email` configured, `perform_deliveries`
 is off (see `config/initializers/action_mailer.rb`) — the forgot-password flow
 still runs end to end, it just doesn't actually send anything. In tests,
 `config/environments/test.rb` sets the `:test` delivery method, so specs
@@ -521,12 +539,12 @@ whatever the site already did (log, retry, fall back). This covers both the
 Rails app and the standalone worker (`worker/worker.rb`).
 
 1. Create a Sentry project and grab its DSN.
-2. Set `SENTRY_DSN` (env or, preferred, Rails credentials as `sentry_dsn`) —
-   see `app/services/sentry_config.rb`. For the worker, set `SENTRY_DSN` in
+2. Set the `sentry_dsn` credential (see `app/services/sentry_config.rb`).
+   For the worker, set `SENTRY_DSN` in
    its own environment or `worker/.env` (see `worker/README.md`) — it does not
    read Rails credentials.
 
-Without `SENTRY_DSN` configured anywhere, `Sentry.init` is never called
+Without a DSN configured, `Sentry.init` is never called
 (`config/initializers/sentry.rb` / the worker's own inline check), and every
 `Sentry.capture_exception` call throughout the app is a documented no-op — the
 app behaves exactly as it did before Sentry was added.
@@ -536,7 +554,7 @@ app behaves exactly as it did before Sentry was added.
 ## Docker / Kamal Deployment
 
 Production runs on **PostgreSQL**. The connection comes entirely from the
-`DATABASE_URL` environment variable (Solid Cache shares the same database — no
+`database_url` credential (Solid Cache shares the same database — no
 separate cache database). On boot the entrypoint runs `bin/rails db:prepare`,
 which creates the schema (app tables + `solid_cache_entries`) on first deploy.
 On later deploys it runs any pending migrations instead. Note that a fresh
@@ -551,27 +569,28 @@ Build and run with Docker:
 docker build -t bbcfarsi .
 docker run -d -p 80:80 \
   -e RAILS_MASTER_KEY=$(cat config/master.key) \
-  -e DATABASE_URL=postgres://user:password@db-host:5432/bbcfarsi_production \
-  -e ADMIN_USERNAME=admin \
-  -e ADMIN_PASSWORD=secret \
-  -e ADMIN_EMAIL=admin@yourdomain.com \
-  -e WORKER_API_TOKEN=your-shared-secret \
   --name bbcfarsi bbcfarsi
 ```
 
-`ADMIN_USERNAME`/`ADMIN_PASSWORD`/`ADMIN_EMAIL` only matter on the very first
+`RAILS_MASTER_KEY` is the only value the container needs. Everything else
+(`database_url`, `worker_api_token`, `admin_*`, …) comes from the encrypted
+credentials baked into the image. Run `bin/rails bbc:credentials` (with
+`RAILS_ENV=production`) to verify nothing is missing.
+
+The `admin_*` credentials only matter on the very first
 boot — the entrypoint runs `db:seed`, which creates that one admin account if
 the `users` table is empty. After that, manage accounts at `/admin/users`.
 
 > The web container does **not** need to reach Ollama. Run the
 > [worker client](worker/README.md) separately (e.g. on the GPU host) with the
-> same `WORKER_API_TOKEN` and `APP_URL` pointed at this app.
+> `WORKER_API_TOKEN` set to the app's `worker_api_token` credential and
+> `APP_URL` pointed at this app.
 
-For Kamal deployments, see `.kamal/`. `WORKER_API_TOKEN` and `DATABASE_URL` are
-wired in as secrets in `config/deploy.yml` / `.kamal/secrets` (set `DATABASE_URL`
-in your shell/password manager before `kamal deploy`). A managed Postgres just
-needs `DATABASE_URL`; to self-host Postgres on a server, see the commented
-`accessories: db:` block in `config/deploy.yml`.
+For Kamal deployments, see `.kamal/`. `RAILS_MASTER_KEY` is the only app
+secret wired into `config/deploy.yml` / `.kamal/secrets`. `database_url`,
+`worker_api_token` and the rest live in the encrypted credentials. A managed
+Postgres just needs the `database_url` credential. To self-host Postgres on a
+server, see the commented `accessories: db:` block in `config/deploy.yml`.
 
 ---
 

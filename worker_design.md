@@ -189,7 +189,7 @@ member { post :complete; post :fail, action: :mark_failed }
 
 ### 6. Environment variable
 
-Set `WORKER_API_TOKEN` in your app's `.env` / secrets. The worker's `.env` must have the same value.
+Set the `worker_api_token` Rails credential in the app (`bin/rails credentials:edit`). The worker's `WORKER_API_TOKEN` env must have the same value.
 
 ---
 

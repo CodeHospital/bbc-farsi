@@ -71,6 +71,20 @@ namespace :bbc do
     puts "\nBackfilled #{translation_count} translation(s) and #{article_count} article(s)."
   end
 
+  desc "List which app credentials are set or missing (names only — values are never printed)"
+  task credentials: :environment do
+    required = %i[admin_username admin_password admin_email worker_api_token]
+    required << :database_url if Rails.env.production?
+    optional = %i[app_base_url llmarkt_api_url llmarkt_api_key llmarkt_model_match resend_api_key sender_email
+                  sentry_dsn telegram_admin_bot_token telegram_admin_chat_id telegram_admin_webhook_secret ollama_url]
+
+    missing_required = required.reject { |key| AppCredentials.fetch(key).present? }
+    { "required" => required, "optional" => optional }.each do |group, keys|
+      keys.each { |key| puts format("  %-8s %-30s %s", group, key, AppCredentials.fetch(key).present? ? "set" : "MISSING") }
+    end
+    abort "Missing required credentials: #{missing_required.join(', ')} — run bin/rails credentials:edit" if missing_required.any?
+  end
+
   desc "Enqueue AI bias/fact analysis tasks for non-archived articles that have no analysis yet (backfill)"
   task analyze: :environment do
     candidates = ArticleAnalyzer.unanalyzed_candidates

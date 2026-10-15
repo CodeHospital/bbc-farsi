@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — all app configuration moved to Rails credentials (ENV no longer read; no migrations)
+
+- User prompt: "move all the env variables to rails credentials and document it".
+- New `AppCredentials` (`app/services/app_credentials.rb`), the single reader for app config. `Llmarkt`, `MailerConfig`, `AdminBootstrap`, `TelegramAdminBot` and `SentryConfig` dropped their ENV fallbacks and read credentials only. Blank values count as unset.
+- Settings that used to be ENV-only are now credentials: `worker_api_token` (worker API bearer token, `Api::BaseController`), `ollama_url` (admin debug-curl panels) and `database_url` (production `config/database.yml`). `config/environments/production.rb` (`app_base_url` host) and `config/initializers/required_env.rb` (bootstrap admin check) read credentials only.
+- Kamal: `config/deploy.yml` / `.kamal/secrets` now pass only `RAILS_MASTER_KEY`. `WORKER_API_TOKEN` and `DATABASE_URL` were removed.
+- New `config/credentials.example.yml` template listing every key, replacing `.env.example` (deleted). New `bin/rails bbc:credentials` lists which keys are set or missing, never printing values, and exits non-zero when a required key is missing.
+- ENV is still read only for runtime/boot knobs: `RAILS_MASTER_KEY`, `RAILS_ENV`, `PORT`, `RAILS_MAX_THREADS`, `WEB_CONCURRENCY`, `PIDFILE`, `RAILS_LOG_LEVEL`, `CI`. The standalone worker (`worker/`, `worker-go/`) and the legacy `update.rb` keep their own env config.
+- **Action needed before deploying:** add `worker_api_token` (all envs) and `database_url` (production) with `bin/rails credentials:edit`. Before this change they were read only from ENV. Then run `bin/rails bbc:credentials` to confirm.
+- Docs: readme config section rewritten (credentials table, migration note, Docker/Kamal, llmarkt/Telegram/mail/Sentry sections), plus `worker/README.md`, `worker-go/README.md` and `worker_design.md`.
+- Tests: new `stub_credentials(**values)` helper in `test_helper` (restored in teardown). Credential tests rewritten, plus a new `AppCredentialsTest`.
+
 ### Added — AI bias / fact analysis of the original article (migration `20261015000001` — **not run**; dev needs `bin/rails db:migrate`, prod applies it via `db:prepare` on deploy)
 
 - User prompt: "check original news with ai to see if it's left leaning news or right leaning news? also if it's about things that has happened in the past in reality or it's especulation about the future? we want this to be visible to admin, this should happen before rewriting and translation, admin can edit these percentages". Answers to the follow-up questions: split percentages plus a short AI reasoning; run in parallel with the rewrite; display only; show on the article list and show page, translation pages, and Telegram admin notifications; backfill existing articles.

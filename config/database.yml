@@ -1,7 +1,8 @@
-# Development and test use SQLite; production uses PostgreSQL via DATABASE_URL.
+# Development and test use SQLite; production uses PostgreSQL via the
+# `database_url` Rails credential.
 #
 #   Local:      gem "sqlite3"  (group :development, :test)
-#   Production: gem "pg"        (group :production) + ENV["DATABASE_URL"]
+#   Production: gem "pg"        (group :production) + credentials.database_url
 #
 default: &default
   adapter: sqlite3
@@ -22,11 +23,11 @@ test:
 
 
 # PostgreSQL in production. The connection is taken entirely from the
-# DATABASE_URL environment variable (host, user, password, database). Solid
+# `database_url` Rails credential (host, user, password, database). Solid
 # Cache shares this same database (see config/cache.yml).
 production:
   primary:
     adapter: postgresql
     encoding: unicode
     pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-    url: <%= ENV["DATABASE_URL"] %>
+    url: <%= Rails.application.credentials.dig(:database_url) %>

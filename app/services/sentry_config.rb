@@ -1,7 +1,6 @@
 # Configuration for error tracking (Sentry).
 #
-# Credentials are read from Rails credentials first, then ENV as a fallback:
-#   credentials.sentry_dsn / ENV["SENTRY_DSN"]
+# Read from Rails credentials (see AppCredentials): sentry_dsn.
 #
 # Same pattern as MailerConfig/Llmarkt: no DSN configured means Sentry stays
 # fully inert (config/initializers/sentry.rb never calls Sentry.init), so
@@ -11,7 +10,7 @@ module SentryConfig
   module_function
 
   def dsn
-    Rails.application.credentials.dig(:sentry_dsn) || ENV["SENTRY_DSN"]
+    AppCredentials.fetch(:sentry_dsn)
   end
 
   def enabled?

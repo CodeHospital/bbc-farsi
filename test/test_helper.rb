@@ -73,6 +73,29 @@ module ActiveSupport
       }.merge(attrs))
     end
 
+    # ── Rails credentials ─────────────────────────────────────────────────────
+    # Override the given credential keys (nil = unset) for the rest of the
+    # test; any other key still reads the real credentials. Restored in
+    # teardown. All app config is read via Rails.application.credentials.dig
+    # (see AppCredentials), so this is the one seam tests need.
+    def stub_credentials(**overridden_values)
+      credentials  = Rails.application.credentials
+      original_dig = credentials.method(:dig)
+      credentials.define_singleton_method(:dig) do |key, *nested_keys|
+        if nested_keys.empty? && overridden_values.key?(key)
+          overridden_values[key]
+        else
+          original_dig.call(key, *nested_keys)
+        end
+      end
+      @restore_stubbed_credentials = -> { credentials.singleton_class.send(:remove_method, :dig) }
+    end
+
+    teardown do
+      @restore_stubbed_credentials&.call
+      @restore_stubbed_credentials = nil
+    end
+
     def create_channel(attrs = {})
       TelegramChannel.create!({ name: "Test Channel", token: "123:abc", channel_id: "@testchannel" }.merge(attrs))
     end

@@ -6,34 +6,34 @@
 # The pull-based Ollama worker (worker/worker.rb) remains as a fallback for any
 # task that could not be submitted (it stays `pending` and the worker claims it).
 #
-# Credentials are read from Rails credentials first, then ENV as a fallback:
-#   credentials.llmarkt_api_url   / ENV["LLMARKT_API_URL"]    e.g. https://llmarkt.codehospital.com/api/v1
-#   credentials.llmarkt_api_key   / ENV["LLMARKT_API_KEY"]    bearer token
-#   credentials.app_base_url      / ENV["APP_BASE_URL"]       public URL of THIS app (for webhooks)
-#   credentials.llmarkt_model_match / ENV["LLMARKT_MODEL_MATCH"]  "family" (default) or "exact"
+# Read from Rails credentials (see AppCredentials):
+#   llmarkt_api_url      e.g. https://llmarkt.codehospital.com/api/v1
+#   llmarkt_api_key      bearer token
+#   app_base_url         public URL of THIS app (for webhooks)
+#   llmarkt_model_match  "family" (default) or "exact"
 module Llmarkt
   module_function
 
   # Full API base, including the version prefix, e.g.
   # "https://llmarkt.codehospital.com/api/v1". Trailing slash trimmed.
   def api_url
-    fetch(:llmarkt_api_url, "LLMARKT_API_URL").to_s.chomp("/").presence
+    AppCredentials.fetch(:llmarkt_api_url).to_s.chomp("/").presence
   end
 
   def api_key
-    fetch(:llmarkt_api_key, "LLMARKT_API_KEY").presence
+    AppCredentials.fetch(:llmarkt_api_key).presence
   end
 
   # Public base URL of this Rails app, used to build webhook callback URLs that
   # llmarkt can reach, e.g. "https://news.codehospital.com".
   def app_base_url
-    fetch(:app_base_url, "APP_BASE_URL").to_s.chomp("/").presence
+    AppCredentials.fetch(:app_base_url).to_s.chomp("/").presence
   end
 
   # "family" lets the grid route to any compatible variant of the model name;
   # "exact" requires the precise Ollama model name.
   def model_match
-    fetch(:llmarkt_model_match, "LLMARKT_MODEL_MATCH").presence || "family"
+    AppCredentials.fetch(:llmarkt_model_match).presence || "family"
   end
 
   # The integration is usable only when all three required values are present.
@@ -74,9 +74,4 @@ module Llmarkt
       webhook_signature(raw_body), provided_signature.to_s
     )
   end
-
-  def fetch(credential_key, env_key)
-    Rails.application.credentials.dig(credential_key) || ENV[env_key]
-  end
-  private_class_method :fetch
 end

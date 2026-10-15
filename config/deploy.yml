@@ -33,12 +33,10 @@ registry:
 # Inject ENV variables into containers (secrets come from .kamal/secrets).
 env:
   secret:
+    # The only secret the app needs: it decrypts config/credentials.yml.enc,
+    # which holds every app setting (worker_api_token, database_url, admin_*,
+    # llmarkt_*, …) — see config/credentials.example.yml.
     - RAILS_MASTER_KEY
-    # Shared bearer token the worker client uses to authenticate to /api/tasks.
-    - WORKER_API_TOKEN
-    # Full PostgreSQL connection string for the production database, e.g.
-    # postgres://user:password@host:5432/bbcfarsi_production
-    - DATABASE_URL
   clear:
     # Set number of cores available to the application on each server (default: 1).
     # WEB_CONCURRENCY: 2

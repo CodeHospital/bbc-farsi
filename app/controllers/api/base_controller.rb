@@ -1,5 +1,5 @@
 # Base controller for the worker-facing API. Authenticated with a static bearer
-# token (`WORKER_API_TOKEN`). No cookies/CSRF — this is a machine-to-machine API.
+# token (the `worker_api_token` credential, see AppCredentials). No cookies/CSRF — this is a machine-to-machine API.
 class Api::BaseController < ActionController::API
   before_action :authenticate_worker!
 
@@ -8,7 +8,7 @@ class Api::BaseController < ActionController::API
   private
 
   def authenticate_worker!
-    expected = ENV["WORKER_API_TOKEN"].to_s
+    expected = AppCredentials.worker_api_token.to_s
     provided = request.headers["Authorization"].to_s.sub(/\ABearer\s+/i, "")
 
     return if expected.present? &&
