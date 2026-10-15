@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
   <url>
     <loc><%= root_url %></loc>
     <xhtml:link rel="alternate" hreflang="fa" href="<%= root_url %>"/>
@@ -8,7 +9,18 @@
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
+<% @categories.each do |category| %>
+  <url>
+    <loc><%= category_url(category: category) %></loc>
+    <xhtml:link rel="alternate" hreflang="fa" href="<%= category_url(category: category, lang: nil) %>"/>
+    <xhtml:link rel="alternate" hreflang="en" href="<%= category_url(category: category, lang: "en") %>"/>
+    <changefreq>hourly</changefreq>
+    <priority>0.6</priority>
+  </url>
+<% end %>
+<% news_cutoff = 2.days.ago %>
 <% @stories.each do |story| %>
+  <% published_at = story.article.published_at || story.created_at %>
   <url>
     <loc><%= news_story_url(story) %></loc>
     <xhtml:link rel="alternate" hreflang="fa" href="<%= news_story_url(story) %>"/>
@@ -16,6 +28,16 @@
     <lastmod><%= story.updated_at.iso8601 %></lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
+<% if published_at >= news_cutoff %>
+    <news:news>
+      <news:publication>
+        <news:name><%= news_ui(:site_name) %></news:name>
+        <news:language>fa</news:language>
+      </news:publication>
+      <news:publication_date><%= published_at.iso8601 %></news:publication_date>
+      <news:title><%= story.translated_title %></news:title>
+    </news:news>
+<% end %>
   </url>
 <% end %>
 </urlset>

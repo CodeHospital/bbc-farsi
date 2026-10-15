@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:atom="http://www.w3.org/2005/Atom"
+     xmlns:media="http://search.yahoo.com/mrss/"
+     xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title><%= news_ui(:site_name) %></title>
+    <link><%= english_edition? ? en_root_url : root_url %></link>
+    <description><%= news_ui(:tagline) %></description>
+    <language><%= english_edition? ? "en-gb" : "fa-ir" %></language>
+    <atom:link href="<%= news_feed_url %>" rel="self" type="application/rss+xml"/>
+    <lastBuildDate><%= (@stories.first ? story_time(@stories.first) : Time.current).rfc2822 %></lastBuildDate>
+<% @stories.each do |story| %>
+<% image_url = @image_urls[story.article.id] %>
+    <item>
+      <title><%= story_title(story) %></title>
+      <link><%= news_story_url(story) %></link>
+      <guid isPermaLink="true"><%= news_story_url(story) %></guid>
+      <pubDate><%= story_time(story).rfc2822 %></pubDate>
+      <dc:creator><%= source_name(story.article.feed) %></dc:creator>
+      <category><%= category_name(story.article.feed&.category) %></category>
+      <description><%= story_body(story).to_s.squish.truncate(400) %></description>
+<% if image_url.present? %>
+      <media:content url="<%= image_url %>" medium="image"/>
+<% end %>
+    </item>
+<% end %>
+  </channel>
+</rss>

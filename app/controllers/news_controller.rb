@@ -54,11 +54,19 @@ class NewsController < ApplicationController
     # Canonical-URL guard: redirect stale/partial/old slugs to the canonical
     # URL so search engines see a single permanent URL per story.
     if params[:id] != @translation.seo_param
-      return redirect_to(news_path(id: @translation.seo_param), status: :moved_permanently)
+      return redirect_to(news_path(id: @translation.seo_param, format: params[:format]),
+                         status: :moved_permanently)
     end
 
     @article = @translation.article
     @image_url = ArticleImageFetcher.call(@article)
+
+    # Markdown twin for LLMs / reader tools: no view tracking or task bumping.
+    if request.format.symbol == :md
+      @tags = TagGenerator.tags_for(@article)
+      return render_story_markdown
+    end
+
     @tags = TagGenerator.tags_for(@article)
     @sidebar_image_urls = ArticleImageFetcher.call_many(@sidebar_recent.map(&:article))
 
@@ -82,10 +90,18 @@ class NewsController < ApplicationController
     end
   end
 
-  # GET /sitemap.xml — lists the homepage plus every published story.
+  # GET /sitemap.xml — lists the homepage, category pages and every published story.
   def sitemap
     @stories = latest_translation_per_article
+    @categories = @stories.filter_map { |story| story.article.feed&.category }.uniq
     respond_to { |format| format.xml }
+  end
+
+  # GET /feed(.xml) and /en/feed — RSS 2.0 of the newest stories for the edition.
+  def feed
+    @stories = story_pool.first(30)
+    @image_urls = ArticleImageFetcher.call_many(@stories.map(&:article))
+    render formats: :xml, content_type: "application/rss+xml"
   end
 
   # GET /robots.txt — served dynamically so the Sitemap directive uses the real
@@ -186,6 +202,17 @@ class NewsController < ApplicationController
       - Category pages: #{base}/category/{category}
       - Search: #{base}/search?q={query}
 
+      ## Machine-readable formats
+      - Every article page has a clean Markdown twin: append .md to its URL
+        (#{base}/news/{slug}.md  /  #{base}/en/news/{slug}.md)
+      - RSS feeds: #{base}/feed.xml (Persian), #{base}/en/feed.xml (English)
+
+      ## Latest articles (Persian)
+      #{llms_article_links(base, english: false)}
+
+      ## Latest articles (English)
+      #{llms_article_links(base, english: true)}
+
       ## Content language
       Persian (fa-IR) / English (en-GB) — bilingual, same article corpus
 
@@ -212,6 +239,43 @@ class NewsController < ApplicationController
   end
 
   private
+
+  # Markdown list of the newest stories (title + .md link) for /llms.txt.
+  def llms_article_links(base, english:)
+    prefix = english ? "#{base}/en" : base
+    latest_translation_per_article.first(25).map do |story|
+      title = english ? (story.article.title.presence || story.translated_title) : story.translated_title
+      "- [#{title.to_s.squish.gsub(/[\[\]]/, '')}](#{prefix}/news/#{story.seo_param}.md)"
+    end.join("\n")
+  end
+
+  # Clean Markdown rendering of one story: title, key facts, body, source link.
+  def render_story_markdown
+    view         = view_context
+    title        = view.story_title(@translation)
+    body         = view.story_body(@translation)
+    published_at = @article.published_at || @article.created_at
+    feed         = @article.feed
+    lines = [
+      "# #{title}",
+      "",
+      "- Published: #{published_at&.iso8601}",
+      "- Updated: #{@translation.updated_at.iso8601}",
+      "- Section: #{view.category_name(feed&.category)}",
+      "- Language: #{@news_lang == 'en' ? 'English (en)' : 'Persian (fa)'}",
+      "- Source: #{view.source_name(feed)} — #{@article.url}",
+      ("- Tags: #{@tags.join(', ')}" if @tags.present?),
+      "- Canonical: #{view.news_story_url(@translation)}",
+      "",
+      body,
+      "",
+      "---",
+      (@news_lang == "en" ? "Original BBC text, summarised by this site." :
+                            "ترجمه و بازنویسی خودکار با هوش مصنوعی از منبع اصلی.")
+    ].compact
+    response.set_header("Link", %(<#{view.news_story_url(@translation)}>; rel="canonical"))
+    render plain: lines.join("\n"), content_type: "text/markdown; charset=utf-8"
+  end
 
   # Resolve the requested edition; anything unknown falls back to Persian.
   # Exposed to views/helpers via the `@news_lang` assign.

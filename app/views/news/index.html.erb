@@ -4,6 +4,10 @@
   <% content_for :title, "#{news_ui(:site_name)} — #{news_ui(:latest_news)}" %>
 <% end %>
 
+<% content_for :description, format(news_ui(:category_description), category: category_name(@category)) if @category %>
+<% lead_story = @featured.first %>
+<% content_for :og_image, @image_urls[lead_story.article.id] if lead_story && @image_urls[lead_story.article.id].present? %>
+
 <% content_for :head do %>
   <%# WebSite schema with SearchAction so Google can show a sitelinks search box %>
   <script type="application/ld+json">

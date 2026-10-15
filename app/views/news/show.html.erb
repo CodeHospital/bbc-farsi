@@ -21,6 +21,7 @@
 <% end %>
 
 <% content_for :head do %>
+  <link rel="alternate" type="text/markdown" href="<%= news_story_markdown_url(@translation) %>" title="Markdown">
   <script type="application/ld+json">
     <%= raw({
       "@context": "https://schema.org",
@@ -38,7 +39,17 @@
           }] : nil),
           datePublished: published_at&.iso8601,
           dateModified: @translation.updated_at.iso8601,
+          thumbnailUrl: @image_url.presence,
           keywords: (@tags.presence&.join(", ")),
+          wordCount: body.to_s.split.size,
+          articleBody: body.to_s.squish,
+          isBasedOn: (@article.url.present? ? {
+            "@type": "NewsArticle",
+            url: @article.url,
+            headline: @article.title,
+            publisher: { "@type": "Organization", name: source_name(@article.feed), url: source_url(@article.feed) }
+          } : nil),
+          speakable: { "@type": "SpeakableSpecification", cssSelector: [ "article h1", ".article-body" ] },
           articleSection: article_section,
           author: { "@type": "Organization", name: source_name(@article.feed), url: source_url(@article.feed) },
           mainEntityOfPage: { "@type": "WebPage", "@id": news_story_url(@translation) },
@@ -98,6 +109,20 @@
       <%= simple_format(body) %>
     </div>
 
+    <div class="share-bar mt-4 pt-3 border-top">
+      <span class="tags-label"><%= news_ui(:share_label) %></span>
+      <% share_links(news_story_url(@translation), title).each do |share| %>
+        <%= link_to share[:href], class: "share-btn", target: "_blank",
+              rel: "noopener nofollow", "aria-label": share[:name] do %>
+          <i class="bi <%= share[:icon] %>"></i><span><%= share[:name] %></span>
+        <% end %>
+      <% end %>
+      <button type="button" class="share-btn" data-copy-link="<%= news_story_url(@translation) %>"
+              data-copied-label="<%= news_ui(:link_copied) %>">
+        <i class="bi bi-link-45deg"></i><span><%= news_ui(:copy_link) %></span>
+      </button>
+    </div>
+
     <% if @tags.any? %>
       <div class="article-tags mt-4 pt-3 border-top">
         <span class="tags-label"><%= news_ui(:tags_label) %></span>
@@ -113,3 +138,22 @@
     </div>
   </article>
 <% end %>
+
+<script>
+  document.querySelectorAll("[data-copy-link]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var label = button.querySelector("span");
+      var original = label.textContent;
+      var url = button.dataset.copyLink;
+      var done = function () {
+        label.textContent = button.dataset.copiedLabel;
+        setTimeout(function () { label.textContent = original; }, 2000);
+      };
+      if (navigator.share) {
+        navigator.share({ url: url, title: document.title }).catch(function () {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(done);
+      }
+    });
+  });
+</script>

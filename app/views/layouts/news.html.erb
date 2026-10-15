@@ -13,11 +13,16 @@
   <% page_description = content_for(:description).presence || default_description %>
   <% canonical_url    = content_for(:canonical).presence || request.original_url %>
   <% og_image         = content_for(:og_image).presence %>
+  <%# Pages without their own image fall back to the site icon so every share
+      still carries a thumbnail (small "summary" card rather than a large one). %>
+  <% has_lead_image   = og_image.present? %>
+  <% og_image       ||= "#{request.base_url}/icon.png" %>
 
   <title><%= page_title %></title>
   <meta name="description" content="<%= page_description %>">
   <link rel="canonical" href="<%= canonical_url %>">
   <link rel="sitemap" type="application/xml" href="<%= sitemap_url %>">
+  <link rel="alternate" type="application/rss+xml" title="<%= news_ui(:site_name) %> — <%= news_ui(:rss_title) %>" href="<%= news_feed_url %>">
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
 
@@ -34,15 +39,14 @@
   <meta property="og:title" content="<%= page_title %>">
   <meta property="og:description" content="<%= page_description %>">
   <meta property="og:url" content="<%= canonical_url %>">
-  <% if og_image %>
-    <meta property="og:image" content="<%= og_image %>">
-    <meta property="og:image:alt" content="<%= page_title %>">
-  <% end %>
+  <meta property="og:image" content="<%= og_image %>">
+  <meta property="og:image:alt" content="<%= page_title %>">
   <%= yield :og_article_meta %>
-  <meta name="twitter:card" content="<%= og_image ? "summary_large_image" : "summary" %>">
+  <meta name="twitter:card" content="<%= has_lead_image ? "summary_large_image" : "summary" %>">
   <meta name="twitter:title" content="<%= page_title %>">
   <meta name="twitter:description" content="<%= page_description %>">
-  <% if og_image %><meta name="twitter:image" content="<%= og_image %>"><% end %>
+  <meta name="twitter:image" content="<%= og_image %>">
+  <meta name="twitter:image:alt" content="<%= page_title %>">
 
   <%# Organization JSON-LD (site-wide identity for Knowledge Graph) %>
   <script type="application/ld+json">
@@ -193,6 +197,15 @@
     .tag-chip { background: #f0f0f0; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: .85rem; }
     .tag-chip:hover { border-color: var(--accent); color: var(--accent); }
 
+    .skip-link { position: absolute; top: 0; inset-inline-start: 0; z-index: 2000; background: #fff; padding: 8px 14px; }
+
+    /* ── Share bar ───────────────────────────────────────────── */
+    .share-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .share-bar .share-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+      background: #fff; color: var(--ink); border-radius: 999px; padding: 4px 12px; font-size: .85rem;
+      font-family: inherit; cursor: pointer; }
+    .share-bar .share-btn:hover { border-color: var(--cat, var(--accent)); color: var(--cat, var(--accent)); }
+
     /* ── Not-found (404 / unpublished) page ──────────────────── */
     .not-found { max-width: 460px; margin-inline: auto; }
     .not-found-icon { position: relative; display: inline-block; font-size: 3.4rem; color: var(--accent); }
@@ -264,6 +277,7 @@
   </style>
 </head>
 <body>
+  <a class="visually-hidden-focusable skip-link" href="#main-content"><%= news_ui(:skip_to_content) %></a>
   <%# ── Top bar ──────────────────────────────────────────────── %>
   <div class="topbar">
     <div class="container d-flex justify-content-between align-items-center py-1">
@@ -275,7 +289,7 @@
         <a href="#" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
         <a href="#" aria-label="Twitter"><i class="bi bi-twitter-x"></i></a>
         <a href="#" aria-label="Telegram"><i class="bi bi-telegram"></i></a>
-        <a href="#" aria-label="RSS"><i class="bi bi-rss"></i></a>
+        <a href="<%= news_feed_path %>" aria-label="RSS" rel="alternate" type="application/rss+xml"><i class="bi bi-rss"></i></a>
       </span>
     </div>
   </div>
@@ -320,7 +334,7 @@
   <%# ── Body: main + sidebar ─────────────────────────────────── %>
   <div class="container py-4">
     <div class="row g-4">
-      <main class="col-md-8"><%= yield %></main>
+      <main id="main-content" class="col-md-8"><%= yield %></main>
       <aside class="col-md-4 sidebar"><%= render "news/sidebar" %></aside>
     </div>
   </div>

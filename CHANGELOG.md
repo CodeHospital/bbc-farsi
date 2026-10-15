@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — news pages made SEO, social and LLM friendly (no migrations)
+
+- User prompt: "make the news pages social media friendly, llm friendly, seo friendly".
+- **SEO**: search results are `noindex, follow`; category pages get a unique meta description; the homepage/category use the lead story's image as `og:image`; `sitemap.xml` now lists category pages (with hreflang) and Google News tags (`news:news`) for stories from the last 2 days; skip-to-content link and `<main id>` landmark.
+- **Social**: every page now emits `og:image`/`twitter:image` (+ alt) with a site-icon fallback (large card only when a real lead image exists); article pages have share buttons (Telegram, WhatsApp, X, Facebook, LinkedIn) and a copy-link / native-share button.
+- **LLM**: each story has a Markdown twin at `/news/:slug.md` (`/en/news/:slug.md`), advertised via `<link rel="alternate" type="text/markdown">`; `/llms.txt` lists the latest articles (fa + en) with `.md` links; NewsArticle JSON-LD gained `articleBody`, `wordCount`, `thumbnailUrl`, `isBasedOn` (original source) and `speakable`.
+- **Feeds**: RSS 2.0 at `/feed.xml` and `/en/feed.xml`, advertised via `<link rel="alternate">` and wired to the topbar RSS icon.
+- New `text/markdown` MIME type (`config/initializers/mime_types.rb`). 608 tests green.
+
 ### Changed — all app configuration moved to Rails credentials (ENV no longer read; no migrations)
 
 - User prompt: "move all the env variables to rails credentials and document it".

@@ -106,7 +106,13 @@ module NewsHelper
       not_found_title:  "این خبر پیدا نشد!",
       not_found_body:   "شاید لینک اشتباه بود یا این خبر دیگر منتشر نیست. نگران نباشید، خبرهای تازه همین نزدیکی‌ها منتظرتان هستند.",
       not_found_home:   "بازگشت به خانه",
-      not_found_search: "جستجوی خبر دیگر"
+      not_found_search: "جستجوی خبر دیگر",
+      skip_to_content:  "پرش به محتوا",
+      share_label:      "اشتراک‌گذاری:",
+      copy_link:        "کپی پیوند",
+      link_copied:      "پیوند کپی شد ✓",
+      rss_title:        "خبرخوان آخرین اخبار",
+      category_description: "آخرین اخبار دستهٔ «%{category}» — ترجمه و بازنویسی خودکار خبرهای بی‌بی‌سی به فارسی."
     },
     "en" => {
       site_name:    "BBC Persian",
@@ -131,7 +137,13 @@ module NewsHelper
       not_found_title:  "Story not found!",
       not_found_body:   "The link might be off, or this story isn't published anymore. Don't worry — plenty of fresh news is waiting nearby.",
       not_found_home:   "Back to homepage",
-      not_found_search: "Search for something else"
+      not_found_search: "Search for something else",
+      skip_to_content:  "Skip to content",
+      share_label:      "Share:",
+      copy_link:        "Copy link",
+      link_copied:      "Link copied ✓",
+      rss_title:        "Latest news feed",
+      category_description: "Latest %{category} news from the BBC — automatically rewritten and translated into Persian and English."
     }
   }.freeze
 
@@ -219,6 +231,23 @@ module NewsHelper
   # Friendly public URL for a story. Admin routes keep the plain numeric id.
   def news_story_path(translation) = news_path(id: translation.seo_param)
   def news_story_url(translation)  = news_url(id: translation.seo_param)
+
+  # Plain-markdown twin of a story page (LLM / reader-tool friendly).
+  def news_story_markdown_url(translation) = news_url(id: translation.seo_param, format: :md)
+
+  # Social share targets for a story. `native: true` entries use the intent
+  # URL schemes of each network; the page script adds Web Share / copy-link.
+  def share_links(url, title)
+    encoded_url   = ERB::Util.url_encode(url)
+    encoded_title = ERB::Util.url_encode(title)
+    [
+      { name: "Telegram", icon: "bi-telegram",  href: "https://t.me/share/url?url=#{encoded_url}&text=#{encoded_title}" },
+      { name: "WhatsApp", icon: "bi-whatsapp",  href: "https://wa.me/?text=#{encoded_title}%20#{encoded_url}" },
+      { name: "X",        icon: "bi-twitter-x", href: "https://twitter.com/intent/tweet?url=#{encoded_url}&text=#{encoded_title}" },
+      { name: "Facebook", icon: "bi-facebook",  href: "https://www.facebook.com/sharer/sharer.php?u=#{encoded_url}" },
+      { name: "LinkedIn", icon: "bi-linkedin",  href: "https://www.linkedin.com/sharing/share-offsite/?url=#{encoded_url}" }
+    ]
+  end
 
   # Fragment-cache key for the sidebar block: a sum of each story's updated_at
   # epoch (cheap, changes whenever any sidebar story changes) plus the total

@@ -130,6 +130,7 @@ Rails.application.routes.draw do
   scope "(:lang)", constraints: { lang: /en/ } do
     resources :news, only: %i[index show]
     get "search",             to: "news#search", as: :news_search
+    get "feed",               to: "news#feed",   as: :news_feed, defaults: { format: "xml" }
     get "category/:category", to: "news#index",  as: :category
   end
   get "/en", to: "news#index", defaults: { lang: "en" }, as: :en_root

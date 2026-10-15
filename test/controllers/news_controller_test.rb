@@ -262,6 +262,57 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_match root_url, @response.body
   end
 
+  test "show emits share links, markdown alternate and enriched JSON-LD" do
+    translation = create_translation(attrs: { translated_title: "تیتر", translated_body: "متن خبر" })
+    stub_request(:get, translation.article.url).to_return(body: "<html></html>")
+
+    get news_path(id: translation.seo_param)
+
+    assert_response :success
+    assert_select "link[rel=alternate][type='text/markdown'][href=?]", news_url(id: translation.seo_param, format: :md)
+    assert_select "a.share-btn[href^='https://t.me/share/url']"
+    assert_select "meta[property='og:image'][content$='/icon.png']"
+    assert_match %r{"speakable"}, @response.body
+    assert_match %r{"isBasedOn"}, @response.body
+  end
+
+  test "story has a markdown twin" do
+    translation = create_translation(attrs: { translated_title: "تیتر مارک‌داون", translated_body: "متن خبر" })
+
+    get news_path(id: translation.seo_param, format: :md)
+
+    assert_response :success
+    assert_equal "text/markdown", @response.media_type
+    assert_match "# تیتر مارک‌داون", @response.body
+    assert_match "متن خبر", @response.body
+  end
+
+  test "search results page is noindex" do
+    get news_search_path(q: "x")
+
+    assert_select "meta[name=robots][content=?]", "noindex, follow"
+  end
+
+  test "rss feed lists stories" do
+    translation = create_translation(attrs: { translated_title: "تیتر فید" })
+
+    get news_feed_path
+
+    assert_response :success
+    assert_equal "application/rss+xml", @response.media_type
+    assert_match "تیتر فید", @response.body
+    assert_match news_url(id: translation.seo_param), @response.body
+  end
+
+  test "llms.txt links the markdown twins" do
+    translation = create_translation(attrs: { translated_title: "تیتر ال‌ال‌ام" })
+
+    get llms_path
+
+    assert_response :success
+    assert_match "#{translation.seo_param}.md", @response.body
+  end
+
   test "robots.txt is served dynamically with the sitemap url" do
     get robots_path
 

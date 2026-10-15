@@ -434,6 +434,12 @@ was set from Telegram or from the web admin.
 
 ---
 
+## Public Site: SEO, Social & LLM Discovery
+
+- **SEO**: canonical + hreflang (fa/en) on every page, NewsArticle / BreadcrumbList / WebSite JSON-LD, `/sitemap.xml` (home, categories, stories, Google News tags for the last 2 days), dynamic `/robots.txt`. Search result pages are `noindex`.
+- **Social**: Open Graph + Twitter Card tags (site-icon fallback when a story has no lead image) and share buttons on article pages.
+- **LLMs / readers**: `/llms.txt` (site summary + latest articles), a Markdown twin of every story (`/news/<slug>.md`, `/en/news/<slug>.md`), and RSS feeds at `/feed.xml` and `/en/feed.xml`.
+
 ## Admin Interface
 
 All admin routes are under `/admin`, behind a session-based login backed by
