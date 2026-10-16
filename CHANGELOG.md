@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — admin view of scheduled channel posts and posting history (no migrations)
+
+- User prompt: "admin should be able to see scheduled channel posts, also it's history".
+- `/admin/telegram_posts` now has two tabs: **Scheduled** (default) groups pending/sending posts per channel in the exact order `Publisher` delivers them (sending first, then priority desc, then oldest), with queue position, priority, last post time, and an estimated delivery window based on `Autoposter`'s 25–40 min pacing; disabled channels are flagged as paused. **History** lists posted and failed posts with status filter counts, sortable columns, and inline error messages.
+- Both tabs filter by channel. New `PostingSchedule` service computes the queue + estimates.
+- Added the missing `/admin/telegram_posts/:id` show page (channel, article/translation links, timestamps, error, message content). The dashboard "Posts sent" card now opens the History tab.
+
 ### Changed — logo switched to `khabarestan_icon.jpeg` (globe + news page + signal); Telegram handle restored to `@khabarestan`
 
 - Regenerated all `public/` icons (icon.png, favicon-32.png, apple-touch-icon.png, icon-maskable.png, logo.png, icon.svg) from `khabarestan_icon.jpeg` on a white rounded tile (the source has an off-white background, so a tile keeps it legible in dark UI areas). PWA `background_color` is now white; `theme_color` stays navy.

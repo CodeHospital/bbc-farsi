@@ -487,6 +487,7 @@ filterable by model type or user.
 | `/admin/rewrites` | View/edit rewrites, activate versions, edit history |
 | `/admin/translations` | View/edit translations, post to Telegram, flag for manual edit, edit history |
 | `/admin/telegram_channels` | Manage channels on any Telegram-compatible provider (provider, API URL, token, enable, autopost) *(admin-only)* |
+| `/admin/telegram_posts` | Channel posts: **Scheduled** tab (each channel's queue in delivery order with estimated send windows) and **History** tab (posted/failed posts, filter by status/channel); click a post for details |
 | `/admin/ollama_servers` | Manage Ollama servers and their model lists *(admin-only)* |
 | `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |
 | `/admin/users` | Manage admin/editor accounts *(admin-only)* |

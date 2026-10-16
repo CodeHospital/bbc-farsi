@@ -1,0 +1,64 @@
+<p class="text-muted small">
+  Posts waiting to go out, in delivery order. Each channel receives at most one message every
+  <%= Autoposter::MIN_INTERVAL.in_minutes.to_i %>–<%= (Autoposter::MIN_INTERVAL + Autoposter::JITTER).in_minutes.to_i %>
+  minutes, so the times below are estimates.
+</p>
+
+<% if channel_queues.empty? %>
+  <div class="alert alert-light border">Nothing is scheduled right now.</div>
+<% end %>
+
+<% channel_queues.each do |queue| %>
+  <div class="card mb-3">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+      <strong><%= queue.channel.display_name %></strong>
+      <span class="badge bg-secondary"><%= pluralize(queue.entries.size, "post") %> queued</span>
+      <% if queue.paused? %>
+        <span class="badge bg-warning text-dark">Channel disabled — nothing will be sent</span>
+      <% end %>
+      <small class="text-muted ms-auto">
+        Last post:
+        <%= queue.last_posted_at ? "#{queue.last_posted_at.strftime('%b %d %H:%M')} (#{time_ago_in_words(queue.last_posted_at)} ago)" : "never" %>
+      </small>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width:3rem">#</th>
+            <th>Article</th>
+            <th>Status</th>
+            <th>Priority</th>
+            <th>Estimated delivery</th>
+            <th>Queued at</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% queue.entries.each do |entry| %>
+            <% post = entry.post %>
+            <tr>
+              <td class="text-muted"><%= entry.position %></td>
+              <td><%= link_to (post.translation&.translated_title.presence || post.translation&.article&.title).to_s.truncate(80),
+                        admin_telegram_post_path(post), class: "text-decoration-none" %></td>
+              <td><%= render "admin/shared/status_badge", status: post.status %></td>
+              <td><%= post.priority.to_i.positive? ? tag.span("top +#{post.priority}", class: "badge bg-info text-dark") : tag.span("normal", class: "text-muted small") %></td>
+              <td><small>
+                <% if entry.sending? %>
+                  sending now
+                <% elsif entry.earliest_at.nil? %>
+                  <span class="text-muted">paused</span>
+                <% elsif entry.earliest_at <= Time.current %>
+                  next poll (within a few minutes)
+                <% else %>
+                  <%= entry.earliest_at.strftime("%b %d %H:%M") %> – <%= entry.latest_at.strftime("%H:%M") %>
+                  <span class="text-muted">(in ~<%= distance_of_time_in_words(Time.current, entry.earliest_at) %>)</span>
+                <% end %>
+              </small></td>
+              <td><small><%= post.created_at.strftime("%b %d %H:%M") %></small></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+<% end %>

@@ -7,7 +7,7 @@
     ["Rewrites",     @counts[:rewrites],          admin_rewrites_path,         "pencil-square", "info"],
     ["Translations", @counts[:translations],      admin_translations_path,     "translate",     "success"],
     ["Channels",     @counts[:telegram_channels], admin_telegram_channels_path,"telegram",      "warning", :admin_only],
-    ["Posts sent",   @counts[:telegram_posts],    admin_telegram_posts_path,   "send-check",    "dark"]
+    ["Posts sent",   @counts[:telegram_posts],    admin_telegram_posts_path(view: "history"),  "send-check",    "dark"]
   ]
   cards = cards.reject { |_, _, _, _, _, admin_only| admin_only } unless current_user&.admin?
   cards.each do |label, count, path, icon, color| %>

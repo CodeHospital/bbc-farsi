@@ -1,29 +1,34 @@
 <h2 class="mb-3">Channel Posts <small class="text-muted fs-6">all providers</small></h2>
-<table class="table table-hover table-sm">
-  <thead>
-    <tr>
-      <th>Article</th>
-      <th><%= sort_link "channel", "Channel" %></th>
-      <th><%= sort_link "status", "Status" %></th>
-      <th><%= sort_link "posted", "Posted at" %></th>
-    </tr>
-  </thead>
-  <tbody>
-    <% @posts.each do |post| %>
-      <tr>
-        <td><%= post.translation&.article&.title&.truncate(80) %></td>
-        <td><span class="badge bg-secondary"><%= post.telegram_channel&.display_name %></span></td>
-        <td><%= render "admin/shared/status_badge", status: post.status %></td>
-        <td><small><%= post.posted_at&.strftime("%b %d %H:%M") || post.created_at.strftime("%b %d %H:%M") %></small>
-          <br />
-          <small><%= post.updated_at.strftime("%b %d %H:%M") %></small></td>
-      </tr>
-      <% if post.error_message.present? %>
-        <tr>
-          <td colspan="4" class="text-danger small py-0"><%= post.error_message %></td>
-        </tr>
-      <% end %>
+
+<% tab_params = request.query_parameters.slice("channel_id") %>
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <%= link_to admin_telegram_posts_path(tab_params.merge(view: "scheduled")),
+          class: "nav-link #{'active' if @view == 'scheduled'}" do %>
+      <i class="bi bi-clock"></i> Scheduled <span class="badge bg-secondary"><%= @scheduled_count %></span>
     <% end %>
-  </tbody>
-</table>
-<%= render "admin/shared/pagination", pagy: @pagy %>
+  </li>
+  <li class="nav-item">
+    <%= link_to admin_telegram_posts_path(tab_params.merge(view: "history")),
+          class: "nav-link #{'active' if @view == 'history'}" do %>
+      <i class="bi bi-clock-history"></i> History <span class="badge bg-secondary"><%= @history_count %></span>
+    <% end %>
+  </li>
+</ul>
+
+<%= form_with url: admin_telegram_posts_path, method: :get, class: "d-flex flex-wrap align-items-center gap-2 mb-3" do %>
+  <%= hidden_field_tag :view, @view %>
+  <%= hidden_field_tag :status, params[:status] if @view == "history" && params[:status].present? %>
+  <label for="channel_id" class="text-muted small">Channel:</label>
+  <%= select_tag :channel_id,
+        options_from_collection_for_select(@channels, :id, :display_name, @channel_id),
+        include_blank: "All channels", class: "form-select form-select-sm", style: "width:auto",
+        onchange: "this.form.requestSubmit()" %>
+  <noscript><button type="submit" class="btn btn-sm btn-outline-secondary">Filter</button></noscript>
+<% end %>
+
+<% if @view == "scheduled" %>
+  <%= render "scheduled", channel_queues: @channel_queues %>
+<% else %>
+  <%= render "history", posts: @posts, pagy: @pagy, status_counts: @status_counts %>
+<% end %>

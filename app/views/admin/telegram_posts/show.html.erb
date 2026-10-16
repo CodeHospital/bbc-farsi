@@ -1,0 +1,53 @@
+<% translation = @post.translation %>
+<% article = translation&.article %>
+<% back_view = PostingSchedule::QUEUED_STATUSES.include?(@post.status) ? "scheduled" : "history" %>
+
+<div class="d-flex align-items-center gap-2 mb-3">
+  <%= link_to admin_telegram_posts_path(view: back_view), class: "btn btn-sm btn-outline-secondary" do %>
+    <i class="bi bi-arrow-left"></i> Back
+  <% end %>
+  <h2 class="mb-0">Channel Post #<%= @post.id %></h2>
+  <%= render "admin/shared/status_badge", status: @post.status %>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Channel</dt>
+      <dd class="col-sm-9"><%= @post.telegram_channel&.display_name %></dd>
+
+      <dt class="col-sm-3">Article</dt>
+      <dd class="col-sm-9"><%= article ? link_to(article.title, admin_article_path(article)) : "—" %></dd>
+
+      <dt class="col-sm-3">Translation</dt>
+      <dd class="col-sm-9"><%= translation ? link_to("Translation ##{translation.id}", admin_translation_path(translation)) : "—" %></dd>
+
+      <dt class="col-sm-3">Priority</dt>
+      <dd class="col-sm-9"><%= @post.priority %></dd>
+
+      <dt class="col-sm-3">Queued at</dt>
+      <dd class="col-sm-9"><%= @post.created_at.strftime("%b %d, %Y %H:%M") %></dd>
+
+      <dt class="col-sm-3">Posted at</dt>
+      <dd class="col-sm-9"><%= @post.posted_at&.strftime("%b %d, %Y %H:%M") || "—" %></dd>
+
+      <dt class="col-sm-3">Last updated</dt>
+      <dd class="col-sm-9"><%= @post.updated_at.strftime("%b %d, %Y %H:%M") %></dd>
+
+      <% if @post.error_message.present? %>
+        <dt class="col-sm-3">Error</dt>
+        <dd class="col-sm-9 text-danger"><%= @post.error_message %></dd>
+      <% end %>
+    </dl>
+  </div>
+</div>
+
+<% if translation %>
+  <div class="card">
+    <div class="card-header">Message content</div>
+    <div class="card-body" dir="rtl">
+      <h5><%= translation.translated_title %></h5>
+      <div style="white-space: pre-wrap"><%= translation.translated_body %></div>
+    </div>
+  </div>
+<% end %>
