@@ -13,7 +13,7 @@ class TelegramPoster
     # url: honours a per-channel override (e.g. a self-hosted Telegram Bot API
     # server); defaults to api.telegram.org. See TelegramChannel#effective_api_base_url.
     bot       = Telegram::Bot::Client.new(channel.token, url: channel.effective_api_base_url)
-    message   = build_message(translation)
+    message   = build_message(channel, translation)
     image_url = ArticleImageFetcher.call(translation.article)
 
     # The photo is best-effort: if the provider can't fetch the image, the news
@@ -46,12 +46,12 @@ class TelegramPoster
     caption_fits ? photo_result : send_text(bot, channel, message)
   end
 
-  def build_message(translation)
+  def build_message(channel, translation)
     article = translation.article
     "📢 <b>#{escape(translation.translated_title)}</b>\n\n" \
       "#{escape(translation.translated_body)}\n\n\n" \
       "#{escape(article.url.to_s.split('?').first)}\n\n" \
-      "follow @khabarestan for more"
+      "follow #{channel.channel_id} for more"
   end
 
   def escape(text) = CGI.escapeHTML(text.to_s)
