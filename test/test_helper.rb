@@ -176,11 +176,12 @@ module ActiveSupport
     end
 
     # ── Article image helpers ─────────────────────────────────────────────────
-    # Channel posters look up the article's og:image over HTTP. Tests that post
-    # without caring about the image call this so WebMock never sees that GET.
+    # Channel posters may resolve an unresolved article's og:image over HTTP
+    # (ArticleImageFetcher.call(resolve: true)). Tests that post without caring
+    # about the image call this so WebMock never sees that GET.
     def stub_article_image_lookup(image_url = nil)
       @article_image_lookup_original ||= ArticleImageFetcher.method(:call)
-      ArticleImageFetcher.define_singleton_method(:call) { |_article| image_url }
+      ArticleImageFetcher.define_singleton_method(:call) { |_article, **| image_url }
     end
 
     def restore_article_image_lookup

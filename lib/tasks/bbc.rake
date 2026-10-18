@@ -23,6 +23,23 @@ namespace :bbc do
     puts "Fetched #{result[:feed_count]} scheduled feed(s), ingested #{result[:new_count]} new article(s)."
   end
 
+  desc "Store lead images (og:image, else feed image) for articles not resolved yet. RETRY_MISSING=1 first re-queues articles still without an image"
+  task resolve_images: :environment do
+    if ENV["RETRY_MISSING"] == "1"
+      puts "Re-queued #{ArticleImageResolver.reset_missing!} article(s) without an image."
+    end
+
+    total_resolved = 0
+    loop do
+      resolved_in_batch = ArticleImageResolver.resolve_pending
+      break if resolved_in_batch.zero?
+
+      total_resolved += resolved_in_batch
+      puts "Resolved #{total_resolved} so far…"
+    end
+    puts "Resolved images for #{total_resolved} article(s)."
+  end
+
   desc "Post active, completed translations to autopost channels"
   task autopost: :environment do
     count = Autoposter.run_all

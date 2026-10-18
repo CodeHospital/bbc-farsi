@@ -1,10 +1,13 @@
-# Resolves the main image for an article by reading the `og:image` meta tag
-# from its original source page. Result is cached (Rails.cache / Solid Cache)
-# so the source page is fetched at most once per article, and only from
-# allow-listed hosts (SSRF guard). Returns the image URL string, or nil.
+# Lead image for an article.
 #
-# No schema change: the image is looked up on demand at render time rather than
-# stored on the article.
+# Reading (`call` / `call_many`) never touches the network: it returns the
+# stored `articles.image_url` — the feed's own image, upgraded to the source
+# page's og:image by ArticleImageResolver in the background. For articles the
+# resolver hasn't reached yet, a value cached by the old render-time lookup
+# (Rails.cache) is used if present.
+#
+# `fetch_from_source` is the one place that downloads the source page to read
+# its og:image (allow-listed hosts only — SSRF guard). Only the resolver calls it.
 require "open-uri"
 
 class ArticleImageFetcher
@@ -21,51 +24,45 @@ class ArticleImageFetcher
     ] +
     Feed.all_catalogued_publisher_domains
   ).uniq.freeze
-  CACHE_TTL     = 1.week
   READ_LIMIT    = 300_000 # bytes — enough to reach <head> meta tags
   OG_IMAGE_RE   = %r{<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']}i
   OG_IMAGE_ALT  = %r{<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']}i
 
-  # Max source pages fetched concurrently when warming the index.
-  MAX_CONCURRENCY = 6
+  # Key the old render-time lookup cached results under ("" = known miss).
+  LEGACY_CACHE_KEY = "article_og_image/%d".freeze
 
-  def self.call(article)
-    new(article).call
+  # Stored image URL or nil. `resolve: true` (background posting only — never
+  # in a visitor's request) first resolves an article the resolver hasn't
+  # reached yet, so a fresh story still goes out with its best image.
+  def self.call(article, resolve: false)
+    ArticleImageResolver.resolve!(article) if resolve && article.image_resolved_at.nil?
+    stored_image_url(article)
   end
 
-  # Batch-resolve images for many articles, returning { article_id => url|nil }.
-  # Already-cached articles cost nothing; cache misses are fetched concurrently
-  # (bounded by MAX_CONCURRENCY) so the index doesn't fetch source pages serially.
+  # { article_id => url|nil } from stored data — no HTTP, any number of articles.
   def self.call_many(articles)
-    results = {}
-    mutex   = Mutex.new
+    articles.to_h { |article| [ article.id, stored_image_url(article) ] }
+  end
 
-    articles.each_slice(MAX_CONCURRENCY) do |batch|
-      batch.map do |article|
-        Thread.new do
-          url = call(article)
-          mutex.synchronize { results[article.id] = url }
-        end
-      end.each(&:join)
-    end
+  def self.stored_image_url(article)
+    article.image_url.presence || (legacy_cached_value(article).presence if article.image_resolved_at.nil?)
+  end
 
-    results
+  # What the old render-time lookup cached for this article: a URL, "" for a
+  # known miss, or nil when nothing was cached.
+  def self.legacy_cached_value(article)
+    Rails.cache.read(format(LEGACY_CACHE_KEY, article.id))
+  end
+
+  # Downloads the source page and returns its og:image URL, or nil (no tag,
+  # disallowed host, or any network/parse error).
+  def self.fetch_from_source(article)
+    new(article).fetch_og_image
   end
 
   def initialize(article)
     @article = article
   end
-
-  # Returns the cached image URL, or nil. A resolved miss is cached as "" so we
-  # don't refetch a page that has no og:image on every request.
-  def call
-    cached = Rails.cache.fetch("article_og_image/#{@article.id}", expires_in: CACHE_TTL) do
-      fetch_og_image.to_s
-    end
-    cached.presence
-  end
-
-  private
 
   def fetch_og_image
     uri = article_uri
@@ -81,6 +78,8 @@ class ArticleImageFetcher
     Sentry.capture_exception(e)
     nil
   end
+
+  private
 
   # German publishers put umlauts straight in the path (junge Welt's
   # /artikel/…böse-banden.html), which URI.parse rejects as non-ASCII. Escape

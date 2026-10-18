@@ -14,7 +14,7 @@ class TelegramPoster
     # server); defaults to api.telegram.org. See TelegramChannel#effective_api_base_url.
     bot       = Telegram::Bot::Client.new(channel.token, url: channel.effective_api_base_url)
     message   = build_message(channel, translation)
-    image_url = ArticleImageFetcher.call(translation.article)
+    image_url = ArticleImageFetcher.call(translation.article, resolve: true)
 
     # The photo is best-effort: if the provider can't fetch the image, the news
     # still goes out as text.

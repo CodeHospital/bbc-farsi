@@ -41,10 +41,9 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_no_match "آرشیو مقاله", @response.body
   end
 
-  test "show renders the translated article with its source image" do
+  test "show renders the translated article with its stored image" do
     translation = create_translation(attrs: { translated_title: "تیتر کامل", translated_body: "متن کامل خبر" })
-    stub_request(:get, translation.article.url)
-      .to_return(body: %(<html><head><meta property="og:image" content="https://ichef.bbci.co.uk/x.jpg"></head></html>))
+    translation.article.update_columns(image_url: "https://ichef.bbci.co.uk/x.jpg", image_resolved_at: Time.current)
 
     get news_path(id: translation.seo_param)
 
@@ -53,14 +52,23 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "figure.article-figure img[src=?]", "https://ichef.bbci.co.uk/x.jpg"
   end
 
-  test "show renders without an image when the source has no og:image" do
+  test "show renders without an image when the article has none" do
     translation = create_translation
-    stub_request(:get, translation.article.url).to_return(body: "<html><head></head></html>")
 
     get news_path(id: translation.seo_param)
 
     assert_response :success
     assert_select "figure.article-figure", false
+  end
+
+  test "news pages never fetch the source page for an image" do
+    translation = create_translation
+    source_page_request = stub_request(:get, translation.article.url)
+
+    get news_path(id: translation.seo_param)
+    get root_path
+
+    assert_not_requested source_page_request
   end
 
   test "show renders AI tags when the article has cached tags" do

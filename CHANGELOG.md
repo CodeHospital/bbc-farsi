@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — article images are stored at ingestion and resolved in the background, not fetched in visitors' requests (migration: `20261018000006_add_image_url_to_articles`)
+
+- User prompt: "why is ArticleImageFetcher called in news show? shouldnt the image be prepared when the news was made?" → "go ahead".
+- New `articles.image_url` and `articles.image_resolved_at`. When a feed entry is ingested, its own image (`media:thumbnail` / `media:content` / image `enclosure`; audio/video enclosures ignored) is saved immediately.
+- New `ArticleImageResolver` upgrades each article to the source page's `og:image`, keeping the feed image when there is none or the fetch fails. It works newest first, 30 per run, fetching up to 6 pages at a time. Runs every 2 minutes from the new in-process poller `config/initializers/article_image_scheduler.rb` and from `bin/rails bbc:resolve_images` (cron/backfill; `RETRY_MISSING=1` re-queues articles still without an image). Each article is claimed with a conditional `UPDATE`, so the two can run together. Fills use `update_columns` (no PaperTrail noise).
+- `ArticleImageFetcher.call` / `call_many` now only read the stored image, with no HTTP and no threads. The news index, story, search, category, sidebar and RSS pages and the admin translation edit page no longer download source pages. Not-yet-resolved articles still show an image the old 1-week cache already held. Telegram and Bale posters use `call(…, resolve: true)` to resolve a fresh story before sending.
+- The backfill reuses the old cache's values, so already-looked-up articles aren't fetched again.
+- Run `bin/rails db:migrate` on dev/prod (not run here), then `bin/rails bbc:resolve_images` once to backfill.
+
 ### Added — analysis model is configurable per Ollama server (migration: `20261018000005_add_analyze_models_to_ollama_servers`)
 
 - User prompt: "under ollama_servers, admin should be able to pick the analysis model too".

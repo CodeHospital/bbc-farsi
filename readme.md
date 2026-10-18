@@ -317,6 +317,25 @@ button, the per-feed **Fetch** button, or `bin/rails bbc:fetch` (which ignores
 */30 * * * *  cd /path/to/app && bin/rails bbc:fetch >> log/cron.log 2>&1
 ```
 
+**Article lead images** are stored on the article (`articles.image_url`), never
+looked up while a visitor's page renders. At ingestion the feed's own image
+(`media:thumbnail` / `media:content` / image `enclosure`) is saved straight
+away. `ArticleImageResolver` then upgrades it in the background to the source
+page's larger `og:image` (allow-listed hosts only), keeping the feed image
+when the page has none or can't be fetched, and stamps
+`articles.image_resolved_at`. It runs from a built-in poller
+(`config/initializers/article_image_scheduler.rb`, every 2 minutes, 30
+articles per run, newest first) and, optionally, cron. Both can run together
+because each article is claimed with a conditional `UPDATE`. Telegram/Bale
+posting resolves a not-yet-resolved article on the spot so it goes out with
+the best image. After deploying the migration, backfill existing articles
+once (values cached by the old render-time lookup are reused without
+refetching). `RETRY_MISSING=1` re-tries articles that still have no image:
+
+```cron
+*/10 * * * *  cd /path/to/app && bin/rails bbc:resolve_images >> log/cron.log 2>&1
+```
+
 **Channels can be on any Telegram-compatible provider** — any messenger
 whose bot API answers `<API base URL>/bot<token>/sendMessage` with
 `chat_id` + `text`. At `/admin/telegram_channels` → New Channel, pick a

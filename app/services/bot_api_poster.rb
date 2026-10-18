@@ -21,7 +21,7 @@ class BotApiPoster
 
   def post(translation:, channel:)
     message_text = message_text_for(translation, channel)
-    image_url    = ArticleImageFetcher.call(translation.article)
+    image_url    = ArticleImageFetcher.call(translation.article, resolve: true)
 
     return call_api(channel, "sendMessage", text_payload(channel, message_text)) unless image_url
 

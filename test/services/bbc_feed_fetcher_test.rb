@@ -104,4 +104,33 @@ class BbcFeedFetcherTest < ActiveSupport::TestCase
     assert_equal [], result[:ignored]
     assert_equal "timeout", result[:error]
   end
+
+  test "keeps the entry's own image, ignoring audio enclosures" do
+    rss = <<~XML
+      <?xml version="1.0" encoding="UTF-8"?>
+      <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel>
+        <item>
+          <title>With thumbnail</title>
+          <link>https://www.bbc.co.uk/news/thumb-1</link>
+          <pubDate>#{Time.current.rfc2822}</pubDate>
+          <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/standard/240/thumb.jpg"/>
+        </item>
+        <item>
+          <title>Audio only</title>
+          <link>https://www.bbc.co.uk/news/audio-2</link>
+          <pubDate>#{Time.current.rfc2822}</pubDate>
+          <enclosure url="https://media.example.com/episode.mp3" type="audio/mpeg" length="1"/>
+        </item>
+        <item>
+          <title>No image</title>
+          <link>https://www.bbc.co.uk/news/plain-3</link>
+          <pubDate>#{Time.current.rfc2822}</pubDate>
+        </item>
+      </channel></rss>
+    XML
+    stub_request(:get, @feed.url).to_return(body: rss, headers: { "Content-Type" => "application/rss+xml" })
+
+    image_urls = @fetcher.fetch(@feed).map { |attrs| attrs[:image_url] }
+    assert_equal [ "https://ichef.bbci.co.uk/ace/standard/240/thumb.jpg", nil, nil ], image_urls
+  end
 end

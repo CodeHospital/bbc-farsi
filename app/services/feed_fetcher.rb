@@ -57,8 +57,25 @@ class FeedFetcher
       url:          entry.url,
       description:  entry.summary,
       published_at: entry.published,
+      image_url:    feed_image_url(entry),
       status:       "pending"
     }
+  end
+
+  NON_IMAGE_EXTENSIONS = /\.(mp3|m4a|aac|ogg|oga|wav|mp4|m4v|mov|webm|pdf)(\?|#|\z)/i
+
+  # The entry's own image (Feedjira maps media:thumbnail, media:content and
+  # enclosure to #image). Stored at ingestion so a story has a picture at
+  # once; ArticleImageResolver later upgrades it to the larger og:image.
+  # Enclosures can be audio/video (podcasts), so those are ignored.
+  def feed_image_url(entry)
+    candidate_url = entry.respond_to?(:image) ? entry.image.to_s.strip : ""
+    return if candidate_url.empty? || candidate_url.match?(NON_IMAGE_EXTENSIONS)
+    return unless URI.parse(candidate_url).is_a?(URI::HTTP)
+
+    candidate_url
+  rescue URI::InvalidURIError
+    nil
   end
 
   def log_error(feed, e)
