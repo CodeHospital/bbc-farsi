@@ -23,6 +23,17 @@ class FeedIngestorTest < ActiveSupport::TestCase
     assert_equal %w[pending pending], Article.order(:id).last(2).map(&:analysis_status)
   end
 
+  test "analyze tasks use the configured analysis model, rewrites keep the rewrite model" do
+    @server.update!(analyze_models: "gemma3:27b")
+    new_articles = [ { title: "Story A", url: "https://bbc.co.uk/news/analysis-a", description: "d", published_at: Time.current, status: "pending" } ]
+
+    stub_fetcher(returns: new_articles) { FeedIngestor.run }
+
+    analyze_task, rewrite_task = Task.order(:id).last(2)
+    assert_equal [ "analyze", "gemma3:27b" ], [ analyze_task.kind, analyze_task.model ]
+    assert_equal [ "rewrite", "qwen3:14b" ], [ rewrite_task.kind, rewrite_task.model ]
+  end
+
   test "a failing analyze enqueue never blocks the rewrite" do
     new_articles = [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ]
 

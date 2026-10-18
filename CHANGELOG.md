@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — analysis model is configurable per Ollama server (migration: `20261018000005_add_analyze_models_to_ollama_servers`)
+
+- User prompt: "under ollama_servers, admin should be able to pick the analysis model too".
+- New **Analysis models** field on the Ollama server form (one per line or comma-separated) and an **Analysis models** column on the server list.
+- The AI bias/fact `analyze` task now runs on the first enabled server's first analysis model (`OllamaServer.pick_for_analysis`). This applies everywhere analysis is queued: new-article ingestion, the article **Re-analyze** button, bulk analyze, "analyze missing" and `bin/rails bbc:analyze`. Rewrites keep using the rewrite model.
+- If no server lists an analysis model, analysis falls back to the rewrite model exactly as before, so nothing changes until an admin fills the field in.
+- Run `bin/rails db:migrate` on dev/prod (not run here).
+
 ### Added — single-use / multi-use magic links, and IP + location recorded on guest edits (migration: `20261018000004_add_usage_mode_and_ip_to_edit_links`)
 
 - User prompt: "the magic link can be single use or multiple use by multiple people, user's ip should be recorded and matching location be displayed too".

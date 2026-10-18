@@ -194,8 +194,8 @@ class Admin::ArticlesController < Admin::BaseController
 
   # Queue (or re-queue) the AI bias/fact analysis of the original article.
   def analyze
-    server, model = OllamaServer.pick(:rewrite)
-    return redirect_back(fallback_location: admin_article_path(@article), alert: "No Ollama servers with rewrite models configured.") unless server
+    server, model = OllamaServer.pick_for_analysis
+    return redirect_back(fallback_location: admin_article_path(@article), alert: "No Ollama servers with analysis or rewrite models configured.") unless server
 
     Task.enqueue_analyze(@article, server:, model:)
     redirect_back fallback_location: admin_article_path(@article),
@@ -259,8 +259,8 @@ class Admin::ArticlesController < Admin::BaseController
   end
 
   def enqueue_analysis_for(articles, notice_label:)
-    server, model = OllamaServer.pick(:rewrite)
-    return redirect_back(fallback_location: admin_articles_path, alert: "No Ollama servers with rewrite models configured.") unless server
+    server, model = OllamaServer.pick_for_analysis
+    return redirect_back(fallback_location: admin_articles_path, alert: "No Ollama servers with analysis or rewrite models configured.") unless server
 
     enqueued_count = 0
     articles.find_each do |article|

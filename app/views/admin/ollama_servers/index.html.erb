@@ -17,6 +17,7 @@
           <th>Rewrite models</th>
           <th>Translate models</th>
           <th>Refine models</th>
+          <th>Analysis models</th>
           <th><%= sort_link "enabled", "Status" %></th>
           <th></th>
         </tr>
@@ -38,6 +39,11 @@
             </td>
             <td>
               <% server.refine_model_list.each do |m| %>
+                <span class="badge bg-secondary font-monospace me-1"><%= m %></span>
+              <% end %>
+            </td>
+            <td>
+              <% server.analyze_model_list.each do |m| %>
                 <span class="badge bg-secondary font-monospace me-1"><%= m %></span>
               <% end %>
             </td>

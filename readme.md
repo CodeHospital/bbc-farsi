@@ -530,7 +530,7 @@ translations: word diffs of each manual change plus edit-approval proposals
 | `/admin/translations` | View/edit translations, post to Telegram, flag for manual edit, edit history |
 | `/admin/telegram_channels` | Manage channels on any Telegram-compatible provider (provider, API URL, token, enable, autopost) *(admin-only)* |
 | `/admin/telegram_posts` | Channel posts: **Scheduled** tab (each channel's queue in delivery order with estimated send windows) and **History** tab (posted/failed posts, filter by status/channel); click a post for details |
-| `/admin/ollama_servers` | Manage Ollama servers and their model lists *(admin-only)* |
+| `/admin/ollama_servers` | Manage Ollama servers and their model lists (rewrite, translate, refine, analysis) *(admin-only)* |
 | `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |
 | `/admin/pending_edits` | Review queue for edits by editors flagged "Edits need approval" — diff, approve, reject (restricted editors see their own as **My Edits**) |
 | `/admin/skip_phrases` | Phrases (matched against entry title or URL, case-insensitive) that make feed ingestion skip an entry *(admin-only)* |
@@ -551,7 +551,9 @@ the scores never change the pipeline or autoposting.
 - Editable on the article page (**AI analysis** card). The card also has a
   **Re-analyze** button. Each split must add up to 100.
 - The prompt is the editable `analyze` prompt (`/admin/prompts`). It runs on
-  the first configured **rewrite** model.
+  the first enabled server's **Analysis models** (set per server at
+  `/admin/ollama_servers`, like rewrite/translate/refine models). If no server
+  has one, it falls back to the first configured **rewrite** model.
 - To backfill existing articles, use **⚖ Analyze unanalyzed** on the articles
   page, the bulk **Analyze** action, or `bin/rails bbc:analyze`. This needs
   migration `20261015000001`.

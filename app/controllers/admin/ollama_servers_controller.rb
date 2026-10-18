@@ -52,7 +52,7 @@ class Admin::OllamaServersController < Admin::BaseController
 
   def server_params
     params.require(:ollama_server).permit(
-      :name, :url, :enabled, :rewrite_models, :translate_models, :refine_models
+      :name, :url, :enabled, :rewrite_models, :translate_models, :refine_models, :analyze_models
     )
   end
 end

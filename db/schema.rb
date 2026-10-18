@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_18_000004) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_18_000005) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -109,6 +109,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_18_000004) do
     t.text "refine_models"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "analyze_models"
   end
 
   create_table "pending_edits", force: :cascade do |t|

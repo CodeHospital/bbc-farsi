@@ -24,7 +24,7 @@ class ArticleAnalyzer
         prompt_version_id: version.id,
         messages: [
           { role: "system", content: version.content },
-          { role: "user",   content: "Title: #{article.title}\n\n#{article.description}" }
+          { role: "user",   content: "Title: #{article.title}\n\nDescription: #{article.description}" }
         ]
       }
     ]

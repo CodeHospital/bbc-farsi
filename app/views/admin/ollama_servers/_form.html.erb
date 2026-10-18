@@ -21,21 +21,27 @@
   </div>
 
   <div class="row mb-3">
-    <div class="col-md-4">
+    <div class="col-md-3">
       <%= f.label :rewrite_models, "Rewrite models", class: "form-label fw-semibold" %>
       <%= f.text_area :rewrite_models, class: "form-control font-monospace", rows: 4,
             placeholder: "qwen3:14b\ngemma3:27b" %>
       <div class="form-text">One model per line (or comma-separated).</div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <%= f.label :translate_models, "Translate models", class: "form-label fw-semibold" %>
       <%= f.text_area :translate_models, class: "form-control font-monospace", rows: 4,
             placeholder: "aya-expanse:32b" %>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
       <%= f.label :refine_models, "Refine models", class: "form-label fw-semibold" %>
       <%= f.text_area :refine_models, class: "form-control font-monospace", rows: 4,
             placeholder: "aya-expanse:32b\nqwen3:14b" %>
+    </div>
+    <div class="col-md-3">
+      <%= f.label :analyze_models, "Analysis models", class: "form-label fw-semibold" %>
+      <%= f.text_area :analyze_models, class: "form-control font-monospace", rows: 4,
+            placeholder: "qwen3:14b" %>
+      <div class="form-text">Bias/fact analysis. Blank on every server = use the rewrite model.</div>
     </div>
   </div>
 

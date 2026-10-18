@@ -350,4 +350,13 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_select "#edit_history del.diff-delete", text: "قدیم"
     assert_select "#edit_history ins.diff-insert", text: "جدید"
   end
+
+  test "analyze uses the configured analysis model" do
+    OllamaServer.create!(name: "Analysis box", url: "http://localhost:11434", analyze_models: "gemma3:27b")
+    article = create_article
+
+    post analyze_admin_article_path(article)
+    task = Task.where(kind: "analyze", target: article).last
+    assert_equal "gemma3:27b", task.model
+  end
 end

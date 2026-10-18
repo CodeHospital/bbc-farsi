@@ -93,8 +93,8 @@ namespace :bbc do
       next
     end
 
-    server, model = OllamaServer.pick(:rewrite)
-    abort "No Ollama servers with rewrite models configured." unless server
+    server, model = OllamaServer.pick_for_analysis
+    abort "No Ollama servers with analysis or rewrite models configured." unless server
 
     enqueued_count = 0
     candidates.find_each do |article|

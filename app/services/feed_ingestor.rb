@@ -124,12 +124,15 @@ class FeedIngestor
   end
 
   # Analysis is display-only, so a failure to enqueue it (e.g. a broken
-  # prompt) must never stop the article from being rewritten.
+  # prompt) must never stop the article from being rewritten. `server`/`model`
+  # are the rewrite target; analysis uses its own configured model (see
+  # OllamaServer.pick_for_analysis), falling back to the rewrite one.
   def self.enqueue_pipeline(article, server, model)
     return unless server && model
 
     begin
-      Task.enqueue_analyze(article, server:, model:)
+      analysis_server, analysis_model = OllamaServer.pick_for_analysis
+      Task.enqueue_analyze(article, server: analysis_server || server, model: analysis_model || model)
     rescue StandardError => e
       Rails.logger.error "Enqueue analyze for article #{article.id} failed: #{e.message}"
       Sentry.capture_exception(e)
