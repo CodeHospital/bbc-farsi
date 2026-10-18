@@ -26,12 +26,17 @@ class Admin::RewritesController < Admin::BaseController
   end
 
   def show
-    @versions = @rewrite.versions.order(created_at: :desc)
+    @versions      = @rewrite.versions.order(created_at: :desc)
+    @pending_edits = @rewrite.pending_edits.pending.includes(:author).order(:created_at)
   end
 
-  def edit; end
+  def edit
+    @own_pending_edit = apply_own_pending_edit(@rewrite)
+  end
 
   def update
+    return submit_rewrite_for_approval if current_user.edits_need_approval?
+
     if @rewrite.update(rewrite_params)
       redirect_to admin_rewrite_path(@rewrite), notice: "Rewrite saved."
     else
@@ -71,6 +76,17 @@ class Admin::RewritesController < Admin::BaseController
   end
 
   private
+
+  def submit_rewrite_for_approval
+    pending_edit = submit_edit_for_approval(@rewrite, rewrite_params)
+    if pending_edit.errors.none?
+      redirect_to admin_rewrite_path(@rewrite), notice: "Your edit was submitted for approval. It goes live once an admin or editor approves it."
+    else
+      @own_pending_edit = @rewrite.pending_edits.pending.find_by(author: current_user)
+      flash.now[:alert] = pending_edit.errors.full_messages.to_sentence
+      render :edit, status: :unprocessable_entity
+    end
+  end
 
   def set_rewrite = @rewrite = Rewrite.find(params[:id])
   def rewrite_params = params.require(:rewrite).permit(:content)

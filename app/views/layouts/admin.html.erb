@@ -27,6 +27,9 @@
     .badge-status-error, .badge-status-failed { background: #dc3545; }
     .badge-status-completed { background: #198754; }
     .btn-xs { padding: .1rem .4rem; font-size: .75rem; }
+    .diff-delete { background: #f8d7da; color: #842029; text-decoration: line-through; }
+    .diff-insert { background: #d1e7dd; color: #0f5132; text-decoration: none; }
+    .diff-text { white-space: pre-wrap; }
     .posted-title { text-decoration: line-through; opacity: .55; }
 
     [data-action*="sortable-table#sort"] { cursor: pointer; user-select: none; }
@@ -95,6 +98,14 @@
             <span><i class="bi bi-pencil-fill"></i> Needs Edit</span>
             <% if manual_edit_review_count.positive? %>
               <span class="badge bg-warning text-dark ms-auto"><%= manual_edit_review_count %></span>
+            <% end %>
+          <% end %>
+        </li>
+        <li class="nav-item">
+          <%= link_to admin_pending_edits_path, class: "nav-link d-flex align-items-center #{'active' if controller_name == 'pending_edits'}" do %>
+            <span><i class="bi bi-check2-square"></i> <%= current_user&.can_review_edits? ? "Pending Edits" : "My Edits" %></span>
+            <% if pending_edit_sidebar_count.positive? %>
+              <span class="badge bg-warning text-dark ms-auto"><%= pending_edit_sidebar_count %></span>
             <% end %>
           <% end %>
         </li>

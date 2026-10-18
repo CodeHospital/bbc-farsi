@@ -3,6 +3,8 @@
   <%= link_to "← Rewrites", admin_rewrites_path, class: "btn btn-outline-secondary btn-sm" %>
 </div>
 
+<%= render "admin/pending_edits/record_notice", pending_edits: @pending_edits %>
+
 <% if @rewrite.status == "error" && @rewrite.error_message.present? %>
   <div class="alert alert-danger">
     <strong><i class="bi bi-exclamation-triangle-fill"></i> Job failed</strong>

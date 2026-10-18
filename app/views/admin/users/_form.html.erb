@@ -20,6 +20,11 @@
     <%= f.select :role, User::ROLES, {}, class: "form-select" %>
     <div class="form-text">Admins can manage feeds, channels, Ollama servers, users, and housekeeping. Editors get the editorial workflow (articles, rewrites, translations, tasks, analytics).</div>
   </div>
+  <div class="form-check mb-3">
+    <%= f.check_box :requires_edit_approval, class: "form-check-input" %>
+    <%= f.label :requires_edit_approval, "Edits need approval", class: "form-check-label" %>
+    <div class="form-text">Editors only: their changes to translations and rewrites are queued under Pending Edits until an admin or an editor without this flag approves them. Ignored for admins.</div>
+  </div>
   <div class="mb-3">
     <%= f.label :password, user.new_record? ? "Password" : "New password", class: "form-label" %>
     <%= f.password_field :password, class: "form-control", autocomplete: "new-password" %>

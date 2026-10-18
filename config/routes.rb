@@ -68,6 +68,14 @@ Rails.application.routes.draw do
       end
     end
 
+    # Edits by editors flagged `requires_edit_approval`, awaiting review.
+    resources :pending_edits, only: %i[index show destroy] do
+      member do
+        post :approve
+        post :reject
+      end
+    end
+
     resources :telegram_channels, only: %i[index new create edit update destroy] do
       member { patch :toggle }
     end

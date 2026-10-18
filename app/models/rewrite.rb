@@ -5,6 +5,7 @@ class Rewrite < ApplicationRecord
   belongs_to :ollama_server, optional: true
   has_many :translations, dependent: :destroy
   has_many :tasks, as: :target
+  has_many :pending_edits, as: :editable, dependent: :destroy
 
   STATUSES = %w[pending running completed error].freeze
   validates :status, inclusion: { in: STATUSES }

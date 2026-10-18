@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_15_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_18_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -93,6 +93,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_15_000001) do
     t.text "refine_models"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "pending_edits", force: :cascade do |t|
+    t.string "editable_type", null: false
+    t.integer "editable_id", null: false
+    t.integer "author_id", null: false
+    t.integer "reviewer_id"
+    t.json "proposed_changes", default: {}, null: false
+    t.json "base_values", default: {}, null: false
+    t.string "status", default: "pending", null: false
+    t.text "review_note"
+    t.datetime "reviewed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_id"], name: "index_pending_edits_on_author_id"
+    t.index ["editable_type", "editable_id"], name: "index_pending_edits_on_editable"
+    t.index ["reviewer_id"], name: "index_pending_edits_on_reviewer_id"
+    t.index ["status"], name: "index_pending_edits_on_status"
   end
 
   create_table "prompt_version_usages", force: :cascade do |t|
@@ -275,6 +293,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_15_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "email"
+    t.boolean "requires_edit_approval", default: false, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["username"], name: "index_users_on_username", unique: true
   end
@@ -294,6 +313,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_15_000001) do
   add_foreign_key "articles", "feeds"
   add_foreign_key "feed_autopost_channels", "feeds"
   add_foreign_key "feed_autopost_channels", "telegram_channels"
+  add_foreign_key "pending_edits", "users", column: "author_id"
+  add_foreign_key "pending_edits", "users", column: "reviewer_id"
   add_foreign_key "prompt_version_usages", "prompt_versions"
   add_foreign_key "prompt_version_usages", "tasks"
   add_foreign_key "prompt_versions", "prompts"

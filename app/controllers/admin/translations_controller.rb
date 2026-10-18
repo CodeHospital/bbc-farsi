@@ -38,13 +38,17 @@ class Admin::TranslationsController < Admin::BaseController
     @posted_channel_ids = @translation.telegram_posts.where(status: "posted").pluck(:telegram_channel_id)
     @queued_channel_ids = @translation.telegram_posts.where(status: "pending").pluck(:telegram_channel_id)
     @versions           = @translation.versions.order(created_at: :desc)
+    @pending_edits      = @translation.pending_edits.pending.includes(:author).order(:created_at)
   end
 
   def edit
+    @own_pending_edit  = apply_own_pending_edit(@translation)
     @article_image_url = ArticleImageFetcher.call(@translation.article) if @translation.article
   end
 
   def update
+    return submit_translation_for_approval if current_user.edits_need_approval?
+
     if @translation.update(translation_params)
       redirect_to admin_translation_path(@translation), notice: "Translation saved."
     else
@@ -133,6 +137,18 @@ class Admin::TranslationsController < Admin::BaseController
   end
 
   private
+
+  def submit_translation_for_approval
+    pending_edit = submit_edit_for_approval(@translation, translation_params)
+    if pending_edit.errors.none?
+      redirect_to admin_translation_path(@translation), notice: "Your edit was submitted for approval. It goes live once an admin or editor approves it."
+    else
+      @own_pending_edit  = @translation.pending_edits.pending.find_by(author: current_user)
+      @article_image_url = ArticleImageFetcher.call(@translation.article) if @translation.article
+      flash.now[:alert]  = pending_edit.errors.full_messages.to_sentence
+      render :edit, status: :unprocessable_entity
+    end
+  end
 
   def set_translation = @translation = Translation.includes(:article, :rewrite, :ollama_server).find(params[:id])
   def translation_params = params.require(:translation).permit(:translated_title, :translated_body)

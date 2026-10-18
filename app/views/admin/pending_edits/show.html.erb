@@ -1,0 +1,96 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Edit to <%= pending_edit_record_label(@pending_edit) %> <%= pending_edit_status_badge(@pending_edit) %></h2>
+  <%= link_to "← #{current_user.can_review_edits? ? 'Pending Edits' : 'My Edits'}", admin_pending_edits_path, class: "btn btn-outline-secondary btn-sm" %>
+</div>
+
+<p class="mb-3">
+  <% if (article = @pending_edit.editable&.article) %>
+    <i class="bi bi-newspaper text-muted"></i>
+    <%= link_to article.title, admin_article_path(article), class: "text-decoration-none" %> &bull;
+  <% end %>
+  <%= link_to "Open #{@pending_edit.editable_type.downcase}", pending_edit_record_path(@pending_edit), class: "text-decoration-none" %>
+</p>
+
+<p class="text-muted small">
+  Submitted by <strong><%= @pending_edit.author.username %></strong>
+  on <%= @pending_edit.created_at.strftime("%b %d, %Y %H:%M") %>
+  <% if @pending_edit.updated_at > @pending_edit.created_at + 1.second && @pending_edit.pending? %>
+    (last revised <%= @pending_edit.updated_at.strftime("%b %d, %Y %H:%M") %>)
+  <% end %>
+  <% if @pending_edit.reviewer %>
+    &bull; <%= @pending_edit.status %> by <strong><%= @pending_edit.reviewer.username %></strong>
+    on <%= @pending_edit.reviewed_at&.strftime("%b %d, %Y %H:%M") %>
+  <% end %>
+</p>
+
+<% if @pending_edit.review_note.present? %>
+  <div class="alert alert-secondary"><strong>Reviewer note:</strong> <%= @pending_edit.review_note %></div>
+<% end %>
+
+<% conflicting_attribute_names = @pending_edit.conflicting_attribute_names %>
+<% if conflicting_attribute_names.any? %>
+  <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    The live <%= conflicting_attribute_names.map { |name| pending_edit_attribute_label(name).downcase }.to_sentence %>
+    changed after this edit was submitted. The diff below is against the <strong>current</strong> text — approving will replace it.
+  </div>
+<% end %>
+
+<% if @other_pending_edits.any? %>
+  <div class="alert alert-info small">
+    Other pending edits on this record:
+    <% @other_pending_edits.each do |other_pending_edit| %>
+      <%= link_to "##{other_pending_edit.id} by #{other_pending_edit.author.username}", admin_pending_edit_path(other_pending_edit) %>
+    <% end %>
+  </div>
+<% end %>
+
+<div class="mb-2 small">
+  <span class="diff-delete px-1">removed</span>
+  <span class="diff-insert px-1">added</span>
+</div>
+
+<% @pending_edit.proposed_changes.each do |attribute_name, proposed_value| %>
+  <% current_value = @pending_edit.current_value_for(attribute_name) %>
+  <div class="card mb-3">
+    <div class="card-header"><%= pending_edit_attribute_label(attribute_name) %></div>
+    <div class="card-body">
+      <div class="diff-text" <%= tag.attributes(pending_edit_text_direction(@pending_edit)) %>><%= word_diff_html(current_value, proposed_value) %></div>
+      <details class="mt-3">
+        <summary class="small text-muted">Side by side</summary>
+        <div class="row mt-2 g-3">
+          <div class="col-md-6">
+            <div class="small text-muted mb-1"><%= @pending_edit.pending? ? "Current" : "Before" %></div>
+            <div class="border rounded p-2 bg-light diff-text" <%= tag.attributes(pending_edit_text_direction(@pending_edit)) %>><%= current_value %></div>
+          </div>
+          <div class="col-md-6">
+            <div class="small text-muted mb-1">Proposed</div>
+            <div class="border rounded p-2 diff-text" <%= tag.attributes(pending_edit_text_direction(@pending_edit)) %>><%= proposed_value %></div>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+<% end %>
+
+<% if @pending_edit.pending? %>
+  <% if current_user.can_review_edits? %>
+    <div class="card">
+      <div class="card-body">
+        <%= form_with url: approve_admin_pending_edit_path(@pending_edit), method: :post, id: "review_form" do |form| %>
+          <div class="mb-3">
+            <%= form.label :review_note, "Note to the author (optional)", class: "form-label" %>
+            <%= form.text_area :review_note, class: "form-control", rows: 2 %>
+          </div>
+          <%= form.button class: "btn btn-success" do %><i class="bi bi-check-lg"></i> Approve &amp; publish<% end %>
+          <%= form.button formaction: reject_admin_pending_edit_path(@pending_edit), class: "btn btn-outline-danger ms-2" do %><i class="bi bi-x-lg"></i> Reject<% end %>
+        <% end %>
+      </div>
+    </div>
+  <% elsif @pending_edit.author_id == current_user.id %>
+    <%= link_to "Revise", (@pending_edit.editable_type == "Translation" ? edit_admin_translation_path(@pending_edit.editable_id) : edit_admin_rewrite_path(@pending_edit.editable_id)),
+          class: "btn btn-outline-primary" %>
+    <%= button_to "Withdraw", admin_pending_edit_path(@pending_edit), method: :delete,
+          class: "btn btn-outline-danger", form_class: "d-inline-block ms-2" %>
+  <% end %>
+<% end %>

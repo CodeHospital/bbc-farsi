@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — edit approval workflow for restricted editors (migration: `20261018000001_create_pending_edits`)
+
+- User prompt: "some editors can directly edit news, but some others need their update to be aproved by regular editors or admin, once they make an edit it goes into a list of edits pending aproval where admin/editor can see the changes and approve it".
+- New **Edits need approval** checkbox on users (`users.requires_edit_approval`, default off; ignored for admins). The users list shows a "needs approval" badge.
+- When a restricted editor saves a Translation (title/body) or Rewrite (content), the live record stays as it is. The change is stored as a `PendingEdit` (only the changed fields, plus a snapshot of the values they edited against). Resubmitting updates the same pending edit, and the edit form pre-fills it. The save button reads "Submit for approval".
+- New `/admin/pending_edits` queue (sidebar **Pending Edits**, with a count badge) with Pending / Approved / Rejected tabs. The review page shows a word-level diff (new `TextDiff` service, no gem) and a side-by-side view, and warns when the live text changed after submission. It links to other pending edits on the same record. **Approve & publish** applies the change, with the PaperTrail version attributed to the author. **Reject** discards it. Both take an optional note. After a decision, the reviewer goes straight to the next pending edit.
+- Reviewers are admins and editors without the flag. Restricted editors see only their own edits (**My Edits**) and can withdraw them while pending. Translation/Rewrite show pages flag edits that are awaiting approval.
+- `PendingEdit` is tracked by PaperTrail and linked from the activity log.
+- Run `bin/rails db:migrate` on dev/prod (not run here).
+
 ### Added — admin view of scheduled channel posts and posting history (no migrations)
 
 - User prompt: "admin should be able to see scheduled channel posts, also it's history".

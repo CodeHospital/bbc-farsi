@@ -42,7 +42,7 @@ class Admin::UsersController < Admin::BaseController
   def set_user = @user = User.find(params[:id])
 
   def user_params
-    params.require(:user).permit(:username, :email, :name, :role, :active, :password, :password_confirmation)
+    params.require(:user).permit(:username, :email, :name, :role, :active, :requires_edit_approval, :password, :password_confirmation)
   end
 
   # On update, an untouched blank password field means "keep the current

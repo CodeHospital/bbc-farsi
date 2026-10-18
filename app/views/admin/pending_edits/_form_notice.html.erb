@@ -1,0 +1,11 @@
+<%# Shown above Translation/Rewrite edit forms for editors whose edits need approval. %>
+<% if current_user.edits_need_approval? %>
+  <div class="alert alert-info">
+    <i class="bi bi-shield-check"></i>
+    Your changes will be <strong>submitted for approval</strong> and go live once an admin or editor approves them.
+    <% if own_pending_edit %>
+      The form shows your pending edit from <%= own_pending_edit.updated_at.strftime("%b %d, %Y %H:%M") %>; saving again replaces it.
+      <%= link_to "View it", admin_pending_edit_path(own_pending_edit), class: "alert-link" %>.
+    <% end %>
+  </div>
+<% end %>

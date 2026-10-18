@@ -7,6 +7,7 @@ class Translation < ApplicationRecord
   has_many :telegram_posts, dependent: :destroy
   has_many :telegram_admin_notifications, dependent: :destroy
   has_many :tasks, as: :target
+  has_many :pending_edits, as: :editable, dependent: :destroy
 
   STATUSES = %w[pending running completed error].freeze
   validates :status, inclusion: { in: STATUSES }

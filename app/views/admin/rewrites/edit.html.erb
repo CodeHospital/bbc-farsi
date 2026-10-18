@@ -2,6 +2,7 @@
   <h2>Edit Rewrite</h2>
   <%= link_to "← Back", admin_rewrite_path(@rewrite), class: "btn btn-outline-secondary btn-sm" %>
 </div>
+<%= render "admin/pending_edits/form_notice", own_pending_edit: @own_pending_edit %>
 <div class="card mb-3 bg-light">
   <div class="card-body">
     <strong>Original:</strong> <%= @rewrite.article&.description %>
@@ -12,7 +13,7 @@
     <%= f.label :content, "Rewritten content", class: "form-label" %>
     <%= f.text_area :content, class: "form-control font-monospace", rows: 10 %>
   </div>
-  <%= f.submit "Save", class: "btn btn-primary" %>
+  <%= f.submit (current_user.edits_need_approval? ? "Submit for approval" : "Save"), class: "btn btn-primary" %>
   <%= button_to "Rerun with AI", rerun_admin_rewrite_path(@rewrite), method: :post,
         class: "btn btn-outline-warning ms-2" %>
 <% end %>

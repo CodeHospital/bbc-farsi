@@ -1,0 +1,72 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2><%= current_user.can_review_edits? ? "Pending Edits" : "My Edits" %></h2>
+</div>
+
+<% unless current_user.can_review_edits? %>
+  <div class="alert alert-info small">
+    <i class="bi bi-info-circle"></i>
+    Your edits to translations and rewrites are reviewed by an admin or editor before they go live.
+  </div>
+<% end %>
+
+<ul class="nav nav-tabs mb-3">
+  <% PendingEdit::STATUSES.each do |status| %>
+    <li class="nav-item">
+      <%= link_to admin_pending_edits_path(status:), class: "nav-link #{'active' if @status == status}" do %>
+        <%= status.capitalize %>
+        <span class="badge bg-secondary"><%= @status_counts[status] || 0 %></span>
+      <% end %>
+    </li>
+  <% end %>
+</ul>
+
+<% if @pending_edits.empty? %>
+  <p class="text-muted">No <%= @status %> edits.</p>
+<% else %>
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Record</th>
+        <th>Changed</th>
+        <th>Author</th>
+        <th>Submitted</th>
+        <% unless @status == "pending" %>
+          <th>Reviewed by</th>
+          <th>Reviewed</th>
+        <% end %>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @pending_edits.each do |pending_edit| %>
+        <tr>
+          <td>
+            <div><%= pending_edit_record_label(pending_edit) %></div>
+            <% if (article = pending_edit.editable&.article) %>
+              <small class="text-muted"><%= article.title.to_s.truncate(80) %></small>
+            <% end %>
+          </td>
+          <td>
+            <% pending_edit.proposed_changes.keys.each do |attribute_name| %>
+              <span class="badge bg-light text-dark border"><%= pending_edit_attribute_label(attribute_name) %></span>
+            <% end %>
+            <% if pending_edit.conflicting_attribute_names.any? %>
+              <span class="badge bg-danger" title="The live text changed after this edit was submitted"><i class="bi bi-exclamation-triangle"></i> conflict</span>
+            <% end %>
+          </td>
+          <td><%= pending_edit.author.username %></td>
+          <td class="text-nowrap"><small><%= pending_edit.created_at.strftime("%b %d, %Y %H:%M") %></small></td>
+          <% unless @status == "pending" %>
+            <td><%= pending_edit.reviewer&.username %></td>
+            <td class="text-nowrap"><small><%= pending_edit.reviewed_at&.strftime("%b %d, %Y %H:%M") %></small></td>
+          <% end %>
+          <td class="text-end">
+            <%= link_to (pending_edit.pending? && current_user.can_review_edits? ? "Review" : "View"),
+                  admin_pending_edit_path(pending_edit), class: "btn btn-sm btn-outline-primary" %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <%= render "admin/shared/pagination", pagy: @pagy %>
+<% end %>

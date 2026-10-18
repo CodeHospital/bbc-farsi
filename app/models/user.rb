@@ -25,8 +25,17 @@ class User < ApplicationRecord
   scope :active, -> { where(active: true) }
   scope :admins, -> { where(role: "admin") }
 
+  has_many :authored_pending_edits, class_name: "PendingEdit", foreign_key: :author_id, dependent: :restrict_with_error, inverse_of: :author
+
   def admin?  = role == "admin"
   def editor? = role == "editor"
+
+  # Restricted editors' Translation/Rewrite edits are queued as PendingEdits
+  # instead of being saved. Admins are never restricted, whatever the flag.
+  def edits_need_approval? = editor? && requires_edit_approval?
+
+  # Admins and unrestricted editors approve/reject queued edits.
+  def can_review_edits? = active? && !edits_need_approval?
 
   def self.authenticate(username, password)
     user = active.find_by("LOWER(username) = ?", username.to_s.downcase)

@@ -2,6 +2,7 @@
   <h2>Edit Translation</h2>
   <%= link_to "← Back", admin_translation_path(@translation), class: "btn btn-outline-secondary btn-sm" %>
 </div>
+<%= render "admin/pending_edits/form_notice", own_pending_edit: @own_pending_edit %>
 <% if @translation.article %>
   <div class="card mb-3">
     <div class="card-header">Original source</div>
@@ -41,7 +42,7 @@
     <%= f.label :translated_body, class: "form-label" %>
     <%= f.text_area :translated_body, class: "form-control", rows: 12, dir: "rtl", lang: "fa" %>
   </div>
-  <%= f.submit "Save", class: "btn btn-primary" %>
+  <%= f.submit (current_user.edits_need_approval? ? "Submit for approval" : "Save"), class: "btn btn-primary" %>
   <%= button_to "↺ Re-translate", rerun_admin_translation_path(@translation), method: :post,
         class: "btn btn-outline-warning ms-2" %>
 <% end %>

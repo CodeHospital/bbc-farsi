@@ -459,6 +459,27 @@ create an editor, change roles, reset passwords, or disable an account. A
 built-in safeguard blocks removing/demoting the last active admin so nobody
 can lock everyone out.
 
+### Edit approval (restricted editors)
+
+Tick **Edits need approval** on an editor's account (`/admin/users` → Edit) to
+put their manual edits through review. When a restricted editor saves a
+Translation (title/body) or Rewrite (content), nothing changes on the live
+record: the change becomes a `PendingEdit` (only the changed fields, plus a
+snapshot of what they were editing against). Saving again before review
+updates the same pending edit; the edit form pre-fills it. The author can
+withdraw it while it is still pending.
+
+Admins and editors *without* the flag review the queue at
+`/admin/pending_edits` (sidebar **Pending Edits**, badged with the count). Each
+edit shows a word-level diff (removed words struck through in red, added words
+in green) plus a side-by-side view. A warning appears when the live text
+changed after the edit was submitted. **Approve & publish** applies the change
+(the PaperTrail version is attributed to the author). **Reject** discards it.
+Both accept an optional note to the author. Restricted editors see their own
+edits (pending/approved/rejected, with reviewer notes) under **My Edits**.
+The flag is ignored for admins. AI actions (rerun/refine/activate/archive,
+analysis overrides) are not gated.
+
 ### Forgot password?
 
 Every user has an email (used only for this). "Forgot password?" on the
@@ -490,6 +511,7 @@ filterable by model type or user.
 | `/admin/telegram_posts` | Channel posts: **Scheduled** tab (each channel's queue in delivery order with estimated send windows) and **History** tab (posted/failed posts, filter by status/channel); click a post for details |
 | `/admin/ollama_servers` | Manage Ollama servers and their model lists *(admin-only)* |
 | `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |
+| `/admin/pending_edits` | Review queue for edits by editors flagged "Edits need approval" — diff, approve, reject (restricted editors see their own as **My Edits**) |
 | `/admin/users` | Manage admin/editor accounts *(admin-only)* |
 | `/admin/activity_logs` | System-wide audit log of who changed what *(admin-only)* |
 
