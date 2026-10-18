@@ -427,7 +427,7 @@ DEPENDENCIES
   solid_cache
   sqlite3 (>= 2.1)
   stimulus-rails
-  telegram-bot-ruby (~> 2.4)
+  telegram-bot-ruby (~> 2.8)
   thruster
   turbo-rails
   tzinfo-data
