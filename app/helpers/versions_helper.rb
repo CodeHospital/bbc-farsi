@@ -4,6 +4,7 @@
 module VersionsHelper
   def version_actor(version)
     return "AI worker / system" if version.whodunnit.blank?
+    return "#{version.whodunnit.delete_prefix('guest:')} (guest)" if version.whodunnit.start_with?("guest:")
     User.find_by(id: version.whodunnit)&.username || "Deleted user ##{version.whodunnit}"
   end
 

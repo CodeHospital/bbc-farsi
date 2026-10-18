@@ -24,12 +24,18 @@ class ArticleView < ApplicationRecord
   end
 
   private_class_method def self.extract_location(request)
-    ip = request.remote_ip.to_s.strip
+    location_for_ip(request.remote_ip)
+  end
+
+  # [country_name, city_name] for an IP, or [nil, nil] for blank/local IPs and
+  # on any lookup failure. Shares the IpGeolocation cache with page views.
+  def self.location_for_ip(ip)
+    ip = ip.to_s.strip
     return [ nil, nil ] if ip.blank? || LOCAL_IPS.include?(ip)
 
     geolocate_ip(ip)
   rescue => error
-    Rails.logger.warn("[ArticleView] extract_location failed: #{error.message}")
+    Rails.logger.warn("[ArticleView] location_for_ip failed: #{error.message}")
     Sentry.capture_exception(error)
     [ nil, nil ]
   end
@@ -61,8 +67,11 @@ class ArticleView < ApplicationRecord
   # Perform the actual HTTP lookup. Raises on any transport/parse error so the
   # caller can avoid caching a spurious "no country" result for a failed call.
   private_class_method def self.fetch_country_from_service(ip)
-    url = "https://ipwho.is/#{ip}?fields=success,city,country"
-    response = Net::HTTP.get(URI.parse(url))
+    uri = URI.parse("https://ipwho.is/#{ip}?fields=success,city,country")
+    # Short timeouts: this can run inside a visitor's request (page view, guest edit).
+    response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: 3, read_timeout: 3) do |http|
+      http.get(uri.request_uri).body
+    end
     location_data = JSON.parse(response)
     return [ nil, nil ] unless location_data["success"]
 

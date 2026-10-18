@@ -72,4 +72,12 @@ module PendingEditsHelper
   def edit_history_text_direction(entry)
     entry.record_type == "Translation" ? { dir: "rtl", lang: "fa" } : {}
   end
+
+  # "🇩🇪 Aachen, Germany" for a guest edit's resolved location, "Unknown
+  # location" when the IP couldn't be located (e.g. private/local address).
+  def pending_edit_location_label(pending_edit)
+    return "Unknown location" if pending_edit.guest_location.blank?
+
+    "#{country_flag(pending_edit.guest_country_name)} #{pending_edit.guest_location}"
+  end
 end

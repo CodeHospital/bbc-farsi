@@ -12,7 +12,15 @@
 </p>
 
 <p class="text-muted small">
-  Submitted by <strong><%= @pending_edit.author.username %></strong>
+  Submitted by <strong><%= @pending_edit.author_name %></strong>
+  <% if @pending_edit.guest? %>
+    (<%= mail_to @pending_edit.guest_email %> &bull; <%= link_to @pending_edit.guest_phone, "tel:#{@pending_edit.guest_phone.gsub(/[^\d+]/, '')}" %>
+    &bull; via <%= @pending_edit.edit_link&.usage_label %> magic link<%= " “#{@pending_edit.edit_link.note}”" if @pending_edit.edit_link&.note.present? %>)
+    <br>
+    <i class="bi bi-geo-alt"></i>
+    <%= pending_edit_location_label(@pending_edit) %>
+    <% if @pending_edit.guest_ip.present? %>&bull; IP <code><%= @pending_edit.guest_ip %></code><% end %>
+  <% end %>
   on <%= @pending_edit.created_at.strftime("%b %d, %Y %H:%M") %>
   <% if @pending_edit.updated_at > @pending_edit.created_at + 1.second && @pending_edit.pending? %>
     (last revised <%= @pending_edit.updated_at.strftime("%b %d, %Y %H:%M") %>)
@@ -40,7 +48,7 @@
   <div class="alert alert-info small">
     Other pending edits on this record:
     <% @other_pending_edits.each do |other_pending_edit| %>
-      <%= link_to "##{other_pending_edit.id} by #{other_pending_edit.author.username}", admin_pending_edit_path(other_pending_edit) %>
+      <%= link_to "##{other_pending_edit.id} by #{other_pending_edit.author_name}", admin_pending_edit_path(other_pending_edit) %>
     <% end %>
   </div>
 <% end %>

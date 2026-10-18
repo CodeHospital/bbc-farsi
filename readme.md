@@ -480,6 +480,24 @@ edits (pending/approved/rejected, with reviewer notes) under **My Edits**.
 The flag is ignored for admins. AI actions (rerun/refine/activate/archive,
 analysis overrides) are not gated.
 
+### Magic links (edits from people without an account)
+
+On an article's admin page, the **Edit links** section creates a secret URL
+(`/edit/:token`, valid 1/7/30 days, revocable) for that article. Anyone with the
+link can propose changes to the article's live Persian title/body after entering
+their **name, email and phone** and ticking a consent box. The proposal is a
+guest `PendingEdit`: it appears in `/admin/pending_edits` (with the guest's
+contact details and the link's note) and only goes live when an admin or
+unrestricted editor approves it. Creating/revoking links requires being an
+admin or unrestricted editor. Unknown/expired/revoked links show the same 404
+page; the page is `noindex`, disallowed in `robots.txt`, rate-limited and has a
+honeypot. Each link is **multiple use** (default — several people may each
+submit until it expires or is revoked) or **single use** (spent by the first
+saved submission; it then shows as "used"). The submitter's IP address and the
+country/city it resolves to (cached `ipwho.is` lookup, shared with page-view
+analytics) are recorded and shown to reviewers. Guest contact details and IPs
+are personal data — delete old rows when no longer needed.
+
 ### Forgot password?
 
 Every user has an email (used only for this). "Forgot password?" on the

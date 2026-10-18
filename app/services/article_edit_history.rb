@@ -53,7 +53,7 @@ class ArticleEditHistory
   end
 
   def actor_names_by_id
-    @actor_names_by_id ||= User.where(id: versions.filter_map { |version| version.whodunnit.presence }).pluck(:id, :username).to_h { |id, name| [ id.to_s, name ] }
+    @actor_names_by_id ||= User.where(id: versions.filter_map { |version| version.whodunnit.presence }.grep_v(/\Aguest:/)).pluck(:id, :username).to_h { |id, name| [ id.to_s, name ] }
   end
 
   def version_entry(version, pending_edits)
@@ -67,18 +67,24 @@ class ArticleEditHistory
 
     Entry.new(
       occurred_at: version.created_at, kind: :change, record_type: version.item_type, record_id: version.item_id,
-      actor_name: system_change ? "AI worker / system" : actor_names_by_id.fetch(version.whodunnit, "Deleted user ##{version.whodunnit}"),
+      actor_name: system_change ? "AI worker / system" : version_actor_name(version),
       event: version.event, system: system_change,
       text_changes: visible_changes.slice(*TEXT_ATTRIBUTES),
       other_changed_attributes: visible_changes.keys - TEXT_ATTRIBUTES
     )
   end
 
+  def version_actor_name(version)
+    return "#{version.whodunnit.delete_prefix('guest:')} (guest)" if version.whodunnit.start_with?("guest:")
+
+    actor_names_by_id.fetch(version.whodunnit, "Deleted user ##{version.whodunnit}")
+  end
+
   def approval_version?(version, pending_edits)
     pending_edits.any? do |pending_edit|
       pending_edit.approved? && pending_edit.reviewed_at &&
         pending_edit.editable_type == version.item_type && pending_edit.editable_id == version.item_id &&
-        version.whodunnit == pending_edit.author_id.to_s &&
+        version.whodunnit == pending_edit.whodunnit_value &&
         version.created_at.between?(pending_edit.reviewed_at - APPROVAL_MATCH_WINDOW, pending_edit.reviewed_at + 1.second)
     end
   end
@@ -91,7 +97,7 @@ class ArticleEditHistory
     Entry.new(
       occurred_at: pending_edit.reviewed_at || pending_edit.created_at, kind: :proposal,
       record_type: pending_edit.editable_type, record_id: pending_edit.editable_id,
-      actor_name: pending_edit.author.username, event: "proposal", system: false,
+      actor_name: pending_edit.author_name, event: "proposal", system: false,
       text_changes:, other_changed_attributes: [], status: pending_edit.status,
       reviewer_name: pending_edit.reviewer&.username, review_note: pending_edit.review_note,
       pending_edit_id: pending_edit.id

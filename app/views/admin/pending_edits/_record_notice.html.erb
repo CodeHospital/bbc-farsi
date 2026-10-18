@@ -4,7 +4,7 @@
     <i class="bi bi-hourglass-split"></i>
     <%= pluralize(pending_edits.size, "edit") %> awaiting approval:
     <% pending_edits.each do |pending_edit| %>
-      <%= link_to "by #{pending_edit.author.username} (#{pending_edit.created_at.strftime('%b %d %H:%M')})",
+      <%= link_to "by #{pending_edit.author_name} (#{pending_edit.created_at.strftime('%b %d %H:%M')})",
             admin_pending_edit_path(pending_edit), class: "alert-link ms-1" %>
     <% end %>
   </div>

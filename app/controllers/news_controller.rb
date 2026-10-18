@@ -113,57 +113,68 @@ class NewsController < ApplicationController
       User-agent: *
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       # AI / LLM crawlers — explicitly welcomed on public content.
       User-agent: GPTBot
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: OAI-SearchBot
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: ChatGPT-User
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: PerplexityBot
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: anthropic-ai
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: Claude-Web
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: Applebot
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: Amazonbot
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: cohere-ai
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       User-agent: CCBot
       Allow: /
       Disallow: /admin
+      Disallow: /edit/
       Disallow: /api
 
       Sitemap: #{sitemap_url}

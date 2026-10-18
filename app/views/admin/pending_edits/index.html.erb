@@ -54,7 +54,12 @@
               <span class="badge bg-danger" title="The live text changed after this edit was submitted"><i class="bi bi-exclamation-triangle"></i> conflict</span>
             <% end %>
           </td>
-          <td><%= pending_edit.author.username %></td>
+          <td>
+            <%= pending_edit.author_name %>
+            <% if pending_edit.guest? %>
+              <div class="small text-muted"><%= pending_edit_location_label(pending_edit) %></div>
+            <% end %>
+          </td>
           <td class="text-nowrap"><small><%= pending_edit.created_at.strftime("%b %d, %Y %H:%M") %></small></td>
           <% unless @status == "pending" %>
             <td><%= pending_edit.reviewer&.username %></td>

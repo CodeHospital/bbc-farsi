@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_18_000002) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_18_000004) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -47,6 +47,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_18_000002) do
     t.index ["feed_id"], name: "index_articles_on_feed_id"
     t.index ["slug"], name: "index_articles_on_slug", unique: true
     t.index ["url"], name: "index_articles_on_url", unique: true
+  end
+
+  create_table "edit_links", force: :cascade do |t|
+    t.integer "article_id", null: false
+    t.integer "created_by_id", null: false
+    t.string "token", null: false
+    t.string "note"
+    t.datetime "expires_at", null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.boolean "single_use", default: false, null: false
+    t.datetime "used_at"
+    t.index ["article_id"], name: "index_edit_links_on_article_id"
+    t.index ["created_by_id"], name: "index_edit_links_on_created_by_id"
+    t.index ["token"], name: "index_edit_links_on_token", unique: true
   end
 
   create_table "feed_autopost_channels", force: :cascade do |t|
@@ -98,7 +114,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_18_000002) do
   create_table "pending_edits", force: :cascade do |t|
     t.string "editable_type", null: false
     t.integer "editable_id", null: false
-    t.integer "author_id", null: false
+    t.integer "author_id"
     t.integer "reviewer_id"
     t.json "proposed_changes", default: {}, null: false
     t.json "base_values", default: {}, null: false
@@ -107,7 +123,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_18_000002) do
     t.datetime "reviewed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "edit_link_id"
+    t.string "guest_name"
+    t.string "guest_email"
+    t.string "guest_phone"
+    t.string "guest_ip"
+    t.string "guest_country_name"
+    t.string "guest_city_name"
     t.index ["author_id"], name: "index_pending_edits_on_author_id"
+    t.index ["edit_link_id"], name: "index_pending_edits_on_edit_link_id"
     t.index ["editable_type", "editable_id"], name: "index_pending_edits_on_editable"
     t.index ["reviewer_id"], name: "index_pending_edits_on_reviewer_id"
     t.index ["status"], name: "index_pending_edits_on_status"
@@ -320,8 +344,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_18_000002) do
 
   add_foreign_key "article_views", "articles"
   add_foreign_key "articles", "feeds"
+  add_foreign_key "edit_links", "articles"
+  add_foreign_key "edit_links", "users", column: "created_by_id"
   add_foreign_key "feed_autopost_channels", "feeds"
   add_foreign_key "feed_autopost_channels", "telegram_channels"
+  add_foreign_key "pending_edits", "edit_links"
   add_foreign_key "pending_edits", "users", column: "author_id"
   add_foreign_key "pending_edits", "users", column: "reviewer_id"
   add_foreign_key "prompt_version_usages", "prompt_versions"

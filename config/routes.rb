@@ -16,7 +16,10 @@ Rails.application.routes.draw do
       collection { post :seed }
     end
 
+    resources :edit_links, only: :destroy
+
     resources :articles, only: %i[index show] do
+      resources :edit_links, only: :create
       member do
         post :rewrite
         post :multi_rewrite
@@ -121,6 +124,12 @@ Rails.application.routes.draw do
     # System-wide "who did what" audit log (admin-only).
     resources :activity_logs, only: :index
   end
+
+  # Public "magic link" for proposing an edit to one article without an
+  # account (see EditLink / GuestEditsController).
+  get  "edit/:token",        to: "guest_edits#show",   as: :guest_edit
+  post "edit/:token",        to: "guest_edits#create"
+  get  "edit/:token/thanks", to: "guest_edits#thanks", as: :guest_edit_thanks
 
   # Worker-facing task queue API (bearer-token protected).
   namespace :api do

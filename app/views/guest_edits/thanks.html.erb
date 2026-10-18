@@ -1,0 +1,7 @@
+<div class="alert alert-success">
+  <h1 class="h5">Thank you!</h1>
+  <p class="mb-0">Your suggestion was received. An editor will review it, and may contact you using the details you left. Nothing changes on the site until it is approved.</p>
+</div>
+<% if @can_submit_again %>
+  <%= link_to "Make another change", guest_edit_path(params[:token]), class: "btn btn-outline-secondary btn-sm" %>
+<% end %>

@@ -1,0 +1,78 @@
+<% article = @edit_link.article %>
+<h1 class="h4 mb-1">Suggest an edit</h1>
+<p class="text-muted">
+  You can propose changes to the Persian text of this story. Your suggestion is reviewed by our editors
+  before anything is published.
+</p>
+
+<div class="card mb-3">
+  <div class="card-header">Original story</div>
+  <div class="card-body">
+    <h2 class="h6"><%= article.title %></h2>
+    <p class="small text-muted mb-2"><%= article.description %></p>
+    <%= link_to "Read the original ↗", article.url, target: "_blank", rel: "noopener noreferrer", class: "small" %>
+  </div>
+</div>
+
+<% errors = @pending_edit&.errors %>
+<% if errors&.any? || @consent_missing %>
+  <div class="alert alert-danger">
+    <ul class="mb-0">
+      <% errors&.full_messages&.each do |message| %><li><%= message %></li><% end %>
+      <% if @consent_missing %><li>Please confirm that we may store your contact details.</li><% end %>
+    </ul>
+  </div>
+<% end %>
+
+<% submitted = @submitted || {} %>
+<%= form_with url: guest_edit_path(params[:token]), method: :post do |f| %>
+  <div class="card mb-3">
+    <div class="card-header">Persian text</div>
+    <div class="card-body">
+      <div class="mb-3">
+        <%= f.label :translated_title, "Title", class: "form-label" %>
+        <%= f.text_field :translated_title, value: submitted.fetch(:translated_title, @translation.translated_title),
+              class: "form-control", dir: "rtl", lang: "fa" %>
+      </div>
+      <div class="mb-0">
+        <%= f.label :translated_body, "Body", class: "form-label" %>
+        <%= f.text_area :translated_body, value: submitted.fetch(:translated_body, @translation.translated_body),
+              class: "form-control", rows: 14, dir: "rtl", lang: "fa" %>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">About you</div>
+    <div class="card-body">
+      <div class="mb-3">
+        <%= f.label :guest_name, "Name", class: "form-label" %>
+        <%= f.text_field :guest_name, value: submitted[:guest_name], class: "form-control", required: true, maxlength: 120, autocomplete: "name" %>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <%= f.label :guest_email, "Email", class: "form-label" %>
+          <%= f.email_field :guest_email, value: submitted[:guest_email], class: "form-control", required: true, maxlength: 254, autocomplete: "email" %>
+        </div>
+        <div class="col-md-6">
+          <%= f.label :guest_phone, "Phone number", class: "form-label" %>
+          <%= f.telephone_field :guest_phone, value: submitted[:guest_phone], class: "form-control", required: true, maxlength: 30, autocomplete: "tel" %>
+        </div>
+      </div>
+      <%# Honeypot: hidden from people, tempting to bots. %>
+      <div style="position:absolute; left:-9999px" aria-hidden="true">
+        <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+      </div>
+      <div class="form-check mt-3">
+        <%= check_box_tag :consent, "1", false, class: "form-check-input", required: true %>
+        <%= label_tag :consent, class: "form-check-label small" do %>
+          I agree that Aralel GmbH may store my name, email, phone number and IP address (and the location it resolves to) to process, verify and follow up on this edit.
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%= f.submit "Submit for review", class: "btn btn-primary" %>
+<% end %>
+
+<p class="small text-muted mt-4"><%= @edit_link.single_use? ? "This link can be used once — please don't share it." : "This link may be used by several people." %> It expires on <%= @edit_link.expires_at.strftime("%b %d, %Y") %>.</p>

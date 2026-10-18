@@ -82,6 +82,9 @@ class Admin::ArticlesController < Admin::BaseController
     @article_tasks   = queue_tasks_for_article
     @task_by_target  = @article_tasks.index_by { |task| [ task.target_type, task.target_id ] }
 
+    @edit_links = @article.edit_links.includes(:created_by).newest_first
+    @edit_link_submission_counts = PendingEdit.where(edit_link_id: @edit_links.map(&:id)).group(:edit_link_id).count
+
     @include_system_history = params[:history] == "all"
     edit_history            = ArticleEditHistory.new(@article, include_system: @include_system_history)
     @edit_history_entries   = edit_history.entries

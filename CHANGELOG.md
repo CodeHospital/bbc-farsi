@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — single-use / multi-use magic links, and IP + location recorded on guest edits (migration: `20261018000004_add_usage_mode_and_ip_to_edit_links`)
+
+- User prompt: "the magic link can be single use or multiple use by multiple people, user's ip should be recorded and matching location be displayed too".
+- When creating an edit link you choose **Multiple use** (default; any number of people, each with their own name/email/phone, until it expires or is revoked) or **Single use** (spent by the first saved submission). A spent link shows status "used" with the time, and then behaves like any unavailable link. The spend is atomic, so two simultaneous submissions can't both succeed, and an invalid submission doesn't spend the link. The submitter still sees their thank-you page.
+- Guest pending edits now record the submitter's IP address and the country/city it resolves to (via the existing cached `IpGeolocation` lookup also used for page views). The review page shows "🇩🇪 Aachen, Germany • IP …" and the Pending Edits list shows the location under the guest's name. Local/private IPs and failed lookups show "Unknown location"; a failed lookup never loses the edit.
+- The consent checkbox now mentions the IP address and its location. Geolocation HTTP calls (`ipwho.is`) now use 3-second timeouts, which also protects page-view tracking from hanging.
+- Run `bin/rails db:migrate` on dev/prod (not run here), after the previous edit-links migration.
+
+### Added — magic links for editing a single article (migration: `20261018000003_create_edit_links`)
+
+- User prompt: "we also need to be able to make magic links for editing just a single article, editor will enter their name, email and phone number and submit their edit, which will go to pending edits for approval".
+- Admins and reviewers (editors without "Edits need approval") create links in a new **Edit links** section on the article page: optional note (who it's for), validity of 1, 7 (default) or 30 days, copyable URL, status (active / expired / revoked), number of edits received, and a **Revoke** button. Restricted editors can't create or revoke links.
+- The public page `/edit/:token` (no login) shows the original story and the article's live Persian title/body in an editable form, plus required name, email, phone and a consent checkbox (Aralel GmbH may store the details to process the edit). Submitting creates a guest `PendingEdit` that waits in **Pending Edits** like any other; nothing goes live until approved. Resubmitting with the same email updates the same pending edit.
+- `PendingEdit.author` is now optional; guest edits store `guest_name`/`guest_email`/`guest_phone` and the `edit_link`. The review page shows "Name (guest)" with a mail link, phone and the link's note. After approval the history credits "Name (guest)". Contact details are only visible to reviewers.
+- Safeguards: unknown, revoked and expired links all return the same 404 page; the page sends `no-referrer`, `no-store`, `noindex` headers and is disallowed in `robots.txt`; submissions are rate-limited (10/hour per IP) and have a honeypot field.
+- Run `bin/rails db:migrate` on dev/prod (not run here).
+
 ### Added — admin-editable skip phrases for feed ingestion (migration: `20261018000002_create_skip_phrases`)
 
 - User prompt: "admin can edit a list of phrases that would make an article get skipped".

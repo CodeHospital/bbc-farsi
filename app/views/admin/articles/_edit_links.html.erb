@@ -1,0 +1,73 @@
+<%# Magic links letting someone without an account propose an edit to this article's published translation. %>
+<section id="edit_links" class="mt-5">
+  <h4 class="mb-2"><i class="bi bi-link-45deg"></i> Edit links</h4>
+  <p class="text-muted small">
+    Share a secret link (single-use for one person, or multi-use for several) so they can propose changes to this article's Persian text without an account.
+    They enter their name, email and phone, and their IP address and location are recorded; the edit lands in
+    <%= link_to "Pending Edits", admin_pending_edits_path %> for approval.
+  </p>
+
+  <% if current_user.can_review_edits? %>
+    <%= form_with url: admin_article_edit_links_path(article), method: :post, class: "row g-2 align-items-end mb-3" do |f| %>
+      <div class="col-md-4">
+        <%= f.label :note, "Note (who it's for)", class: "form-label small mb-1" %>
+        <%= f.text_field :note, class: "form-control form-control-sm", maxlength: 120, placeholder: "e.g. Sara, freelance proofreader" %>
+      </div>
+      <div class="col-md-3">
+        <%= f.label :single_use, "Usage", class: "form-label small mb-1" %>
+        <%= f.select :single_use, [ [ "Multiple use (several people)", "0" ], [ "Single use (first submission only)", "1" ] ],
+              { selected: "0" }, class: "form-select form-select-sm" %>
+      </div>
+      <div class="col-md-2">
+        <%= f.label :lifetime_days, "Valid for", class: "form-label small mb-1" %>
+        <%= f.select :lifetime_days, EditLink::LIFETIME_DAYS_OPTIONS.map { |days| [ pluralize(days, "day"), days ] },
+              { selected: EditLink::DEFAULT_LIFETIME_DAYS }, class: "form-select form-select-sm" %>
+      </div>
+      <div class="col-md-2">
+        <%= f.submit "Create link", class: "btn btn-sm btn-primary" %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <% if edit_links.empty? %>
+    <p class="text-muted">No edit links yet.</p>
+  <% else %>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr><th>Link</th><th>Note</th><th>Usage</th><th>Status</th><th>Expires</th><th>Edits</th><th>Created by</th><th></th></tr>
+        </thead>
+        <tbody>
+          <% edit_links.each do |edit_link| %>
+            <tr class="<%= 'text-muted' unless edit_link.usable? %>">
+              <td style="min-width: 240px">
+                <% if edit_link.usable? %>
+                  <input type="text" readonly class="form-control form-control-sm font-monospace"
+                         value="<%= guest_edit_url(edit_link.token) %>" onfocus="this.select()">
+                <% else %>
+                  <span class="font-monospace small">…<%= edit_link.token.last(6) %></span>
+                <% end %>
+              </td>
+              <td><%= edit_link.note %></td>
+              <td><span class="badge bg-light text-dark border"><%= edit_link.usage_label %></span></td>
+              <td>
+                <span class="badge <%= { 'active' => 'bg-success', 'expired' => 'bg-secondary', 'revoked' => 'bg-danger', 'used' => 'bg-dark' }[edit_link.status] %>"><%= edit_link.status %></span>
+                <% if edit_link.used_at %><div class="small text-muted"><%= edit_link.used_at.strftime("%b %d %H:%M") %></div><% end %>
+              </td>
+              <td class="text-nowrap"><small><%= edit_link.expires_at.strftime("%b %d, %Y %H:%M") %></small></td>
+              <td><%= submission_counts[edit_link.id] || 0 %></td>
+              <td><%= edit_link.created_by.username %></td>
+              <td class="text-end">
+                <% if edit_link.usable? && current_user.can_review_edits? %>
+                  <%= button_to "Revoke", admin_edit_link_path(edit_link), method: :delete,
+                        class: "btn btn-sm btn-outline-danger",
+                        data: { turbo_confirm: "Revoke this link? It stops working immediately." } %>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</section>
