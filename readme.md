@@ -498,7 +498,10 @@ Telegram Channels, Ollama Servers, and Users) is tracked via
 Translation show page has an **Edit history** panel listing every past
 version with who made the change and the prior text; `/admin/activity_logs`
 (admin-only) is a system-wide "who did what" log across all tracked models,
-filterable by model type or user.
+filterable by model type or user. The article page (`/admin/articles/:id`)
+also has an **Edit history** timeline across all of that article's rewrites and
+translations: word diffs of each manual change plus edit-approval proposals
+(with reviewer and note); AI/system changes are hidden unless toggled on.
 
 | Route | Description |
 |---|---|

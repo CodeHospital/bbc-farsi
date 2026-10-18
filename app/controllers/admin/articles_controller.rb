@@ -82,6 +82,11 @@ class Admin::ArticlesController < Admin::BaseController
     @article_tasks   = queue_tasks_for_article
     @task_by_target  = @article_tasks.index_by { |task| [ task.target_type, task.target_id ] }
 
+    @include_system_history = params[:history] == "all"
+    edit_history            = ArticleEditHistory.new(@article, include_system: @include_system_history)
+    @edit_history_entries   = edit_history.entries
+    @hidden_system_changes  = edit_history.hidden_system_count
+
     @pagy, @article_views = pagy(@article.article_views.order(created_at: :desc))
   end
 

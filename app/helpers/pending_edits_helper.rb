@@ -60,4 +60,16 @@ module PendingEditsHelper
     end
     safe_join(diff_pieces)
   end
+
+  # Link target for a timeline entry's Translation/Rewrite.
+  def edit_history_record_path(entry)
+    case entry.record_type
+    when "Translation" then admin_translation_path(entry.record_id)
+    when "Rewrite"     then admin_rewrite_path(entry.record_id)
+    end
+  end
+
+  def edit_history_text_direction(entry)
+    entry.record_type == "Translation" ? { dir: "rtl", lang: "fa" } : {}
+  end
 end

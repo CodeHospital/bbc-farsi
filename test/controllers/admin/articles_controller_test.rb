@@ -337,4 +337,17 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     end
     assert_equal "pending", two.reload.analysis_status
   end
+
+  test "show renders the edit history timeline with manual edits" do
+    translation = create_translation(attrs: { translated_title: "قدیم" })
+    editor      = create_editor_user
+    PaperTrail.request(whodunnit: editor.id.to_s) { translation.update!(translated_title: "جدید") }
+
+    get admin_article_path(translation.article)
+    assert_response :success
+    assert_select "#edit_history"
+    assert_select "#edit_history strong", text: editor.username
+    assert_select "#edit_history del.diff-delete", text: "قدیم"
+    assert_select "#edit_history ins.diff-insert", text: "جدید"
+  end
 end

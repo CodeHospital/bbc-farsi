@@ -1,0 +1,67 @@
+<%# Timeline of edits to this article's rewrites and translations (see ArticleEditHistory). %>
+<section id="edit_history">
+<div class="d-flex justify-content-between align-items-center mt-5 mb-2">
+  <h4 class="mb-0"><i class="bi bi-clock-history"></i> Edit history</h4>
+  <div class="btn-group btn-group-sm">
+    <%= link_to "Manual edits", admin_article_path(article, anchor: "edit_history"),
+          class: "btn btn-outline-secondary #{'active' unless include_system}" %>
+    <%= link_to "Include AI / system", admin_article_path(article, history: "all", anchor: "edit_history"),
+          class: "btn btn-outline-secondary #{'active' if include_system}" %>
+  </div>
+</div>
+
+<% if entries.empty? %>
+  <p class="text-muted">
+    No manual edits yet.
+    <% if hidden_system_changes.positive? %>
+      (<%= hidden_system_changes %> AI / system change(s) hidden.)
+    <% end %>
+  </p>
+<% else %>
+  <div class="list-group mb-3">
+    <% entries.each do |entry| %>
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-1">
+          <div>
+            <% if entry.kind == :proposal %>
+              <span class="badge <%= PendingEditsHelper::PENDING_EDIT_STATUS_BADGE_CLASSES[entry.status] %>">proposal <%= entry.status %></span>
+            <% else %>
+              <span class="badge bg-<%= { "create" => "success", "update" => "primary", "destroy" => "danger" }[entry.event] || "secondary" %>"><%= entry.event %></span>
+            <% end %>
+            <span class="ms-1">
+              <%= link_to "#{entry.record_type} ##{entry.record_id}", edit_history_record_path(entry), class: "text-decoration-none" %>
+              by <strong><%= entry.actor_name %></strong>
+              <% if entry.kind == :proposal && entry.reviewer_name %>
+                &bull; <%= entry.status %> by <strong><%= entry.reviewer_name %></strong>
+              <% end %>
+            </span>
+            <% if entry.system %><span class="badge bg-light text-dark border">system</span><% end %>
+          </div>
+          <small class="text-muted text-nowrap">
+            <%= entry.occurred_at.strftime("%b %d, %Y %H:%M") %>
+            <% if entry.pending_edit_id %>&bull; <%= link_to "review page", admin_pending_edit_path(entry.pending_edit_id) %><% end %>
+          </small>
+        </div>
+
+        <% if entry.review_note.present? %>
+          <div class="small text-muted mt-1">Note: <%= entry.review_note %></div>
+        <% end %>
+
+        <% entry.text_changes.each do |attribute_name, (old_value, new_value)| %>
+          <div class="mt-2">
+            <div class="small text-muted"><%= pending_edit_attribute_label(attribute_name) %></div>
+            <div class="diff-text" <%= tag.attributes(edit_history_text_direction(entry)) %>><%= word_diff_html(old_value, new_value) %></div>
+          </div>
+        <% end %>
+
+        <% if entry.other_changed_attributes.any? %>
+          <div class="small text-muted mt-1">Also changed: <%= entry.other_changed_attributes.map { |name| name.humanize.downcase }.to_sentence %></div>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+  <% if hidden_system_changes.positive? %>
+    <p class="small text-muted"><%= hidden_system_changes %> AI / system change(s) hidden.</p>
+  <% end %>
+<% end %>
+</section>

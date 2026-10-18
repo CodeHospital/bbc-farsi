@@ -486,6 +486,9 @@
   <p class="text-muted">No translations yet.</p>
 <% end %>
 
+<%= render "edit_history", article: @article, entries: @edit_history_entries,
+      hidden_system_changes: @hidden_system_changes, include_system: @include_system_history %>
+
 <%# ── Views ─────────────────────────────────────────────────────────────── %>
 <h5 class="mt-4 mb-2">Views
   <small class="text-muted fs-6">(<%= @pagy.count %> total)</small>

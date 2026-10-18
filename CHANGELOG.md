@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — article-level edit history timeline (no migrations)
+
+- User prompt: "yes please" (build a single edit history for an article).
+- The article page (`/admin/articles/:id`) has a new **Edit history** section: one newest-first timeline across all of the article's translations and rewrites, built by the new `ArticleEditHistory` service. It lists saved changes (who, when, word diff of title/body/content, plus other changed fields) and edit-approval proposals (pending, approved or rejected, with author, reviewer, note and a link to the review page).
+- AI worker / system changes are hidden by default (a count is shown); the **Include AI / system** toggle shows them. An approved proposal appears once, not duplicated by the version its approval created.
+
 ### Added — edit approval workflow for restricted editors (migration: `20261018000001_create_pending_edits`)
 
 - User prompt: "some editors can directly edit news, but some others need their update to be aproved by regular editors or admin, once they make an edit it goes into a list of edits pending aproval where admin/editor can see the changes and approve it".
