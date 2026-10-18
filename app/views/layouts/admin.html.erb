@@ -141,6 +141,11 @@
             <div class="text-secondary small px-2 mb-1" style="font-size:.7rem;letter-spacing:.05em;text-transform:uppercase">Infrastructure</div>
           </li>
           <li class="nav-item">
+            <%= link_to admin_skip_phrases_path, class: "nav-link #{'active' if controller_name == 'skip_phrases'}" do %>
+              <i class="bi bi-funnel"></i> Skip Phrases
+            <% end %>
+          </li>
+          <li class="nav-item">
             <%= link_to admin_ollama_servers_path, class: "nav-link #{'active' if controller_name == 'ollama_servers'}" do %>
               <i class="bi bi-hdd-rack"></i> Ollama Servers
             <% end %>

@@ -44,13 +44,13 @@ class ArticleTest < ActiveSupport::TestCase
 
   test "ignore_reason explains a matched title prefix" do
     reason = Article.ignore_reason("Watch: something", "https://bbc.co.uk/news/a")
-    assert_match(/title starts with ignored prefix/, reason)
+    assert_match(/title contains skip phrase/, reason)
     assert_match(/Watch:/, reason)
   end
 
   test "ignore_reason explains a matched url keyword" do
     reason = Article.ignore_reason("Fine title", "https://bbc.co.uk/iplayer/episode/1")
-    assert_match(/URL contains ignored keyword/, reason)
+    assert_match(/URL contains skip phrase/, reason)
     assert_match(/iplayer/, reason)
   end
 

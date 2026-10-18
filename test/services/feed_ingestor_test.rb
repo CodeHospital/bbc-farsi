@@ -167,7 +167,7 @@ class FeedIngestorTest < ActiveSupport::TestCase
   test "run_one creates a new article, enqueues a task, and reports ignored entries" do
     report = {
       entries: [ { title: "Story A", url: "https://bbc.co.uk/news/a", description: "d", published_at: Time.current, status: "pending" } ],
-      ignored: [ { title: "Watch: clip", url: "https://bbc.co.uk/news/watch-1", reason: "title starts with ignored prefix \"Watch:\"" } ],
+      ignored: [ { title: "Watch: clip", url: "https://bbc.co.uk/news/watch-1", reason: "title contains skip phrase \"Watch:\"" } ],
       error: nil
     }
 

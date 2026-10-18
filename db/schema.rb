@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_18_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_18_000002) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -171,6 +171,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_18_000001) do
     t.datetime "created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
     t.index ["created_at"], name: "index_search_queries_on_created_at"
     t.index ["keyword"], name: "index_search_queries_on_keyword"
+  end
+
+  create_table "skip_phrases", force: :cascade do |t|
+    t.string "phrase", null: false
+    t.string "match_field", default: "title", null: false
+    t.boolean "enabled", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["match_field", "phrase"], name: "index_skip_phrases_on_match_field_and_phrase", unique: true
   end
 
   create_table "solid_cable_messages", force: :cascade do |t|

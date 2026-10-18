@@ -1,0 +1,56 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Skip Phrases</h2>
+</div>
+
+<p class="text-muted">
+  Feed entries whose <strong>title</strong> or <strong>URL</strong> contains any enabled phrase below are
+  skipped at ingestion. Matching is case-insensitive. Changes apply to the next fetch; articles already
+  ingested are not removed.
+</p>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <%= form_with model: [:admin, @new_skip_phrase], class: "row g-2 align-items-start" do |f| %>
+      <div class="col-md-5">
+        <%= f.text_field :phrase, class: "form-control #{'is-invalid' if @new_skip_phrase.errors[:phrase].any?}",
+              placeholder: "e.g. Watch: or /sport/live" %>
+        <% @new_skip_phrase.errors.full_messages.each do |message| %>
+          <div class="invalid-feedback d-block"><%= message %></div>
+        <% end %>
+      </div>
+      <div class="col-md-3">
+        <%= f.select :match_field, [ [ "Title contains", "title" ], [ "URL contains", "url" ] ], {}, class: "form-select" %>
+      </div>
+      <div class="col-md-2">
+        <%= f.submit "Add phrase", class: "btn btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<% if @skip_phrases.empty? %>
+  <div class="alert alert-info">No skip phrases — every feed entry will be ingested.</div>
+<% else %>
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr><th>Phrase</th><th>Matches against</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% @skip_phrases.select(&:persisted?).each do |skip_phrase| %>
+        <tr class="<%= 'text-muted' unless skip_phrase.enabled? %>">
+          <td><code><%= skip_phrase.phrase %></code></td>
+          <td><span class="badge bg-secondary"><%= skip_phrase.match_field %></span></td>
+          <td>
+            <%= button_to (skip_phrase.enabled? ? "Enabled" : "Disabled"), toggle_admin_skip_phrase_path(skip_phrase), method: :patch,
+                  class: "btn btn-sm #{skip_phrase.enabled? ? 'btn-success' : 'btn-outline-secondary'}" %>
+          </td>
+          <td class="text-end">
+            <%= button_to "Delete", admin_skip_phrase_path(skip_phrase), method: :delete,
+                  class: "btn btn-sm btn-outline-danger",
+                  data: { turbo_confirm: "Remove skip phrase #{skip_phrase.phrase.inspect}?" } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

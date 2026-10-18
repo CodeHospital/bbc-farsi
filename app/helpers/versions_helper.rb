@@ -21,6 +21,7 @@ module VersionsHelper
     when "OllamaServer"    then edit_admin_ollama_server_path(version.item)
     when "User"            then edit_admin_user_path(version.item)
     when "PendingEdit"     then admin_pending_edit_path(version.item)
+    when "SkipPhrase"      then admin_skip_phrases_path
     end
   end
 end

@@ -30,21 +30,21 @@ class Article < ApplicationRecord
   scope :pending_rewrite, -> { where(status: "pending") }
   scope :rewritten, -> { where(status: "rewritten") }
 
-  IGNORE_TITLE_PREFIXES = %w[Watch: Assignment: Speak: Podcast: Newsletter: Trending:].freeze
-  IGNORE_URL_KEYWORDS   = %w[iplayer programmes sounds].freeze
-
   def self.ignorable?(title, url)
     ignore_reason(title, url).present?
   end
 
   # nil when the entry should be ingested; otherwise a human-readable reason,
-  # used to explain skipped entries in a single-feed fetch report.
+  # used to explain skipped entries in a single-feed fetch report. The phrases
+  # are admin-editable (see SkipPhrase); matching is case-insensitive.
   def self.ignore_reason(title, url)
-    matched_prefix = IGNORE_TITLE_PREFIXES.find { |prefix| title.to_s.include?(prefix) }
-    return "title starts with ignored prefix #{matched_prefix.inspect}" if matched_prefix
+    phrases = SkipPhrase.enabled_by_field
 
-    matched_keyword = IGNORE_URL_KEYWORDS.find { |keyword| url.to_s.include?(keyword) }
-    return "URL contains ignored keyword #{matched_keyword.inspect}" if matched_keyword
+    matched_title_phrase = phrases["title"].find { |phrase| title.to_s.downcase.include?(phrase.downcase) }
+    return "title contains skip phrase #{matched_title_phrase.inspect}" if matched_title_phrase
+
+    matched_url_phrase = phrases["url"].find { |phrase| url.to_s.downcase.include?(phrase.downcase) }
+    return "URL contains skip phrase #{matched_url_phrase.inspect}" if matched_url_phrase
 
     nil
   end

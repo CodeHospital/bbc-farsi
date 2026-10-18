@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — admin-editable skip phrases for feed ingestion (migration: `20261018000002_create_skip_phrases`)
+
+- User prompt: "admin can edit a list of phrases that would make an article get skipped".
+- New admin-only page `/admin/skip_phrases` (sidebar **Skip Phrases**) to add, enable/disable and delete phrases. Each phrase is matched against either the entry **title** or its **URL**.
+- Replaces the hard-coded `Article::IGNORE_TITLE_PREFIXES` / `IGNORE_URL_KEYWORDS`. The migration inserts those old values, so behaviour is unchanged until an admin edits the list. `db/seeds.rb` also seeds them.
+- Behaviour changes: matching is now case-insensitive, and the skip reason in a single-feed fetch report now reads `title contains skip phrase "…"` / `URL contains skip phrase "…"`.
+- Phrases are cached (invalidated on every change) so ingestion doesn't query once per entry. Changes apply to the next fetch; already-ingested articles are not removed. Changes are tracked in the activity log.
+- Run `bin/rails db:migrate` on dev/prod (not run here).
+
 ### Added — article-level edit history timeline (no migrations)
 
 - User prompt: "yes please" (build a single edit history for an article).

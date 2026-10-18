@@ -33,6 +33,9 @@ module ActiveSupport
     # db/seeds.rb. Idempotent, so safe to run before every test.
     setup { Prompt.seed_defaults! }
 
+    # Feed ingestion reads its skip phrases from the DB (see SkipPhrase).
+    setup { SkipPhrase.seed_defaults! }
+
     # ── Fixture helpers ──────────────────────────────────────────────────────
 
     def build_feed(attrs = {})

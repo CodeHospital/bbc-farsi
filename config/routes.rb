@@ -76,6 +76,11 @@ Rails.application.routes.draw do
       end
     end
 
+    # Phrases that make feed ingestion skip an entry (admin-only).
+    resources :skip_phrases, only: %i[index create update destroy] do
+      member { patch :toggle }
+    end
+
     resources :telegram_channels, only: %i[index new create edit update destroy] do
       member { patch :toggle }
     end

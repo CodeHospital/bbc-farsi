@@ -515,6 +515,7 @@ translations: word diffs of each manual change plus edit-approval proposals
 | `/admin/ollama_servers` | Manage Ollama servers and their model lists *(admin-only)* |
 | `/admin/tasks` | Task queue — status/kind filters, request/response inspector, retry |
 | `/admin/pending_edits` | Review queue for edits by editors flagged "Edits need approval" — diff, approve, reject (restricted editors see their own as **My Edits**) |
+| `/admin/skip_phrases` | Phrases (matched against entry title or URL, case-insensitive) that make feed ingestion skip an entry *(admin-only)* |
 | `/admin/users` | Manage admin/editor accounts *(admin-only)* |
 | `/admin/activity_logs` | System-wide audit log of who changed what *(admin-only)* |
 

@@ -7,6 +7,9 @@ Feed.seed_australianews_feeds!
 Feed.seed_israelnews_feeds!
 puts "Seeded #{Feed.count} feeds."
 
+SkipPhrase.seed_defaults!
+puts "Seeded #{SkipPhrase.count} skip phrases."
+
 Prompt.seed_defaults!
 puts "Seeded #{Prompt.count} prompts."
 
