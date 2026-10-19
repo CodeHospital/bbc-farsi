@@ -12,12 +12,12 @@ class GuestEditsControllerTest < ActionDispatch::IntegrationTest
       translated_title: "عنوان جدید", translated_body: "متن قدیم", consent: "1" }.merge(overrides)
   end
 
-  test "valid link shows the form with the current text, no-index and no-referrer" do
+  test "valid link shows the form with the current text, no-index and same-origin referrer policy" do
     get guest_edit_path(@edit_link.token)
     assert_response :success
     assert_select "input[name=translated_title][value=?]", "عنوان قدیم"
     assert_select "input[name=guest_phone]"
-    assert_equal "no-referrer", response.headers["Referrer-Policy"]
+    assert_equal "same-origin", response.headers["Referrer-Policy"]
     assert_match(/noindex/, response.headers["X-Robots-Tag"])
   end
 

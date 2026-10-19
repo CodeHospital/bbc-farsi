@@ -78,8 +78,11 @@ class GuestEditsController < ApplicationController
   end
 
   # The token is a bearer secret: keep it out of Referer headers and caches.
+  # "same-origin" (not "no-referrer") so the form POST still carries a real
+  # Origin header; with "no-referrer" browsers send `Origin: null` and Rails'
+  # CSRF origin check rejects every submission. Other sites still get no Referer.
   def keep_token_private
-    response.set_header("Referrer-Policy", "no-referrer")
+    response.set_header("Referrer-Policy", "same-origin")
     response.set_header("Cache-Control", "no-store")
     response.set_header("X-Robots-Tag", "noindex, nofollow")
   end

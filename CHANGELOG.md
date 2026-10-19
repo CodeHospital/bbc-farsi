@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — guest edit form submissions rejected with `InvalidAuthenticityToken` ("null origin")
+
+- User prompt: pasted production log of `POST /edit/:token` failing with 422 `ActionController::InvalidAuthenticityToken` (browser returned a 'null' origin).
+- The guest edit page sent `Referrer-Policy: no-referrer` (header + `<meta name="referrer">`), which makes browsers send `Origin: null` on the form POST, so Rails' origin-based CSRF check rejected every submission.
+- Switched both to `same-origin`: the magic-link token still never leaks to other sites (no Referer cross-origin, external links keep `rel="noreferrer"`), and same-origin POSTs carry a real Origin again. CSRF origin checking stays enabled.
+
 ### Changed — article images are stored at ingestion and resolved in the background, not fetched in visitors' requests (migration: `20261018000006_add_image_url_to_articles`)
 
 - User prompt: "why is ArticleImageFetcher called in news show? shouldnt the image be prepared when the news was made?" → "go ahead".
