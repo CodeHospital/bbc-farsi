@@ -33,7 +33,7 @@ class FeedIngestor
 
   # Fetches only the enabled feeds scheduled for the current hour (see
   # Feed#fetch_hour, server-local). Called every hour by `bbc:fetch_scheduled`
-  # and by the in-process poller in config/initializers/feed_fetch_scheduler.rb.
+  # and by the in-process poller in BackgroundPollers.
   #
   # Each feed is claimed with a conditional UPDATE before being fetched, so a
   # feed is fetched at most once per hour slot even when both run, or when the

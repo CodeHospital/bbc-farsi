@@ -1,0 +1,22 @@
+# Reverse proxy for docker-compose.yml. Caddy gets and renews the Let's Encrypt
+# certificates itself (DNS for all four names must point at this server).
+# It passes the original Host header through, which Rails uses to pick the
+# section (see AppHosts), and sets X-Forwarded-For/-Proto.
+
+www.{$PUBLIC_DOMAIN} {
+	redir https://{$PUBLIC_DOMAIN}{uri} permanent
+}
+
+{$PUBLIC_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy public:80
+}
+
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy admin:80
+}
+
+{$API_DOMAIN} {
+	reverse_proxy api:80
+}

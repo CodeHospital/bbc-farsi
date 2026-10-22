@@ -23,6 +23,15 @@ end
   TelegramAdminBot.define_singleton_method(telegram_admin_bot_config_method) { nil }
 end
 
+# Never read the real admin/API hosts from credentials in tests. With them set,
+# the app boots split across domains and every /admin/... request 404s on the
+# test host. Default to one host (no split); tests that exercise the split opt
+# in via `stub_split_hosts`. Routes are drawn at boot, so redraw them now.
+%i[admin_base_url configured_api_base_url].each do |split_host_method|
+  AppHosts.define_singleton_method(split_host_method) { nil }
+end
+Rails.application.reload_routes!
+
 module ActiveSupport
   class TestCase
     parallelize(workers: :number_of_processors)
@@ -95,6 +104,7 @@ module ActiveSupport
     end
 
     teardown do
+      restore_split_hosts
       @restore_stubbed_credentials&.call
       @restore_stubbed_credentials = nil
     end
@@ -161,6 +171,25 @@ module ActiveSupport
       api_key:      "test-key",
       app_base_url: "https://app.test"
     }.freeze
+
+    # Opts a test into the public/admin/API domain split (see AppHosts). Routes
+    # are drawn from the hosts, so they are redrawn here and again on teardown.
+    def stub_split_hosts(admin_base_url:, api_base_url: nil)
+      AppHosts.define_singleton_method(:admin_base_url) { admin_base_url }
+      AppHosts.define_singleton_method(:configured_api_base_url) { api_base_url }
+      Rails.application.reload_routes!
+      @split_hosts_stubbed = true
+    end
+
+    def restore_split_hosts
+      return unless @split_hosts_stubbed
+
+      %i[admin_base_url configured_api_base_url].each do |split_host_method|
+        AppHosts.define_singleton_method(split_host_method) { nil }
+      end
+      Rails.application.reload_routes!
+      @split_hosts_stubbed = false
+    end
 
     def stub_llmarkt_config(**overrides)
       @llmarkt_config_originals ||= {}

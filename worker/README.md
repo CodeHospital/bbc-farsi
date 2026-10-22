@@ -43,7 +43,7 @@ hung worker.
 | Env var            | Default                  | Description |
 |--------------------|--------------------------|-------------|
 | `WORKER_API_TOKEN` | — (required)             | Shared bearer token; must match the Rails app. |
-| `APP_URL`          | `http://localhost:3000`  | Base URL of the Rails app. |
+| `APP_URL`          | `http://localhost:3000`  | Base URL of the Rails app (the API host, e.g. `https://api.khabarestan.com`, when the app is split across domains). |
 | `OLLAMA_URL`       | `http://localhost:11434` | Fallback Ollama URL when a task has no server URL. |
 | `POLL_INTERVAL`    | `5`                      | Seconds to wait when the queue is empty. |
 | `OLLAMA_TIMEOUT`   | `600`                    | HTTP read timeout (seconds) for Ollama calls. |

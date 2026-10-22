@@ -20,6 +20,18 @@ module ApplicationHelper
   # Human-readable country name for a 2-letter ISO code, or the code itself.
   def country_name(code) = Country.name_for(code)
 
+  # Admin pages linking into the public portal: a plain path normally, an
+  # absolute public-host URL once the admin UI lives on its own domain (see
+  # AppHosts). portal_route(:news, id: "a1") → news_path / news_url.
+  def portal_route(route_name, *route_args, **route_params)
+    public_url_options = AppHosts.public_url_options
+    if public_url_options.empty?
+      public_send("#{route_name}_path", *route_args, **route_params)
+    else
+      public_send("#{route_name}_url", *route_args, **route_params, **public_url_options)
+    end
+  end
+
   # Number of translations currently flagged for manual editor review, used to
   # badge the "Needs Edit" sidebar menu item. Memoized per request so rendering
   # the (globally-shown) admin sidebar costs at most one COUNT per page load.

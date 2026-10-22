@@ -58,9 +58,13 @@ Rails.application.configure do
 
   # Enable DNS rebinding protection and other `Host` header attacks. The
   # public host is the same `app_base_url` credential already used for
-  # webhook callback URLs and mail — see Llmarkt.app_base_url.
-  app_base_url = Rails.application.credentials.dig(:app_base_url)
-  config.hosts << URI.parse(app_base_url).host if app_base_url.present?
+  # webhook callback URLs and mail — see Llmarkt.app_base_url. The admin and
+  # API hosts come from admin_base_url / api_base_url when the app is split
+  # across domains (see AppHosts).
+  %i[app_base_url admin_base_url api_base_url].each do |base_url_key|
+    base_url = Rails.application.credentials.dig(base_url_key)
+    config.hosts << URI.parse(base_url).host if base_url.present?
+  end
 
   # Skip DNS rebinding protection for the default health check endpoint.
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }

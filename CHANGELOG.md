@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — tests 404'd on every admin page once `admin_base_url` was in the real credentials
+
+- User prompt: pasted failure `Admin::TelegramPostsControllerTest ... Expected response to be a <2XX: success>, but was a <404: Not Found>`.
+- The test environment decrypts the real credentials, so adding `admin_base_url` booted the test app split across domains (admin routes only on the admin host, no `/admin` prefix). `test_helper.rb` now blanks `AppHosts.admin_base_url` / `configured_api_base_url` (same approach as llmarkt and the Telegram bot) and redraws routes; split-mode tests opt in with `stub_split_hosts`. 707 tests green.
+
+### Added — public / admin / API split across domains, run as separate docker compose services
+
+- User prompt: "split the app between admin and public so we have two web apps in docker compose with each one having a separate domain, so admin would be admin.khabarestan.com but still be the same monolithic ruby on rails app". Agreed: Caddy in compose, `/admin/*` 301-redirects to the admin host, admin drops the `/admin` prefix, the pollers get their own worker service, the API gets `api.khabarestan.com`, guest edit links stay public, hosts come from credentials, the database stays external Postgres, and only compose is set up (Kamal untouched).
+- New `docker-compose.yml` + `Caddyfile`: one image, services `public` (khabarestan.com), `admin` (admin.khabarestan.com), `api` (api.khabarestan.com) and `worker` (no domain, `bin/rails pollers:run`), behind Caddy with automatic TLS and a www → apex redirect. `admin` runs `db:prepare`/`db:seed` and the others wait for it to be healthy.
+- New `APP_ROLE` env var (`AppRole`: `all` (default) / `public` / `admin` / `api` / `worker`) and new `admin_base_url` / `api_base_url` credentials (`AppHosts`). Every route is still drawn in every container (so admin pages can link to the portal), but each section only matches on its own host and in a container whose role serves it; anything else is a 404. With `admin_base_url` unset nothing changes: admin stays under `/admin` on one host (dev, tests, existing deploys).
+- With the split on: the admin UI lives at the root of the admin host (helper names unchanged), `/cable` is admin-only, and `/admin(/*)` on the public host 301-redirects to the admin host, keeping the query string. `LEGACY_API_ON_PUBLIC=1` (the compose default) keeps `/api/*` answering on the public host until the worker, llmarkt and the Telegram webhook have moved.
+- Admin links to the portal (article index/show, analytics) and the guest edit link field now use the public host (`portal_route` helper / `AppHosts.public_url_options`). Password-reset mail links use the admin host. llmarkt callback URLs and `telegram_admin:set_webhook` use `api_base_url` (falling back to `app_base_url`). Production host authorization allows all three hosts.
+- The three in-process pollers (`feed_fetch_scheduler.rb`, `telegram_autopost_scheduler.rb`, `article_image_scheduler.rb`) are consolidated into `BackgroundPollers` + `config/initializers/background_pollers.rb`. Under `bin/rails server` they still start for `APP_ROLE=all`; the new `bin/rails pollers:run` task runs them in the worker service.
+- New tests: `test/controllers/split_hosts_test.rb`, `test/services/app_hosts_test.rb`. 707 tests green; rubocop and zeitwerk clean. No migrations.
+- Deploy notes: set the three `*_base_url` credentials, point DNS at the server, then move the worker's `APP_URL` and re-run `telegram_admin:set_webhook` before setting `LEGACY_API_ON_PUBLIC=0`. Admins sign in again once, because sessions are now host-only on the admin domain.
+
 ### Fixed — guest edit form submissions rejected with `InvalidAuthenticityToken` ("null origin")
 
 - User prompt: pasted production log of `POST /edit/:token` failing with 422 `ActionController::InvalidAuthenticityToken` (browser returned a 'null' origin).

@@ -102,9 +102,9 @@
                   <td class="text-end"><%= row[:en_count] %></td>
                   <td class="text-end fw-bold"><%= row[:count] %></td>
                   <td class="text-end">
-                    <%= link_to "FA", news_path(id: "a#{row[:article_id]}"), target: "_blank",
+                    <%= link_to "FA", portal_route(:news, id: "a#{row[:article_id]}"), target: "_blank",
                           class: "btn btn-xs btn-outline-secondary" %>
-                    <%= link_to "EN", news_path(id: "a#{row[:article_id]}", lang: "en"), target: "_blank",
+                    <%= link_to "EN", portal_route(:news, id: "a#{row[:article_id]}", lang: "en"), target: "_blank",
                           class: "btn btn-xs btn-outline-secondary" %>
                   </td>
                 </tr>
@@ -170,9 +170,9 @@
                 <td><code><%= keyword %></code></td>
                 <td class="text-end fw-bold"><%= count %></td>
                 <td class="text-end">
-                  <%= link_to "FA", news_search_path(q: keyword), target: "_blank",
+                  <%= link_to "FA", portal_route(:news_search, q: keyword), target: "_blank",
                         class: "btn btn-xs btn-outline-secondary" %>
-                  <%= link_to "EN", news_search_path(q: keyword, lang: "en"), target: "_blank",
+                  <%= link_to "EN", portal_route(:news_search, q: keyword, lang: "en"), target: "_blank",
                         class: "btn btn-xs btn-outline-secondary" %>
                 </td>
               </tr>

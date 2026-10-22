@@ -7,7 +7,7 @@
 # Never initializes in test, even with a real DSN configured in credentials —
 # same reasoning as config/environments/test.rb forcing ActionMailer's :test
 # delivery method regardless of RESEND_API_KEY, and as the poller schedulers
-# (telegram_autopost_scheduler.rb/feed_fetch_scheduler.rb) skipping test.
+# (config/initializers/background_pollers.rb) skipping test.
 # Without this, Sentry's background telemetry thread makes real HTTP calls
 # that WebMock rightly blocks (`Real HTTP connections are disabled`),
 # spamming every test run with errors instead of just not being reachable.

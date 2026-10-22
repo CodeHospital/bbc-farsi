@@ -297,8 +297,9 @@ once. The Feeds index shows each feed's slot and when it was last auto-fetched.
 
 What actually runs the hourly sweep (`FeedIngestor.run_scheduled`):
 
-- **Built in, no setup needed**: `config/initializers/feed_fetch_scheduler.rb`
-  runs a background thread inside the app server (`bin/rails server`) that
+- **Built in, no setup needed**: `BackgroundPollers` runs a background thread
+  inside the app server (`bin/rails server`, or the `worker` service in a
+  split deployment — see [Split domains](#split-domains-docker-compose)) that
   polls every 5 minutes and fetches whatever is due.
 - **Optional external cron**, if you'd rather not rely on the in-process
   thread. Safe to run alongside it — each feed is claimed with a conditional
@@ -324,7 +325,7 @@ away. `ArticleImageResolver` then upgrades it in the background to the source
 page's larger `og:image` (allow-listed hosts only), keeping the feed image
 when the page has none or can't be fetched, and stamps
 `articles.image_resolved_at`. It runs from a built-in poller
-(`config/initializers/article_image_scheduler.rb`, every 2 minutes, 30
+(`BackgroundPollers`, every 2 minutes, 30
 articles per run, newest first) and, optionally, cron. Both can run together
 because each article is claimed with a conditional `UPDATE`. Telegram/Bale
 posting resolves a not-yet-resolved article on the spot so it goes out with
@@ -376,9 +377,9 @@ roughly 25-40 minutes apart per channel (`Autoposter::MIN_INTERVAL`/`JITTER`)
 so a channel doesn't get a burst of messages at once. What actually calls
 `Autoposter.run_all` to deliver due posts:
 
-- **Built in, no setup needed**: `config/initializers/telegram_autopost_scheduler.rb`
-  runs a background thread inside the app server (`bin/rails server`) that
-  polls every minute. This is the primary delivery mechanism — nothing else
+- **Built in, no setup needed**: `BackgroundPollers` runs a background thread
+  inside the app server (`bin/rails server`, or the `worker` service in a
+  split deployment) that polls every minute. This is the primary delivery mechanism — nothing else
   to configure.
 - **Optional external cron**, if you'd rather not rely on the in-process
   thread (e.g. it also drives the `unposted_for` sweep that queues new
@@ -462,7 +463,10 @@ was set from Telegram or from the web admin.
 ## Admin Interface
 
 All admin routes are under `/admin`, behind a session-based login backed by
-the `User` model (`/admin/login`).
+the `User` model (`/admin/login`). When the app is split across domains
+(`admin_base_url` set — see [Split domains](#split-domains-docker-compose)),
+they live at the root of `admin.khabarestan.com` instead (`/login`,
+`/articles`, …) and every `/admin/...` path below maps to that host.
 
 ### Roles
 
@@ -657,6 +661,46 @@ the `users` table is empty. After that, manage accounts at `/admin/users`.
 > [worker client](worker/README.md) separately (e.g. on the GPU host) with the
 > `WORKER_API_TOKEN` set to the app's `worker_api_token` credential and
 > `APP_URL` pointed at this app.
+
+### Split domains (docker compose)
+
+`docker-compose.yml` runs the same image as four services, chosen by the
+`APP_ROLE` env var, behind Caddy (which gets the TLS certificates itself):
+
+| Domain | Service (`APP_ROLE`) | Serves |
+|---|---|---|
+| `khabarestan.com` | `public` | news portal, sitemap/feed/robots/llms, guest edit links `/edit/:token`; `/admin/*` 301-redirects to the admin host |
+| `admin.khabarestan.com` | `admin` | admin UI at the root (`/articles`, `/feeds`, …), `/cable` |
+| `api.khabarestan.com` | `api` | `/api/*` — worker queue, llmarkt callbacks, Telegram webhook |
+| — | `worker` | `bin/rails pollers:run`: feed fetch, Telegram autopost, article images |
+
+It is still one monolith: every service has every route drawn (so admin pages
+can link to the portal), but a route only matches on its own host and in a
+container whose role serves it — anything else is a 404. `/up` answers
+everywhere. Leaving `APP_ROLE` unset (`all`) serves everything, as before.
+
+Setup:
+
+1. DNS: point `khabarestan.com`, `www.khabarestan.com`,
+   `admin.khabarestan.com` and `api.khabarestan.com` at the server.
+2. Credentials (`bin/rails credentials:edit`): set `app_base_url`,
+   `admin_base_url` and `api_base_url` (see `config/credentials.example.yml`).
+   The split switches on when `admin_base_url` is set; without it the admin UI
+   stays under `/admin` on one host.
+3. `RAILS_MASTER_KEY=$(cat config/master.key) docker compose up -d --build`.
+   The `admin` service boots first and runs `db:prepare` + `db:seed`; the
+   others wait for it to be healthy.
+4. Move the webhook callers to the API host, then turn the transition flag off:
+   - worker client: `APP_URL=https://api.khabarestan.com`
+   - Telegram admin bot: `docker compose exec admin bin/rails telegram_admin:set_webhook`
+   - llmarkt callbacks pick up `api_base_url` automatically for new tasks
+     (already-submitted tasks still call back to the old URL).
+   - Then `LEGACY_API_ON_PUBLIC=0 docker compose up -d public`, which stops
+     `khabarestan.com/api/*` from answering.
+
+Admin sessions are host-only cookies on the admin domain, so everyone signs
+in again once after the switch. Domains in Caddy can be overridden with
+`PUBLIC_DOMAIN` / `ADMIN_DOMAIN` / `API_DOMAIN`.
 
 For Kamal deployments, see `.kamal/`. `RAILS_MASTER_KEY` is the only app
 secret wired into `config/deploy.yml` / `.kamal/secrets`. `database_url`,

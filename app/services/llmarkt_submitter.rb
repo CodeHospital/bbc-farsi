@@ -167,6 +167,6 @@ class LlmarktSubmitter
 
   def self.callback_url(task, key)
     token = Llmarkt.sign(task_id: task.id, key: key)
-    "#{Llmarkt.app_base_url}/api/llm_callbacks?token=#{CGI.escape(token)}"
+    "#{AppHosts.api_base_url}/api/llm_callbacks?token=#{CGI.escape(token)}"
   end
 end

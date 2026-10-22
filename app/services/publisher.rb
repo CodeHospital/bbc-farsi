@@ -14,7 +14,7 @@
 #      pending post on a channel. Only `Autoposter.run_all` calls this, gated
 #      by `Autoposter.ready?` so a channel only receives a message every
 #      ~25-40 min — see Autoposter for why. `run_all` itself is driven both by
-#      an in-process poll loop (config/initializers/telegram_autopost_scheduler.rb)
+#      an in-process poll loop (BackgroundPollers)
 #      and, if configured, the external `bbc:autopost` cron entry — safe to
 #      run both, see `claim_for_delivery!` below.
 #

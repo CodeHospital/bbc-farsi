@@ -43,7 +43,7 @@
               <td style="min-width: 240px">
                 <% if edit_link.usable? %>
                   <input type="text" readonly class="form-control form-control-sm font-monospace"
-                         value="<%= guest_edit_url(edit_link.token) %>" onfocus="this.select()">
+                         value="<%= guest_edit_url(edit_link.token, **AppHosts.public_url_options) %>" onfocus="this.select()">
                 <% else %>
                   <span class="font-monospace small">…<%= edit_link.token.last(6) %></span>
                 <% end %>

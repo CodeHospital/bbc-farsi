@@ -5,7 +5,7 @@
 # has none or can't be fetched.
 #
 # Driven by both `bin/rails bbc:resolve_images` (cron/backfill) and the
-# in-process poller (config/initializers/article_image_scheduler.rb). They
+# in-process poller (BackgroundPollers). They
 # can race safely: each article is claimed with a conditional UPDATE on
 # `image_resolved_at` before any fetching.
 class ArticleImageResolver
