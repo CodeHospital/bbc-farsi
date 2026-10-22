@@ -665,29 +665,62 @@ the `users` table is empty. After that, manage accounts at `/admin/users`.
 ### Split domains (docker compose)
 
 `docker-compose.yml` runs the same image as four services, chosen by the
-`APP_ROLE` env var, behind Caddy (which gets the TLS certificates itself):
+`APP_ROLE` env var. It has no reverse proxy: on **Coolify**, assign each domain
+to its service (port 80) in Coolify's domain settings and set
+`RAILS_MASTER_KEY` in the app's environment variables. On a plain server, add
+Caddy (automatic TLS) with the override file:
+`docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build`.
 
 | Domain | Service (`APP_ROLE`) | Serves |
 |---|---|---|
-| `khabarestan.com` | `public` | news portal, sitemap/feed/robots/llms, guest edit links `/edit/:token`; `/admin/*` 301-redirects to the admin host |
+| `www.khabarestan.com` | `public` | news portal, sitemap/feed/robots/llms, guest edit links `/edit/:token`; `/admin/*` 301-redirects to the admin host |
+| `khabarestan.com` | `public` | 301-redirects to `www.khabarestan.com` (same path and query) |
 | `admin.khabarestan.com` | `admin` | admin UI at the root (`/articles`, `/feeds`, …), `/cable` |
-| `api.khabarestan.com` | `api` | `/api/*` — worker queue, llmarkt callbacks, Telegram webhook |
-| — | `worker` | `bin/rails pollers:run`: feed fetch, Telegram autopost, article images |
+| `api.khabarestan.com` | `api` | `/api/*`: worker queue, llmarkt callbacks, Telegram webhook |
+| `worker.khabarestan.com` | `worker` | the background pollers (feed fetch, Telegram autopost, article images) and their status page |
 
-It is still one monolith: every service has every route drawn (so admin pages
-can link to the portal), but a route only matches on its own host and in a
-container whose role serves it — anything else is a 404. `/up` answers
-everywhere. Leaving `APP_ROLE` unset (`all`) serves everything, as before.
+It is still one monolith. Every service has every route drawn, so admin pages
+can link to the portal, but a route only matches on its own host and in a
+container whose role serves it. Anything else is a 404. `/up` answers
+everywhere. Leaving `APP_ROLE` unset (`all`) serves everything, as before. The
+split never applies in development, because a local server answers on
+localhost.
+
+**Worker status page** (`worker.khabarestan.com`, or `/worker` without
+`worker_base_url`; it refreshes every 30s):
+
+- **Anyone** sees overall status, each poller's health (OK / Failing / Stalled
+  after missing 3 intervals / Not running) and last run, plus counts: queue
+  pending/in-flight/done/failed, oldest pending, Telegram queued/sent and
+  articles ingested. No error messages, hostnames or record contents.
+- **Signed in** (any admin/editor account; the worker host has its own
+  sign-in because sessions are per host) adds poller errors, durations,
+  run/error counts and hosts, open tasks by kind, pending by model, stale
+  claims, in-flight and recently failed tasks with errors, Telegram delivery
+  errors, and process info. Task links open on the admin host.
+- `status.json` returns the same data for uptime monitors (details only when
+  signed in).
+
+Poller heartbeats are kept in `Rails.cache` (Solid Cache, so they're shared
+across containers and need no migration). `bin/rails pollers:run` still runs
+the pollers headless without a web server.
 
 Setup:
 
 1. DNS: point `khabarestan.com`, `www.khabarestan.com`,
-   `admin.khabarestan.com` and `api.khabarestan.com` at the server.
-2. Credentials (`bin/rails credentials:edit`): set `app_base_url`,
-   `admin_base_url` and `api_base_url` (see `config/credentials.example.yml`).
-   The split switches on when `admin_base_url` is set; without it the admin UI
-   stays under `/admin` on one host.
-3. `RAILS_MASTER_KEY=$(cat config/master.key) docker compose up -d --build`.
+   `admin.khabarestan.com`, `api.khabarestan.com` and `worker.khabarestan.com`
+   at the server.
+2. Credentials (`bin/rails credentials:edit`): set
+   `app_base_url: https://www.khabarestan.com`, plus `admin_base_url`,
+   `api_base_url` and `worker_base_url` (see
+   `config/credentials.example.yml`). The split switches on when
+   `admin_base_url` is set; without it the admin UI stays under `/admin` on
+   one host.
+3. Coolify: assign `www.khabarestan.com` **and** `khabarestan.com` to
+   `public` (Rails redirects the bare domain), `admin.khabarestan.com` to
+   `admin`, `api.khabarestan.com` to `api` and `worker.khabarestan.com` to
+   `worker`, all on port 80, then deploy. On a plain server, run
+   `RAILS_MASTER_KEY=$(cat config/master.key) docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build`.
    The `admin` service boots first and runs `db:prepare` + `db:seed`; the
    others wait for it to be healthy.
 4. Move the webhook callers to the API host, then turn the transition flag off:
@@ -696,11 +729,12 @@ Setup:
    - llmarkt callbacks pick up `api_base_url` automatically for new tasks
      (already-submitted tasks still call back to the old URL).
    - Then `LEGACY_API_ON_PUBLIC=0 docker compose up -d public`, which stops
-     `khabarestan.com/api/*` from answering.
+     `www.khabarestan.com/api/*` from answering.
 
 Admin sessions are host-only cookies on the admin domain, so everyone signs
 in again once after the switch. Domains in Caddy can be overridden with
-`PUBLIC_DOMAIN` / `ADMIN_DOMAIN` / `API_DOMAIN`.
+`PUBLIC_DOMAIN` / `PUBLIC_DOMAIN_ALIAS` / `ADMIN_DOMAIN` / `API_DOMAIN` /
+`WORKER_DOMAIN`.
 
 For Kamal deployments, see `.kamal/`. `RAILS_MASTER_KEY` is the only app
 secret wired into `config/deploy.yml` / `.kamal/secrets`. `database_url`,

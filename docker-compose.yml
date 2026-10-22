@@ -1,24 +1,29 @@
-# One Rails image, four services, split by APP_ROLE (see app/services/app_role.rb)
-# and fronted by Caddy, which terminates TLS and routes each domain:
+# One Rails image, four services, split by APP_ROLE (see app/services/app_role.rb):
 #
-#   khabarestan.com        → public  (news portal, guest edit links)
-#   admin.khabarestan.com  → admin   (admin UI, ActionCable)
-#   api.khabarestan.com    → api     (worker task queue, llmarkt + Telegram webhooks)
-#   (no domain)              worker  (feed fetch / Telegram autopost / image pollers)
+#   public  → www.khabarestan.com     news portal, guest edit links
+#             (+ khabarestan.com, which Rails 301-redirects to www)
+#   admin   → admin.khabarestan.com   admin UI, ActionCable
+#   api     → api.khabarestan.com     worker task queue, llmarkt + Telegram webhooks
+#   worker  → worker.khabarestan.com  feed fetch / Telegram autopost / image
+#                                     pollers + their status page
+#
+# This file has no reverse proxy: on Coolify (or any platform with its own
+# proxy) assign each domain to its service on port 80 in the platform's domain
+# settings. For a plain server, add Caddy (automatic TLS) with the override:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
 #
 # The database is the external PostgreSQL from the `database_url` credential.
-# Credentials need app_base_url, admin_base_url and api_base_url set to the
-# three https:// URLs (see config/credentials.example.yml).
-#
-#   RAILS_MASTER_KEY=... docker compose up -d --build
-#
-# Domains can be overridden with PUBLIC_DOMAIN / ADMIN_DOMAIN / API_DOMAIN
-# (they only affect Caddy; Rails reads its hosts from credentials).
+# Credentials need app_base_url, admin_base_url, api_base_url and
+# worker_base_url set to the https:// URLs (see config/credentials.example.yml). RAILS_MASTER_KEY
+# must be set in the environment (Coolify: the app's environment variables).
 
 x-app: &app
   build: .
   image: khabarestan:latest
   restart: unless-stopped
+  expose:
+    - "80"
   volumes:
     - khabarestan_storage:/rails/storage
   healthcheck:
@@ -63,40 +68,15 @@ services:
       admin:
         condition: service_healthy
 
+  # Runs the pollers inside its web server, which serves their status page.
   worker:
     <<: *app
-    command: ["./bin/rails", "pollers:run"]
     environment:
       <<: *app-environment
       APP_ROLE: worker
-    # No web server, so no /up to probe.
-    healthcheck:
-      disable: true
     depends_on:
       admin:
         condition: service_healthy
 
-  caddy:
-    image: caddy:2.8
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    environment:
-      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-khabarestan.com}
-      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-admin.khabarestan.com}
-      API_DOMAIN: ${API_DOMAIN:-api.khabarestan.com}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - public
-      - admin
-      - api
-
 volumes:
   khabarestan_storage:
-  caddy_data:
-  caddy_config:

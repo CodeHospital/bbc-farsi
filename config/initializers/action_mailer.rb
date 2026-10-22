@@ -34,7 +34,7 @@ Rails.application.config.to_prepare do
 
   # Mail links point into the admin UI (password resets), so they use the
   # admin host when the app is split across domains (see AppHosts).
-  mail_link_base_url = AppHosts.admin_base_url || Llmarkt.app_base_url
+  mail_link_base_url = (AppHosts.admin_base_url if AppHosts.split?) || Llmarkt.app_base_url
   if mail_link_base_url.present?
     uri = URI.parse(mail_link_base_url)
     config.default_url_options = { host: uri.host, port: uri.port, protocol: uri.scheme }

@@ -37,10 +37,19 @@ class AppHostsTest < ActiveSupport::TestCase
     assert_not AppHosts.serves_request?(:api, Struct.new(:host).new("admin.khabarestan.com"))
   end
 
-  test "AppRole rejects unknown roles and the worker serves no web section" do
+  test "the www / bare-domain twin of the public host" do
+    stub_llmarkt_config(app_base_url: "https://www.khabarestan.com")
+    assert_equal "khabarestan.com", AppHosts.public_host_alias
+
+    stub_llmarkt_config(app_base_url: "https://khabarestan.com")
+    assert_equal "www.khabarestan.com", AppHosts.public_host_alias
+  end
+
+  test "AppRole rejects unknown roles and the worker serves only its status page" do
     ENV["APP_ROLE"] = "worker"
     assert AppRole.worker?
-    assert_not AppRole.web_server_runs_pollers?
+    assert AppRole.web_server_runs_pollers?
+    assert AppRole.serves?(:worker)
     %i[public admin api].each { |section| assert_not AppRole.serves?(section) }
 
     ENV["APP_ROLE"] = "adminn"

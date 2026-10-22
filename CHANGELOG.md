@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — www as the canonical public host, and a worker status page on worker.khabarestan.com
+
+- User prompt: "public gets www.khabarestan.com / worker should get worker.khabarestan.com with stats outside login and more details after login".
+- **www:** `app_base_url` is now `https://www.khabarestan.com`. When split, the bare domain (or the www twin, whichever isn't canonical) 301-redirects to `app_base_url`, keeping the path and query, and production host authorization allows it. In Coolify, assign both domains to `public`. The Caddy override redirects at the proxy too (`PUBLIC_DOMAIN_ALIAS`).
+- **Worker status page:** the `worker` service now runs `bin/rails server` (with a healthcheck) and starts the pollers in-process (`AppRole.web_server_runs_pollers?` is true for `worker`). The page is on the new `worker_base_url` host, or `/worker` without it. `WorkerStatusController` + `WorkerStats`:
+  - Public view: overall status, per-poller health (OK / Failing / Stalled / Not running) and last run, queue / Telegram / ingestion counts.
+  - Signed-in view (own sign-in, `WorkerSessionsController`, same `User` accounts): poller errors, durations, counts and hosts; open tasks by kind; pending by model; stale claims; in-flight and recently failed tasks (links to the admin host via the new `admin_route` helper); Telegram delivery errors; process info.
+  - `status.json` returns the same data. The page refreshes every 30s and is `noindex`.
+- `BackgroundPollers` records a heartbeat per sweep in `Rails.cache` (Solid Cache, shared across containers, no migration) and reports `health`.
+- The split is now never applied in development (`AppHosts.split?`). Credentials are shared across environments, and with `admin_base_url` set, local admin pages would otherwise 404. The mailer only uses the admin host when split.
+- New tests: `worker_status_controller_test.rb`, plus www/worker cases in `split_hosts_test.rb` and `app_hosts_test.rb`. 717 tests green; rubocop and zeitwerk clean. No migrations.
+
+### Changed — compose has no built-in proxy (Coolify deploy)
+
+- User prompt: pasted failed Coolify deploy ("dependency admin failed to start … unhealthy"), then "please do" to the Caddy proposal.
+- `docker-compose.yml` no longer includes Caddy (Coolify runs its own proxy on 80/443; assign each domain to its service on port 80 there). Services now `expose` port 80. Caddy moved to `docker-compose.caddy.yml`, an override for plain servers: `docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build`. Readme updated.
+- The `admin` crash itself is not diagnosed yet — needs the container's logs (suspects: `RAILS_MASTER_KEY` unset in Coolify, `database_url` unreachable, missing admin bootstrap credentials).
+
 ### Fixed — tests 404'd on every admin page once `admin_base_url` was in the real credentials
 
 - User prompt: pasted failure `Admin::TelegramPostsControllerTest ... Expected response to be a <2XX: success>, but was a <404: Not Found>`.

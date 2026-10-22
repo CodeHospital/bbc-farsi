@@ -3,10 +3,10 @@
 # docker-compose services (see docker-compose.yml), each with its own role:
 #
 #   all     (default) everything — development, tests, single-container deploys
-#   public  the news portal + guest edit links          (khabarestan.com)
+#   public  the news portal + guest edit links          (www.khabarestan.com)
 #   admin   the admin UI + ActionCable                  (admin.khabarestan.com)
 #   api     worker task queue + webhooks                (api.khabarestan.com)
-#   worker  no web traffic; runs the background pollers (bin/rails pollers:run)
+#   worker  the background pollers + their status page  (worker.khabarestan.com)
 #
 # Routes for every section are drawn in every role (so URL helpers work across
 # hosts) but only *match* in a process whose role serves that section — see
@@ -24,7 +24,7 @@ module AppRole
   def all?    = current == "all"
   def worker? = current == "worker"
 
-  # section: :public, :admin or :api.
+  # section: :public, :admin, :api or :worker.
   def serves?(section) = all? || current == section.to_s
 
   # Lets the public container keep answering /api/* on the public host while
@@ -32,8 +32,8 @@ module AppRole
   # api.khabarestan.com. Turn off once nothing calls the old URLs any more.
   def legacy_api_on_public_host? = ActiveModel::Type::Boolean.new.cast(ENV["LEGACY_API_ON_PUBLIC"]) || false
 
-  # In-process pollers (BackgroundPollers) run inside `bin/rails server` only
-  # for the all-in-one role; split deployments run them in the dedicated
-  # worker service instead so web containers stay stateless.
-  def web_server_runs_pollers? = all?
+  # In-process pollers (BackgroundPollers) run inside `bin/rails server` for
+  # the all-in-one role and the dedicated worker service; the public, admin
+  # and API containers stay stateless.
+  def web_server_runs_pollers? = all? || worker?
 end

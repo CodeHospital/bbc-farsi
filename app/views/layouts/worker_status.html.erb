@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <% if controller_name == "worker_status" %>
+    <meta http-equiv="refresh" content="30">
+  <% end %>
+  <title>Khabarestan Worker</title>
+  <%= csrf_meta_tags %>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <style>
+    body { background: #f8f9fa; }
+    .stat-value { font-size: 1.6rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: .8rem; color: #6c757d; text-transform: uppercase; letter-spacing: .03em; }
+    .health-ok { background: #198754; }
+    .health-failing { background: #dc3545; }
+    .health-stalled { background: #fd7e14; }
+    .health-never_run { background: #6c757d; }
+    .error-text { white-space: pre-wrap; word-break: break-word; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container">
+      <%= link_to worker_root_path, class: "navbar-brand d-flex align-items-center" do %>
+        <img src="/logo.png" alt="" width="28" height="28" class="rounded me-2">Khabarestan Worker
+      <% end %>
+      <div class="d-flex align-items-center gap-2">
+        <% if current_user %>
+          <span class="text-light small d-none d-sm-inline"><%= current_user.username %></span>
+          <%= button_to "Sign out", worker_logout_path, method: :delete, class: "btn btn-sm btn-outline-light", form_class: "d-inline" %>
+        <% elsif controller_name == "worker_status" %>
+          <%= link_to "Sign in for details", worker_login_path, class: "btn btn-sm btn-outline-light" %>
+        <% end %>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container pb-5">
+    <% flash.each do |type, message| %>
+      <div class="alert alert-<%= type == 'alert' ? 'danger' : 'success' %>"><%= message %></div>
+    <% end %>
+    <%= yield %>
+  </main>
+</body>
+</html>

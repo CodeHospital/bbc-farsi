@@ -6,7 +6,8 @@ Rails.application.routes.draw do
   # credentials there is no split: every section answers on any host and the
   # admin UI stays under /admin. With it set, the admin UI lives at the root of
   # the admin host — helper names (admin_articles_path, …) don't change.
-  admin_path_prefix = AppHosts.split? ? "/" : "admin"
+  admin_path_prefix  = AppHosts.split? ? "/" : "admin"
+  worker_path_prefix = AppHosts.split? && AppHosts.worker_host.present? ? "/" : "worker"
 
   # ── Admin (admin.khabarestan.com) ───────────────────────────────────────────
   constraints(AppHosts.constraint_for(:admin)) do
@@ -155,8 +156,32 @@ Rails.application.routes.draw do
     end
   end
 
-  # ── Public portal (khabarestan.com) ─────────────────────────────────────────
+  # ── Worker status (worker.khabarestan.com) ──────────────────────────────────
+  # Poller + task-queue health; anyone sees the summary, signed-in users the
+  # details (WorkerStatusController). /worker on the public host when there is
+  # no worker_base_url.
+  constraints(AppHosts.constraint_for(:worker)) do
+    scope worker_path_prefix, as: :worker do
+      root to: "worker_status#show"
+      get "status", to: "worker_status#show", as: :status
+
+      get    "login",  to: "worker_sessions#new",     as: :login
+      post   "login",  to: "worker_sessions#create"
+      delete "logout", to: "worker_sessions#destroy", as: :logout
+    end
+  end
+
+  # ── Public portal (www.khabarestan.com) ─────────────────────────────────────
   constraints(AppHosts.constraint_for(:public)) do
+    # khabarestan.com ↔ www.khabarestan.com: the twin of app_base_url's host
+    # 301-redirects to the canonical public URL, keeping the path and query.
+    if AppHosts.split?
+      constraints(->(request) { AppHosts.public_host_alias_request?(request) }) do
+        match "(*any_path)", via: %i[get head], format: false,
+              to: redirect(status: 301) { |_path_params, request| AppHosts.canonical_public_url(request) }
+      end
+    end
+
     # Old /admin bookmarks and links keep working after the split.
     if AppHosts.split?
       get "admin(/*admin_path)", format: false,

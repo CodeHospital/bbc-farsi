@@ -5,13 +5,16 @@ require "test_helper"
 # drawn at boot from the credentials, so each test redraws them with the split
 # credentials stubbed in, and teardown redraws the default (non-split) set.
 class SplitHostsTest < ActionDispatch::IntegrationTest
-  PUBLIC_HOST = "khabarestan.com".freeze
+  PUBLIC_HOST = "www.khabarestan.com".freeze
+  BARE_HOST   = "khabarestan.com".freeze
   ADMIN_HOST  = "admin.khabarestan.com".freeze
   API_HOST    = "api.khabarestan.com".freeze
+  WORKER_HOST = "worker.khabarestan.com".freeze
 
   setup do
     stub_llmarkt_config(app_base_url: "https://#{PUBLIC_HOST}")
-    stub_split_hosts(admin_base_url: "https://#{ADMIN_HOST}", api_base_url: "https://#{API_HOST}")
+    stub_split_hosts(admin_base_url: "https://#{ADMIN_HOST}", api_base_url: "https://#{API_HOST}",
+                     worker_base_url: "https://#{WORKER_HOST}")
   end
 
   teardown do
@@ -41,6 +44,47 @@ class SplitHostsTest < ActionDispatch::IntegrationTest
 
     get "/admin"
     assert_redirected_to "https://#{ADMIN_HOST}/"
+  end
+
+  test "the bare domain 301-redirects to the canonical www host, keeping path and query" do
+    host! BARE_HOST
+    get "/news/a12?utm=x"
+    assert_response :moved_permanently
+    assert_redirected_to "https://#{PUBLIC_HOST}/news/a12?utm=x"
+
+    get "/"
+    assert_redirected_to "https://#{PUBLIC_HOST}/"
+  end
+
+  test "the worker status page lives at the root of the worker host" do
+    assert_equal "/", worker_root_path
+
+    host! WORKER_HOST
+    get worker_root_path
+    assert_response :success
+    assert_select "a[href=?]", worker_login_path
+
+    host! PUBLIC_HOST
+    get "/worker"
+    assert_response :not_found
+
+    ENV["APP_ROLE"] = "admin"
+    host! WORKER_HOST
+    get worker_root_path
+    assert_response :not_found
+  end
+
+  test "worker sign-in shows details with links into the admin host" do
+    failed_task = Task.create!(kind: "rewrite", status: "failed", target: create_rewrite, model: "llama3", error_message: "boom")
+
+    host! WORKER_HOST
+    post worker_login_path, params: { username: create_admin_user.username, password: TEST_USER_PASSWORD }
+    assert_redirected_to worker_root_path
+
+    get worker_root_path
+    assert_response :success
+    assert_select "a[href=?]", "https://#{ADMIN_HOST}/tasks/#{failed_task.id}"
+    assert_match "boom", response.body
   end
 
   test "the portal and guest edit links only answer on the public host" do

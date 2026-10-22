@@ -27,7 +27,7 @@ end
 # the app boots split across domains and every /admin/... request 404s on the
 # test host. Default to one host (no split); tests that exercise the split opt
 # in via `stub_split_hosts`. Routes are drawn at boot, so redraw them now.
-%i[admin_base_url configured_api_base_url].each do |split_host_method|
+%i[admin_base_url configured_api_base_url worker_base_url].each do |split_host_method|
   AppHosts.define_singleton_method(split_host_method) { nil }
 end
 Rails.application.reload_routes!
@@ -174,9 +174,10 @@ module ActiveSupport
 
     # Opts a test into the public/admin/API domain split (see AppHosts). Routes
     # are drawn from the hosts, so they are redrawn here and again on teardown.
-    def stub_split_hosts(admin_base_url:, api_base_url: nil)
+    def stub_split_hosts(admin_base_url:, api_base_url: nil, worker_base_url: nil)
       AppHosts.define_singleton_method(:admin_base_url) { admin_base_url }
       AppHosts.define_singleton_method(:configured_api_base_url) { api_base_url }
+      AppHosts.define_singleton_method(:worker_base_url) { worker_base_url }
       Rails.application.reload_routes!
       @split_hosts_stubbed = true
     end
@@ -184,7 +185,7 @@ module ActiveSupport
     def restore_split_hosts
       return unless @split_hosts_stubbed
 
-      %i[admin_base_url configured_api_base_url].each do |split_host_method|
+      %i[admin_base_url configured_api_base_url worker_base_url].each do |split_host_method|
         AppHosts.define_singleton_method(split_host_method) { nil }
       end
       Rails.application.reload_routes!

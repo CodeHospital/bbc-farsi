@@ -1,0 +1,37 @@
+# Adds Caddy (automatic Let's Encrypt TLS + domain routing) in front of the
+# services in docker-compose.yml, for servers with no proxy of their own:
+#
+#   RAILS_MASTER_KEY=... docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build
+#
+# Not for Coolify, which has its own proxy on ports 80/443. Domains can be
+# overridden with PUBLIC_DOMAIN / PUBLIC_DOMAIN_ALIAS / ADMIN_DOMAIN / API_DOMAIN /
+# WORKER_DOMAIN (Caddy only; Rails
+# reads its hosts from credentials).
+
+services:
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-www.khabarestan.com}
+      PUBLIC_DOMAIN_ALIAS: ${PUBLIC_DOMAIN_ALIAS:-khabarestan.com}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:-admin.khabarestan.com}
+      API_DOMAIN: ${API_DOMAIN:-api.khabarestan.com}
+      WORKER_DOMAIN: ${WORKER_DOMAIN:-worker.khabarestan.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - public
+      - admin
+      - api
+      - worker
+
+volumes:
+  caddy_data:
+  caddy_config:

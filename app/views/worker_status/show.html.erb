@@ -1,0 +1,204 @@
+<% task_queue = @summary[:task_queue] %>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
+  <h1 class="h4 mb-0">
+    Status:
+    <% if @summary[:status] == :ok %>
+      <span class="badge bg-success">All systems running</span>
+    <% else %>
+      <span class="badge bg-warning text-dark">Degraded</span>
+    <% end %>
+  </h1>
+  <span class="text-muted small">
+    Updated <%= l(@summary[:generated_at], format: :long) %> · refreshes every 30s ·
+    <%= link_to "JSON", worker_status_path(format: :json) %>
+  </span>
+</div>
+
+<h2 class="h6 text-muted text-uppercase">Background pollers</h2>
+<div class="card shadow-sm mb-4">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Poller</th><th>Health</th><th>Every</th><th>Last run</th>
+          <% if @details %><th>Duration</th><th>Runs / errors</th><th>Host</th><% end %>
+        </tr>
+      </thead>
+      <tbody>
+        <% @summary[:pollers].each_with_index do |poller_summary, poller_index| %>
+          <% poller_details = @details && @details[:pollers][poller_index] %>
+          <tr>
+            <td><%= poller_summary[:name] %></td>
+            <td><%= poller_health_badge(poller_summary[:health]) %></td>
+            <td><%= worker_duration(poller_summary[:interval_seconds]) %></td>
+            <td><%= worker_time_ago(poller_summary[:last_run_at]) %></td>
+            <% if poller_details %>
+              <td><%= poller_details[:duration_seconds] ? "#{poller_details[:duration_seconds]}s" : "—" %></td>
+              <td><%= poller_details.fetch(:run_count, 0) %> / <%= poller_details.fetch(:error_count, 0) %></td>
+              <td><code><%= poller_details[:hostname] || "—" %></code></td>
+            <% end %>
+          </tr>
+          <% if poller_details&.dig(:last_error) %>
+            <tr class="table-danger">
+              <td colspan="7" class="error-text">
+                <strong>Last error</strong> (<%= worker_time_ago(poller_details[:last_error_at]) %>): <%= poller_details[:last_error] %>
+              </td>
+            </tr>
+          <% end %>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<h2 class="h6 text-muted text-uppercase">LLM task queue</h2>
+<div class="row g-3 mb-4">
+  <% [
+       ["Pending", task_queue[:pending]],
+       ["In flight", task_queue[:claimed]],
+       ["Done (1h)", task_queue[:completed_last_hour]],
+       ["Done (24h)", task_queue[:completed_last_24_hours]],
+       ["Failed (24h)", task_queue[:failed_last_24_hours]],
+       ["Oldest pending", worker_duration(task_queue[:oldest_pending_age_seconds])]
+     ].each do |stat_label, stat_value| %>
+    <div class="col-6 col-md-4 col-lg-2">
+      <div class="card shadow-sm h-100"><div class="card-body py-3">
+        <div class="stat-value"><%= stat_value %></div>
+        <div class="stat-label"><%= stat_label %></div>
+      </div></div>
+    </div>
+  <% end %>
+</div>
+
+<h2 class="h6 text-muted text-uppercase">Publishing &amp; ingestion</h2>
+<div class="row g-3 mb-4">
+  <% [
+       ["Telegram queued", @summary[:publishing][:telegram_posts_queued]],
+       ["Telegram sent (24h)", @summary[:publishing][:telegram_posts_sent_last_24_hours]],
+       ["Articles ingested (24h)", @summary[:ingestion][:articles_last_24_hours]]
+     ].each do |stat_label, stat_value| %>
+    <div class="col-6 col-md-4">
+      <div class="card shadow-sm h-100"><div class="card-body py-3">
+        <div class="stat-value"><%= stat_value %></div>
+        <div class="stat-label"><%= stat_label %></div>
+      </div></div>
+    </div>
+  <% end %>
+</div>
+
+<% if @details %>
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <h2 class="h6 text-muted text-uppercase">Open tasks by kind</h2>
+      <div class="card shadow-sm">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Kind</th><th class="text-end">Pending</th><th class="text-end">In flight</th></tr></thead>
+          <tbody>
+            <% @details[:open_tasks_by_kind].each do |task_kind, open_counts| %>
+              <tr><td><%= task_kind %></td><td class="text-end"><%= open_counts[:pending] %></td><td class="text-end"><%= open_counts[:claimed] %></td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <h2 class="h6 text-muted text-uppercase">Pending tasks by model</h2>
+      <div class="card shadow-sm">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Model</th><th class="text-end">Pending</th></tr></thead>
+          <tbody>
+            <% @details[:pending_tasks_by_model].each do |task_model, pending_count| %>
+              <tr><td><code><%= task_model || "—" %></code></td><td class="text-end"><%= pending_count %></td></tr>
+            <% end %>
+            <% if @details[:pending_tasks_by_model].empty? %>
+              <tr><td colspan="2" class="text-muted">Nothing pending.</td></tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+      <p class="small mt-2 mb-0 <%= @details[:stale_claims].positive? ? 'text-danger' : 'text-muted' %>">
+        Stale claims (in flight longer than <%= worker_duration(Task::STALE_AFTER.to_i) %>): <%= @details[:stale_claims] %>
+      </p>
+    </div>
+
+    <% { "In-flight tasks" => @details[:in_flight_tasks], "Recently failed tasks" => @details[:recent_failed_tasks] }.each do |table_title, task_rows| %>
+      <div class="col-12">
+        <h2 class="h6 text-muted text-uppercase"><%= table_title %></h2>
+        <div class="card shadow-sm">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr><th>Task</th><th>Kind</th><th>Model</th><th>Server</th><th>Attempts</th><th><%= table_title.start_with?("In-flight") ? "Claimed" : "Failed" %></th></tr>
+              </thead>
+              <tbody>
+                <% task_rows.each do |task_row| %>
+                  <tr>
+                    <td><%= link_to "##{task_row[:id]}", admin_route(:admin_task, task_row[:id]) %></td>
+                    <td><%= task_row[:kind] %></td>
+                    <td><code><%= task_row[:model] || "—" %></code></td>
+                    <td><%= task_row[:server] || "—" %></td>
+                    <td><%= task_row[:attempts] %></td>
+                    <td>
+                      <% if table_title.start_with?("In-flight") %>
+                        <%= worker_duration(task_row[:claimed_for_seconds]) %> ago
+                      <% else %>
+                        <%= worker_time_ago(task_row[:updated_at]) %>
+                      <% end %>
+                    </td>
+                  </tr>
+                  <% if task_row[:error_message].present? && !table_title.start_with?("In-flight") %>
+                    <tr><td colspan="6" class="error-text text-danger"><%= task_row[:error_message].truncate(500) %></td></tr>
+                  <% end %>
+                <% end %>
+                <% if task_rows.empty? %>
+                  <tr><td colspan="6" class="text-muted">None.</td></tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @details[:telegram_post_errors].any? %>
+      <div class="col-12">
+        <h2 class="h6 text-muted text-uppercase">Telegram delivery errors</h2>
+        <div class="card shadow-sm">
+          <table class="table table-sm mb-0">
+            <tbody>
+              <% @details[:telegram_post_errors].each do |telegram_error| %>
+                <tr>
+                  <td><%= link_to "##{telegram_error[:id]}", admin_route(:admin_telegram_post, telegram_error[:id]) %></td>
+                  <td><%= telegram_error[:channel] %></td>
+                  <td class="error-text text-danger"><%= telegram_error[:error_message].to_s.truncate(300) %></td>
+                  <td class="text-nowrap"><%= worker_time_ago(telegram_error[:updated_at]) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="col-12">
+      <h2 class="h6 text-muted text-uppercase">Processes</h2>
+      <div class="card shadow-sm"><div class="card-body small">
+        <% poller_process = @details[:poller_process] %>
+        <div>
+          <strong>Pollers:</strong>
+          <% if poller_process %>
+            started on <code><%= poller_process[:hostname] %></code> (role <code><%= poller_process[:role] %></code>) <%= worker_time_ago(poller_process[:started_at]) %>
+          <% else %>
+            no poller process has started yet.
+          <% end %>
+        </div>
+        <div>
+          <strong>This page:</strong>
+          <code><%= @details[:web_process][:hostname] %></code> (role <code><%= @details[:web_process][:role] %></code>) ·
+          Ruby <%= @details[:web_process][:ruby_version] %> · Rails <%= @details[:web_process][:rails_version] %>
+        </div>
+        <div class="mt-2"><%= link_to "Open the admin task queue →", admin_route(:admin_tasks) %></div>
+      </div></div>
+    </div>
+  </div>
+<% end %>

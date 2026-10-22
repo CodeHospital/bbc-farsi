@@ -24,11 +24,20 @@ module ApplicationHelper
   # absolute public-host URL once the admin UI lives on its own domain (see
   # AppHosts). portal_route(:news, id: "a1") → news_path / news_url.
   def portal_route(route_name, *route_args, **route_params)
-    public_url_options = AppHosts.public_url_options
-    if public_url_options.empty?
+    cross_host_route(AppHosts.public_url_options, route_name, *route_args, **route_params)
+  end
+
+  # Same for links into the admin UI from another host (worker status page).
+  # admin_route(:admin_task, task) → admin_task_path / admin_task_url.
+  def admin_route(route_name, *route_args, **route_params)
+    cross_host_route(AppHosts.admin_url_options, route_name, *route_args, **route_params)
+  end
+
+  def cross_host_route(target_url_options, route_name, *route_args, **route_params)
+    if target_url_options.empty?
       public_send("#{route_name}_path", *route_args, **route_params)
     else
-      public_send("#{route_name}_url", *route_args, **route_params, **public_url_options)
+      public_send("#{route_name}_url", *route_args, **route_params, **target_url_options)
     end
   end
 
