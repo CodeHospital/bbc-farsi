@@ -79,6 +79,21 @@ module AppHosts
 
   def constraint_for(section) = ->(request) { serves_request?(section, request) }
 
+  # The API landing page owns "/" on the API host, so it must never match "/"
+  # on another host (the public portal's root!): with a separate API host it
+  # needs the request to be on it; otherwise it lives at /api.
+  def api_landing_constraint
+    lambda do |request|
+      if split? && api_host.present?
+        section_for(request) == :api && AppRole.serves?(:api)
+      else
+        serves_request?(:api, request)
+      end
+    end
+  end
+
+  def api_landing_at_root? = split? && api_host.present?
+
   # Extra url_for options so admin pages link to the portal on the public host
   # (news_url(..., **AppHosts.public_url_options)). Empty when not split, so
   # the links stay on the current host.

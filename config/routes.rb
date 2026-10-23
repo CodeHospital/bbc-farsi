@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   # admin UI stays under /admin. With it set, the admin UI lives at the root of
   # the admin host — helper names (admin_articles_path, …) don't change.
   admin_path_prefix  = AppHosts.split? ? "/" : "admin"
+  api_landing_path   = AppHosts.api_landing_at_root? ? "/" : "/api"
   worker_path_prefix = AppHosts.split? && AppHosts.worker_host.present? ? "/" : "worker"
 
   # ── Admin (admin.khabarestan.com) ───────────────────────────────────────────
@@ -140,6 +141,12 @@ Rails.application.routes.draw do
 
   # ── API (api.khabarestan.com) ───────────────────────────────────────────────
   constraints(AppHosts.constraint_for(:api)) do
+    # Public landing page with stats on the tasks processed through the API
+    # (ApiLandingController). "/" on the API host, /api otherwise.
+    constraints(AppHosts.api_landing_constraint) do
+      get api_landing_path, to: "api_landing#show", as: :api_landing
+    end
+
     # Worker-facing task queue API (bearer-token protected).
     namespace :api do
       get  "tasks/next",         to: "tasks#claim"

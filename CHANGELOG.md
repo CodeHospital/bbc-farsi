@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — landing page on api.khabarestan.com with processed-task stats
+
+- User prompt: "api should also host a landing page, maybe showing stats of processed api".
+- `ApiLandingController` + `ApiStats`: "/" on the API host (`/api` when there is no separate API host, so it never shadows the portal's root, even while `LEGACY_API_ON_PUBLIC` is on). Public, no sign-in, aggregates only (no models, servers, errors or hostnames): tasks processed all-time / 1h / 24h / 7d, 24h success rate, average claim-to-complete time, queue waiting / in flight, completed by kind, a 7-day per-day chart, and the endpoint list with the auth each one needs. Same data as JSON with `format: :json`. Cached 30s.
+- Tests: `api_landing_controller_test.rb` and a root-ownership case in `split_hosts_test.rb`. 721 tests green; rubocop and zeitwerk clean. No migrations.
+
+### Docs — Coolify compose deploy can't reach the Coolify Postgres
+
+- User prompt: admin log showed `PG::ConnectionBad: could not translate host name "bhphyox7kxvmflxzk0hqw55x" to address`.
+- The `database_url` host is the Coolify database's internal container name, which only resolves on Coolify's shared network. A Docker Compose app runs on its own network. Fix (Coolify UI, no code change): **Connect To Predefined Network**, with the app and database on the same server. Documented in the readme's split-domains setup. Not hardcoded as an external network in `docker-compose.yml`, so the file still works on plain servers.
+
 ### Added — www as the canonical public host, and a worker status page on worker.khabarestan.com
 
 - User prompt: "public gets www.khabarestan.com / worker should get worker.khabarestan.com with stats outside login and more details after login".

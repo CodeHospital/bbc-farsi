@@ -1,0 +1,84 @@
+<% processed = @stats[:processed] %>
+<% busiest_day = [ @stats[:completed_per_day].map { |day| day[:completed] }.max, 1 ].max %>
+
+<div class="mb-4">
+  <h1 class="h3">Khabarestan API</h1>
+  <p class="text-muted mb-0">
+    The machine-facing side of Khabarestan: workers claim translation and rewrite tasks here
+    and send results back. Below is what it has processed.
+    <%= link_to "JSON", api_landing_path(format: :json), class: "ms-1" %>
+  </p>
+</div>
+
+<div class="row g-3 mb-4">
+  <% [
+       [ "Processed (all time)", number_with_delimiter(processed[:total]) ],
+       [ "Last hour", number_with_delimiter(processed[:last_hour]) ],
+       [ "Last 24 hours", number_with_delimiter(processed[:last_24_hours]) ],
+       [ "Last 7 days", number_with_delimiter(processed[:last_7_days]) ],
+       [ "Success rate (24h)", (processed[:success_rate_last_24_hours_percent] ? "#{processed[:success_rate_last_24_hours_percent]}%" : "—") ],
+       [ "Avg time per task (24h)", (@stats[:average_processing_seconds_last_24_hours] ? worker_duration(@stats[:average_processing_seconds_last_24_hours]) : "—") ],
+       [ "Waiting in queue", number_with_delimiter(@stats[:queue][:pending]) ],
+       [ "Being processed", number_with_delimiter(@stats[:queue][:in_flight]) ]
+     ].each do |stat_label, stat_value| %>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm h-100"><div class="card-body py-3">
+        <div class="stat-value"><%= stat_value %></div>
+        <div class="stat-label"><%= stat_label %></div>
+      </div></div>
+    </div>
+  <% end %>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <h2 class="h6 text-muted text-uppercase">Completed per day (UTC)</h2>
+    <div class="card shadow-sm"><div class="card-body">
+      <div class="d-flex align-items-end gap-2" style="height:140px">
+        <% @stats[:completed_per_day].each do |day| %>
+          <div class="flex-fill text-center small d-flex flex-column justify-content-end h-100">
+            <span class="text-muted"><%= day[:completed] %></span>
+            <div class="day-bar" style="height:<%= (day[:completed] * 100.0 / busiest_day).round %>%"></div>
+          </div>
+        <% end %>
+      </div>
+      <div class="d-flex gap-2 mt-1">
+        <% @stats[:completed_per_day].each do |day| %>
+          <div class="flex-fill text-center text-muted" style="font-size:.7rem"><%= Date.parse(day[:date]).strftime("%a") %></div>
+        <% end %>
+      </div>
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    <h2 class="h6 text-muted text-uppercase">Completed by kind (24h)</h2>
+    <div class="card shadow-sm">
+      <table class="table table-sm mb-0">
+        <tbody>
+          <% @stats[:completed_by_kind_last_24_hours].each do |task_kind, completed_count| %>
+            <tr><td><%= task_kind %></td><td class="text-end"><%= number_with_delimiter(completed_count) %></td></tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<h2 class="h6 text-muted text-uppercase">Endpoints</h2>
+<div class="card shadow-sm mb-3">
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead class="table-light"><tr><th>Method</th><th>Path</th><th>What it does</th><th>Auth</th></tr></thead>
+      <tbody>
+        <% @endpoints.each do |endpoint| %>
+          <tr>
+            <td><span class="badge text-bg-secondary"><%= endpoint[:verb] %></span></td>
+            <td><code><%= endpoint[:path] %></code></td>
+            <td><%= endpoint[:purpose] %></td>
+            <td class="text-muted"><%= endpoint[:auth] %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="text-muted small">Updated <%= l(@stats[:generated_at], format: :long) %>. These endpoints need credentials; this page does not.</p>

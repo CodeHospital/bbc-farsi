@@ -676,7 +676,7 @@ Caddy (automatic TLS) with the override file:
 | `www.khabarestan.com` | `public` | news portal, sitemap/feed/robots/llms, guest edit links `/edit/:token`; `/admin/*` 301-redirects to the admin host |
 | `khabarestan.com` | `public` | 301-redirects to `www.khabarestan.com` (same path and query) |
 | `admin.khabarestan.com` | `admin` | admin UI at the root (`/articles`, `/feeds`, …), `/cable` |
-| `api.khabarestan.com` | `api` | `/api/*`: worker queue, llmarkt callbacks, Telegram webhook |
+| `api.khabarestan.com` | `api` | `/api/*`: worker queue, llmarkt callbacks, Telegram webhook; `/` is a public landing page with processed-task stats (also as JSON, `format=json`) |
 | `worker.khabarestan.com` | `worker` | the background pollers (feed fetch, Telegram autopost, article images) and their status page |
 
 It is still one monolith. Every service has every route drawn, so admin pages
@@ -723,6 +723,14 @@ Setup:
    `RAILS_MASTER_KEY=$(cat config/master.key) docker compose -f docker-compose.yml -f docker-compose.caddy.yml up -d --build`.
    The `admin` service boots first and runs `db:prepare` + `db:seed`; the
    others wait for it to be healthy.
+
+   > **Coolify + a Coolify-managed Postgres:** the `database_url` host is the
+   > database's internal container name (e.g. `bhphyox7kxvmflxzk0hqw55x`), which
+   > only resolves on Coolify's shared network. A Docker Compose app gets its own
+   > network, so tick **Configuration → General → Advanced → Connect To
+   > Predefined Network** (and keep app and database on the same server).
+   > Otherwise `admin` fails with `PG::ConnectionBad: could not translate host
+   > name` and the deploy reports it as unhealthy.
 4. Move the webhook callers to the API host, then turn the transition flag off:
    - worker client: `APP_URL=https://api.khabarestan.com`
    - Telegram admin bot: `docker compose exec admin bin/rails telegram_admin:set_webhook`

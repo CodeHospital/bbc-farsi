@@ -56,6 +56,26 @@ class SplitHostsTest < ActionDispatch::IntegrationTest
     assert_redirected_to "https://#{PUBLIC_HOST}/"
   end
 
+  test "the API landing page owns the root of the API host only" do
+    assert_equal "/", api_landing_path
+
+    host! API_HOST
+    get "/"
+    assert_response :success
+    assert_select "h1", text: "Khabarestan API"
+
+    # The public portal's root must not be shadowed, even while /api/* is
+    # still answered on the public host.
+    ENV["LEGACY_API_ON_PUBLIC"] = "1"
+    host! PUBLIC_HOST
+    get "/"
+    assert_select "h1", text: "Khabarestan API", count: 0
+
+    host! ADMIN_HOST
+    get "/"
+    assert_select "h1", text: "Khabarestan API", count: 0
+  end
+
   test "the worker status page lives at the root of the worker host" do
     assert_equal "/", worker_root_path
 
