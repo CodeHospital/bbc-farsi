@@ -42,7 +42,10 @@ class Admin::FeedsController < Admin::BaseController
     "heise"      => [ :seed_heise_feeds!, "heise" ],
     "germannews"    => [ :seed_germannews_feeds!, "German News" ],
     "australianews" => [ :seed_australianews_feeds!, "Australian News" ],
-    "israelnews"    => [ :seed_israelnews_feeds!, "Israel News" ]
+    "israelnews"    => [ :seed_israelnews_feeds!, "Israel News" ],
+    "france24"      => [ :seed_france24_feeds!, "France 24" ],
+    "lemonde"       => [ :seed_lemonde_feeds!, "Le Monde" ],
+    "lefigaro"      => [ :seed_lefigaro_feeds!, "Le Figaro" ]
   }.freeze
 
   def seed

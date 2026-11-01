@@ -13,7 +13,10 @@ class FeedIngestor
     "heise"      => HeiseFeedFetcher,
     "germannews"    => GermanNewsFeedFetcher,
     "australianews" => AustraliaNewsFeedFetcher,
-    "israelnews"    => IsraelNewsFeedFetcher
+    "israelnews"    => IsraelNewsFeedFetcher,
+    "france24"      => France24FeedFetcher,
+    "lemonde"       => LemondeFeedFetcher,
+    "lefigaro"      => LefigaroFeedFetcher
   }.freeze
 
   # Attributes an existing Article is refreshed from when its feed entry

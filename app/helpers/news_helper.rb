@@ -55,7 +55,10 @@ module NewsHelper
     "bbc"       => { name: "BBC News", domain: "bbc.com", url: "https://www.bbc.com/news" },
     "nyt"       => { name: "The New York Times", domain: "nytimes.com", url: "https://www.nytimes.com" },
     "adhocnews" => { name: "Ad Hoc News", domain: "ad-hoc-news.de", url: "https://www.ad-hoc-news.de" },
-    "heise"     => { name: "heise online", domain: "heise.de", url: "https://www.heise.de" }
+    "heise"     => { name: "heise online", domain: "heise.de", url: "https://www.heise.de" },
+    "france24"  => { name: "France 24", domain: "france24.com", url: "https://www.france24.com" },
+    "lemonde"   => { name: "Le Monde", domain: "lemonde.fr", url: "https://www.lemonde.fr" },
+    "lefigaro"  => { name: "Le Figaro", domain: "lefigaro.fr", url: "https://www.lefigaro.fr" }
   }.freeze
 
   # Per-category accent colors — the signature tagDiv "Newspaper" look, where

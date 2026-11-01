@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Le Monde and Le Figaro as feed sources; France 24 images allowed
+
+- User prompt: "add feeds from https://www.lemonde.fr/en/about-us/article/2026/03/27/le-monde-rss-feeds_6751860_115.html and https://www.lefigaro.fr/rss".
+- New `lemonde` source (`Feed::LEMONDE_FEEDS`, 8 feeds: top headlines, international, France, economy, culture, science, environment, opinion) and `lefigaro` source (`Feed::LEFIGARO_FEEDS`, 61 feeds covering every section on the page). Every Le Figaro URL was checked to return RSS. The Le Monde page itself returned 402 to the fetch, so its feed list was not read from the page. These URLs follow the English RSS pattern and each returned XML. Check the list against the page before relying on it.
+- Excluded: the Le Figaro student feed (`etudiant.lefigaro.fr`), which returns 403, and Le Monde's `sport` feed, which returns 404.
+- Each feed has a Persian name (`name_fa`). Each source has its own fetcher (`LemondeFeedFetcher`, `LefigaroFeedFetcher`), `SOURCE_INFO` entry, idempotent `seed_*` method, `FETCHER_CLASSES`/`SEED_METHODS` routing, and an admin seed button.
+- `ArticleImageFetcher::ALLOWED_HOSTS` now includes France 24, Le Monde and Le Figaro. Without this, their stories render without lead images. This also fixes the France 24 images from the previous change.
+- Seeded feeds have no `fetch_hour`, so they are not auto-fetched until scheduled. The 61 Le Figaro feeds are a heavy catalog, so stagger them across hourly slots if you schedule them.
+- 739 tests green (new: idempotent seeds, host and Persian-name checks, admin seeds, publisher attribution). rubocop and zeitwerk clean. No migrations.
+
+### Added — France 24 (English) as a new feed source
+
+- User prompt: "add feeds from https://www.france24.com/en/rss-feeds".
+- New `france24` source: `Feed::FRANCE24_FEEDS` holds the 12 section feeds on that page (World, Europe, France, Africa, Middle East, Americas, Asia/Pacific, Business/Tech, Sports, Culture, Earth, Health). Every URL was checked to return 200 `application/rss+xml`. Each feed has a Persian name (`name_fa`).
+- `France24FeedFetcher` (SSRF allowlist `www.france24.com`), `FeedIngestor` routing, `SOURCE_INFO` entry "France 24", `Feed::SOURCES`, `seed_france24_feeds!` (idempotent), an admin "Seed France 24 Feeds" button, and `SEED_METHODS` entry. Seeded feeds have no `fetch_hour`, so they are not auto-fetched until scheduled.
+- 734 tests green (new: idempotent seed, URL/host and Persian-name check, admin seed, publisher attribution). rubocop and zeitwerk clean. No migrations.
+
+### Added — Persian name for feeds, used in the stories
+
+- User prompt: "every feed should also have a farsi name which is used in the stories".
+- New `feeds.name_fa` column (migration `20261101000001_add_name_fa_to_feeds.rb`, `schema.rb` updated by hand, **not run** — run `bin/rails db:migrate` on deploy). Editable in the admin feed form ("Persian name") and shown next to the name in the feed list. `NewsHelper#feed_display_name` returns it on the Persian edition and falls back to `name` when blank (existing feeds keep working until given a Persian name) and on the English edition.
+- Used in the story bar labels, the story viewer header (`story_viewer_json`) and the feed page heading/title. Test added.
+- Existing seeded feeds (BBC, NYT, etc.) have no Persian name yet; they fall back to their English name until one is entered.
+
 ### Added — Persian name for feeds, used in the stories
 
 - User prompt: "every feed should also have a farsi name which is used in the stories".

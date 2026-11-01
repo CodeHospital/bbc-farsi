@@ -249,6 +249,30 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "germannews" ], Feed.where(source: "germannews").pluck(:source).uniq
   end
 
+  test "seeds France 24 feeds" do
+    assert_difference("Feed.count", Feed::FRANCE24_FEEDS.size) do
+      post seed_admin_feeds_path(source: "france24")
+    end
+    assert_response :redirect
+    assert_equal [ "france24" ], Feed.where(source: "france24").pluck(:source).uniq
+  end
+
+  test "seeds Le Monde feeds" do
+    assert_difference("Feed.count", Feed::LEMONDE_FEEDS.size) do
+      post seed_admin_feeds_path(source: "lemonde")
+    end
+    assert_response :redirect
+    assert_equal [ "lemonde" ], Feed.where(source: "lemonde").pluck(:source).uniq
+  end
+
+  test "seeds Le Figaro feeds" do
+    assert_difference("Feed.count", Feed::LEFIGARO_FEEDS.size) do
+      post seed_admin_feeds_path(source: "lefigaro")
+    end
+    assert_response :redirect
+    assert_equal [ "lefigaro" ], Feed.where(source: "lefigaro").pluck(:source).uniq
+  end
+
   test "seeds Australian News feeds" do
     assert_difference("Feed.count", Feed::AUSTRALIANEWS_FEEDS.size) do
       post seed_admin_feeds_path(source: "australianews")

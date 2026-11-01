@@ -77,6 +77,51 @@ class FeedTest < ActiveSupport::TestCase
     assert_equal [ "germannews" ], Feed.pluck(:source).uniq
   end
 
+  test "seed_france24_feeds! creates the France 24 catalog idempotently with Persian names" do
+    Feed.seed_france24_feeds!
+    count_after_first = Feed.count
+    Feed.seed_france24_feeds!
+    assert_equal count_after_first, Feed.count, "seed is not idempotent"
+    assert_equal Feed::FRANCE24_FEEDS.size, count_after_first
+    assert_equal [ "france24" ], Feed.pluck(:source).uniq
+    assert_equal "جهان", Feed.find_by!(url: "https://www.france24.com/en/rss").name_fa
+  end
+
+  test "every France 24 feed url is unique and points at the France 24 host" do
+    urls = Feed::FRANCE24_FEEDS.values.map { |attrs| attrs[:url] }
+    assert_equal urls.uniq.size, urls.size, "duplicate URLs in FRANCE24_FEEDS would silently no-op in seed_feeds!"
+
+    urls.each do |url|
+      assert_equal "www.france24.com", URI.parse(url).host, "#{url} is not on the France 24 host"
+    end
+    Feed::FRANCE24_FEEDS.each_value do |attrs|
+      assert attrs[:name_fa].present?, "France 24 feed #{attrs[:url]} has no Persian name"
+    end
+  end
+
+  test "seed_lemonde_feeds! and seed_lefigaro_feeds! create their catalogs idempotently" do
+    Feed.seed_lemonde_feeds!
+    Feed.seed_lefigaro_feeds!
+    count_after_first = Feed.count
+    Feed.seed_lemonde_feeds!
+    Feed.seed_lefigaro_feeds!
+    assert_equal count_after_first, Feed.count, "seed is not idempotent"
+    assert_equal Feed::LEMONDE_FEEDS.size, Feed.where(source: "lemonde").count
+    assert_equal Feed::LEFIGARO_FEEDS.size, Feed.where(source: "lefigaro").count
+    assert_equal "تیتر یک", Feed.find_by!(url: "https://www.lemonde.fr/en/rss/une.xml").name_fa
+  end
+
+  test "every Le Monde and Le Figaro feed url is unique, on its own host, and has a Persian name" do
+    {
+      "www.lemonde.fr" => Feed::LEMONDE_FEEDS, "www.lefigaro.fr" => Feed::LEFIGARO_FEEDS
+    }.each do |host, catalog|
+      urls = catalog.values.map { |attrs| attrs[:url] }
+      assert_equal urls.uniq.size, urls.size, "duplicate URLs would silently no-op in seed_feeds!"
+      urls.each { |url| assert_equal host, URI.parse(url).host, "#{url} is not on #{host}" }
+      catalog.each_value { |attrs| assert attrs[:name_fa].present?, "#{attrs[:url]} has no Persian name" }
+    end
+  end
+
   test "seeding every catalog keeps the sources distinct" do
     Feed.seed_bbc_feeds!
     Feed.seed_nyt_feeds!
@@ -85,10 +130,15 @@ class FeedTest < ActiveSupport::TestCase
     Feed.seed_germannews_feeds!
     Feed.seed_australianews_feeds!
     Feed.seed_israelnews_feeds!
+    Feed.seed_france24_feeds!
+    Feed.seed_lemonde_feeds!
+    Feed.seed_lefigaro_feeds!
     catalogs = {
       "bbc" => Feed::BBC_FEEDS, "nyt" => Feed::NYT_FEEDS, "adhocnews" => Feed::ADHOCNEWS_FEEDS,
       "heise" => Feed::HEISE_FEEDS, "germannews" => Feed::GERMANNEWS_FEEDS,
-      "australianews" => Feed::AUSTRALIANEWS_FEEDS, "israelnews" => Feed::ISRAELNEWS_FEEDS
+      "australianews" => Feed::AUSTRALIANEWS_FEEDS, "israelnews" => Feed::ISRAELNEWS_FEEDS,
+      "france24" => Feed::FRANCE24_FEEDS, "lemonde" => Feed::LEMONDE_FEEDS,
+      "lefigaro" => Feed::LEFIGARO_FEEDS
     }
     assert_equal catalogs.values.sum(&:size), Feed.count
     catalogs.each { |source, catalog| assert_equal catalog.size, Feed.where(source:).count }

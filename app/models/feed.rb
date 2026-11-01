@@ -7,7 +7,7 @@ class Feed < ApplicationRecord
   has_many :feed_autopost_channels, dependent: :delete_all
   has_many :autopost_target_channels, -> { order(:name) }, through: :feed_autopost_channels, source: :telegram_channel
 
-  SOURCES = %w[bbc nyt adhocnews heise germannews australianews israelnews].freeze
+  SOURCES = %w[bbc nyt adhocnews heise germannews australianews israelnews france24 lemonde lefigaro].freeze
 
   # Sources that aggregate many different publishers under one `source`, so
   # publisher metadata (name/domain/home page) can't be derived from `source`
@@ -397,6 +397,96 @@ class Feed < ApplicationRecord
 
   ISRAELNEWS_PUBLISHERS = build_publisher_index(ISRAELNEWS_FEEDS).freeze
 
+  FRANCE24_FEEDS = {
+    "World" => { url: "https://www.france24.com/en/rss", category: "world", name_fa: "جهان" },
+    "Europe" => { url: "https://www.france24.com/en/europe/rss", category: "world", name_fa: "اروپا" },
+    "France" => { url: "https://www.france24.com/en/france/rss", category: "world", name_fa: "فرانسه" },
+    "Africa" => { url: "https://www.france24.com/en/africa/rss", category: "world", name_fa: "آفریقا" },
+    "Middle East" => { url: "https://www.france24.com/en/middle-east/rss", category: "world", name_fa: "خاورمیانه" },
+    "Americas" => { url: "https://www.france24.com/en/americas/rss", category: "world", name_fa: "قاره آمریکا" },
+    "Asia/Pacific" => { url: "https://www.france24.com/en/asia-pacific/rss", category: "world", name_fa: "آسیا و اقیانوسیه" },
+    "Business/Tech" => { url: "https://www.france24.com/en/business/rss", category: "business", name_fa: "اقتصاد و فناوری" },
+    "Sports" => { url: "https://www.france24.com/en/sport/rss", category: "sports", name_fa: "ورزش" },
+    "Culture" => { url: "https://www.france24.com/en/culture/rss", category: "arts", name_fa: "فرهنگ" },
+    "Earth" => { url: "https://www.france24.com/en/earth/rss", category: "science", name_fa: "زمین و محیط‌زیست" },
+    "Health" => { url: "https://www.france24.com/en/health/rss", category: "health", name_fa: "سلامت" }
+  }.freeze
+
+  LEMONDE_FEEDS = {
+    "Le Monde – Top headlines" => { url: "https://www.lemonde.fr/en/rss/une.xml", category: "top", name_fa: "تیتر یک" },
+    "Le Monde – International" => { url: "https://www.lemonde.fr/en/international/rss_full.xml", category: "world", name_fa: "بین‌الملل" },
+    "Le Monde – France" => { url: "https://www.lemonde.fr/en/france/rss_full.xml", category: "politics", name_fa: "فرانسه" },
+    "Le Monde – Economy" => { url: "https://www.lemonde.fr/en/economy/rss_full.xml", category: "business", name_fa: "اقتصاد" },
+    "Le Monde – Culture" => { url: "https://www.lemonde.fr/en/culture/rss_full.xml", category: "arts", name_fa: "فرهنگ" },
+    "Le Monde – Science" => { url: "https://www.lemonde.fr/en/science/rss_full.xml", category: "science", name_fa: "علم" },
+    "Le Monde – Environment" => { url: "https://www.lemonde.fr/en/environment/rss_full.xml", category: "climate", name_fa: "محیط زیست" },
+    "Le Monde – Opinion" => { url: "https://www.lemonde.fr/en/opinion/rss_full.xml", category: "opinion", name_fa: "دیدگاه" }
+  }.freeze
+
+  LEFIGARO_FEEDS = {
+    "Le Figaro – France news" => { url: "https://www.lefigaro.fr/rss/figaro_actualite-france.xml", category: "politics", name_fa: "اخبار فرانسه" },
+    "Le Figaro – Latest news" => { url: "https://www.lefigaro.fr/rss/figaro_actualites.xml", category: "top", name_fa: "آخرین اخبار" },
+    "Le Figaro – Arts & exhibitions" => { url: "https://www.lefigaro.fr/rss/figaro_arts-expositions.xml", category: "arts", name_fa: "هنر و نمایشگاه" },
+    "Le Figaro – Insurance" => { url: "https://www.lefigaro.fr/rss/figaro_assurance.xml", category: "business", name_fa: "بیمه" },
+    "Le Figaro – Cars" => { url: "https://www.lefigaro.fr/rss/figaro_automobile.xml", category: "technology", name_fa: "خودرو" },
+    "Le Figaro – Basketball" => { url: "https://www.lefigaro.fr/rss/figaro_basket.xml", category: "sports", name_fa: "بسکتبال" },
+    "Le Figaro – Stock market" => { url: "https://www.lefigaro.fr/rss/figaro_bourse.xml", category: "business", name_fa: "بورس" },
+    "Le Figaro – Cinema" => { url: "https://www.lefigaro.fr/rss/figaro_cinema.xml", category: "arts", name_fa: "سینما" },
+    "Le Figaro – Consumer" => { url: "https://www.lefigaro.fr/rss/figaro_conso.xml", category: "business", name_fa: "مصرف‌کننده" },
+    "Le Figaro – Culture" => { url: "https://www.lefigaro.fr/rss/figaro_culture.xml", category: "arts", name_fa: "فرهنگ" },
+    "Le Figaro – Cycling" => { url: "https://www.lefigaro.fr/rss/figaro_cyclisme.xml", category: "sports", name_fa: "دوچرخه‌سواری" },
+    "Le Figaro – Economy" => { url: "https://www.lefigaro.fr/rss/figaro_economie.xml", category: "business", name_fa: "اقتصاد" },
+    "Le Figaro – Economy: Le Scan" => { url: "https://www.lefigaro.fr/rss/figaro_economie_le-scan-eco.xml", category: "business", name_fa: "اقتصاد: اسکن" },
+    "Le Figaro – Elections" => { url: "https://www.lefigaro.fr/rss/figaro_elections.xml", category: "politics", name_fa: "انتخابات" },
+    "Le Figaro – Jobs" => { url: "https://www.lefigaro.fr/rss/figaro_emploi.xml", category: "business", name_fa: "اشتغال" },
+    "Le Figaro – Personal finance" => { url: "https://www.lefigaro.fr/rss/figaro_finances-perso.xml", category: "business", name_fa: "مالی شخصی" },
+    "Le Figaro – Breaking news flash" => { url: "https://www.lefigaro.fr/rss/figaro_flash-actu.xml", category: "top", name_fa: "خبرهای فوری" },
+    "Le Figaro – Economy flash" => { url: "https://www.lefigaro.fr/rss/figaro_flash-eco.xml", category: "business", name_fa: "خبرهای فوری اقتصادی" },
+    "Le Figaro – Football transfers" => { url: "https://www.lefigaro.fr/rss/figaro_football-transfert.xml", category: "sports", name_fa: "نقل‌وانتقالات فوتبال" },
+    "Le Figaro – Football" => { url: "https://www.lefigaro.fr/rss/figaro_football.xml", category: "sports", name_fa: "فوتبال" },
+    "Le Figaro – Formula 1" => { url: "https://www.lefigaro.fr/rss/figaro_formule-1.xml", category: "sports", name_fa: "فرمول ۱" },
+    "Le Figaro – Food" => { url: "https://www.lefigaro.fr/rss/figaro_gastronomie.xml", category: "style", name_fa: "گاسترونومی" },
+    "Le Figaro – Golf" => { url: "https://www.lefigaro.fr/rss/figaro_golf.xml", category: "sports", name_fa: "گلف" },
+    "Le Figaro – Handball" => { url: "https://www.lefigaro.fr/rss/figaro_handball.xml", category: "sports", name_fa: "هندبال" },
+    "Le Figaro – History" => { url: "https://www.lefigaro.fr/rss/figaro_histoire.xml", category: "arts", name_fa: "تاریخ" },
+    "Le Figaro – Watchmaking" => { url: "https://www.lefigaro.fr/rss/figaro_horlogerie.xml", category: "style", name_fa: "ساعت‌سازی" },
+    "Le Figaro – Real estate" => { url: "https://www.lefigaro.fr/rss/figaro_immobilier.xml", category: "business", name_fa: "املاک" },
+    "Le Figaro – Taxes" => { url: "https://www.lefigaro.fr/rss/figaro_impots.xml", category: "business", name_fa: "مالیات" },
+    "Le Figaro – Fashion industry" => { url: "https://www.lefigaro.fr/rss/figaro_industrie-mode.xml", category: "style", name_fa: "صنعت مد" },
+    "Le Figaro – International" => { url: "https://www.lefigaro.fr/rss/figaro_international.xml", category: "world", name_fa: "بین‌الملل" },
+    "Le Figaro – Gardening" => { url: "https://www.lefigaro.fr/rss/figaro_jardin.xml", category: "style", name_fa: "باغبانی" },
+    "Le Figaro – Olympic Games" => { url: "https://www.lefigaro.fr/rss/figaro_jeux-olympiques.xml", category: "sports", name_fa: "بازی‌های المپیک" },
+    "Le Figaro – Le Figaro Magazine" => { url: "https://www.lefigaro.fr/rss/figaro_lefigaromagazine.xml", category: "arts", name_fa: "مجله فیگارو" },
+    "Le Figaro – Lifestyle" => { url: "https://www.lefigaro.fr/rss/figaro_lifestyle.xml", category: "style", name_fa: "سبک زندگی" },
+    "Le Figaro – Books" => { url: "https://www.lefigaro.fr/rss/figaro_livres.xml", category: "arts", name_fa: "کتاب" },
+    "Le Figaro – Management" => { url: "https://www.lefigaro.fr/rss/figaro_management.xml", category: "business", name_fa: "مدیریت" },
+    "Le Figaro – Media" => { url: "https://www.lefigaro.fr/rss/figaro_medias.xml", category: "business", name_fa: "رسانه" },
+    "Le Figaro – Men's fashion" => { url: "https://www.lefigaro.fr/rss/figaro_mode-homme.xml", category: "style", name_fa: "مد مردانه" },
+    "Le Figaro – Music" => { url: "https://www.lefigaro.fr/rss/figaro_musique.xml", category: "arts", name_fa: "موسیقی" },
+    "Le Figaro – Photos" => { url: "https://www.lefigaro.fr/rss/figaro_photos.xml", category: "arts", name_fa: "عکس" },
+    "Le Figaro – Investing" => { url: "https://www.lefigaro.fr/rss/figaro_placement.xml", category: "business", name_fa: "سرمایه‌گذاری" },
+    "Le Figaro – Politics" => { url: "https://www.lefigaro.fr/rss/figaro_politique.xml", category: "politics", name_fa: "سیاست" },
+    "Le Figaro – Politics: Le Scan" => { url: "https://www.lefigaro.fr/rss/figaro_politique_le-scan.xml", category: "politics", name_fa: "سیاست: اسکن" },
+    "Le Figaro – Retirement" => { url: "https://www.lefigaro.fr/rss/figaro_retraite.xml", category: "business", name_fa: "بازنشستگی" },
+    "Le Figaro – Rugby" => { url: "https://www.lefigaro.fr/rss/figaro_rugby.xml", category: "sports", name_fa: "راگبی" },
+    "Le Figaro – Health" => { url: "https://www.lefigaro.fr/rss/figaro_sante.xml", category: "health", name_fa: "سلامت" },
+    "Le Figaro – Science" => { url: "https://www.lefigaro.fr/rss/figaro_sciences.xml", category: "science", name_fa: "علم" },
+    "Le Figaro – High-tech" => { url: "https://www.lefigaro.fr/rss/figaro_secteur_high-tech.xml", category: "technology", name_fa: "فناوری پیشرفته" },
+    "Le Figaro – Companies" => { url: "https://www.lefigaro.fr/rss/figaro_societes.xml", category: "business", name_fa: "شرکت‌ها" },
+    "Le Figaro – Things to do in Paris" => { url: "https://www.lefigaro.fr/rss/figaro_sortir-paris.xml", category: "travel", name_fa: "کارهای پاریس" },
+    "Le Figaro – Sports" => { url: "https://www.lefigaro.fr/rss/figaro_sport.xml", category: "sports", name_fa: "ورزش" },
+    "Le Figaro – Style" => { url: "https://www.lefigaro.fr/rss/figaro_style.xml", category: "style", name_fa: "استایل" },
+    "Le Figaro – Tennis" => { url: "https://www.lefigaro.fr/rss/figaro_tennis.xml", category: "sports", name_fa: "تنیس" },
+    "Le Figaro – Theatre" => { url: "https://www.lefigaro.fr/rss/figaro_theatre.xml", category: "arts", name_fa: "تئاتر" },
+    "Le Figaro – Videos" => { url: "https://www.lefigaro.fr/rss/figaro_videos.xml", category: "top", name_fa: "ویدیو" },
+    "Le Figaro – Wine" => { url: "https://www.lefigaro.fr/rss/figaro_vins.xml", category: "style", name_fa: "شراب" },
+    "Le Figaro – Sailing" => { url: "https://www.lefigaro.fr/rss/figaro_voile.xml", category: "sports", name_fa: "قایقرانی" },
+    "Le Figaro – Vox" => { url: "https://www.lefigaro.fr/rss/figaro_vox.xml", category: "opinion", name_fa: "دیدگاه" },
+    "Le Figaro – Travel" => { url: "https://www.lefigaro.fr/rss/figaro_voyages.xml", category: "travel", name_fa: "سفر" },
+    "Le Figaro – Madame" => { url: "https://www.lefigaro.fr/rss/madame.xml", category: "style", name_fa: "مدام" },
+    "Le Figaro – TV" => { url: "https://www.lefigaro.fr/rss/tvmag.xml", category: "arts", name_fa: "تلویزیون" }
+  }.freeze
+
   def self.seed_bbc_feeds!
     seed_feeds!(BBC_FEEDS, source: "bbc")
   end
@@ -425,6 +515,18 @@ class Feed < ApplicationRecord
     seed_feeds!(ISRAELNEWS_FEEDS, source: "israelnews")
   end
 
+  def self.seed_france24_feeds!
+    seed_feeds!(FRANCE24_FEEDS, source: "france24")
+  end
+
+  def self.seed_lemonde_feeds!
+    seed_feeds!(LEMONDE_FEEDS, source: "lemonde")
+  end
+
+  def self.seed_lefigaro_feeds!
+    seed_feeds!(LEFIGARO_FEEDS, source: "lefigaro")
+  end
+
   # Every article-host domain across every multi-publisher catalog, with and
   # without `www.` — used by ArticleImageFetcher to allow-list og:image
   # lookups without hardcoding a per-source list that would drift from the
@@ -449,6 +551,7 @@ class Feed < ApplicationRecord
     feed_definitions.each do |name, attrs|
       find_or_create_by!(url: attrs[:url]) do |feed|
         feed.name     = name
+        feed.name_fa  = attrs[:name_fa]
         feed.category = attrs[:category]
         feed.source   = source
         feed.enabled  = true

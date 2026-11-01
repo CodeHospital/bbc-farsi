@@ -13,6 +13,23 @@ class NewsHelperTest < ActionView::TestCase
     assert_equal "https://www.bbc.com/news", source_url(feed)
   end
 
+  test "France 24 is identified by SOURCE_INFO" do
+    feed = Feed.new(name: "World", url: "https://www.france24.com/en/rss", category: "world", source: "france24")
+
+    assert_equal "France 24", source_name(feed)
+    assert_equal "france24.com", source_domain(feed)
+  end
+
+  test "Le Monde and Le Figaro are identified by SOURCE_INFO" do
+    monde = Feed.new(name: "Culture", url: "https://www.lemonde.fr/en/culture/rss_full.xml", category: "arts", source: "lemonde")
+    figaro = Feed.new(name: "Latest news", url: "https://www.lefigaro.fr/rss/figaro_actualites.xml", category: "top", source: "lefigaro")
+
+    assert_equal "Le Monde", source_name(monde)
+    assert_equal "lemonde.fr", source_domain(monde)
+    assert_equal "Le Figaro", source_name(figaro)
+    assert_equal "lefigaro.fr", source_domain(figaro)
+  end
+
   test "heise is identified by SOURCE_INFO even for its Telepolis feed" do
     feed = Feed.new(name: "Telepolis", url: "https://www.telepolis.de/feed.xml", category: "politics", source: "heise")
 
@@ -50,7 +67,8 @@ class NewsHelperTest < ActionView::TestCase
   test "every category shipped in a feed catalog has a Persian label" do
     catalogs = [
       Feed::BBC_FEEDS, Feed::HEISE_FEEDS, Feed::GERMANNEWS_FEEDS,
-      Feed::AUSTRALIANEWS_FEEDS, Feed::ISRAELNEWS_FEEDS
+      Feed::AUSTRALIANEWS_FEEDS, Feed::ISRAELNEWS_FEEDS, Feed::FRANCE24_FEEDS,
+      Feed::LEMONDE_FEEDS, Feed::LEFIGARO_FEEDS
     ]
     categories = catalogs.flat_map { |catalog| catalog.values.map { |attrs| attrs[:category] } }.uniq
 

@@ -261,6 +261,9 @@ duplicates or overwrites an edited feed).
 | `germannews` | `Feed::GERMANNEWS_FEEDS` | 50 | derived from the catalog (one host per publisher) |
 | `australianews` | `Feed::AUSTRALIANEWS_FEEDS` | 15 | derived from the catalog |
 | `israelnews` | `Feed::ISRAELNEWS_FEEDS` | 4 | derived from the catalog |
+| `france24` | `Feed::FRANCE24_FEEDS` | 12 | `www.france24.com` |
+| `lemonde` | `Feed::LEMONDE_FEEDS` | 8 | `www.lemonde.fr` |
+| `lefigaro` | `Feed::LEFIGARO_FEEDS` | 61 | `www.lefigaro.fr` |
 
 `germannews`, `australianews`, and `israelnews` are the odd ones: each is
 **many publishers under one source** (germannews alone spans tagesschau, ZEIT,

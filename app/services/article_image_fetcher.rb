@@ -21,6 +21,7 @@ class ArticleImageFetcher
       www.nytimes.com nytimes.com
       www.ad-hoc-news.de ad-hoc-news.de
       www.heise.de heise.de www.telepolis.de telepolis.de
+      www.france24.com france24.com www.lemonde.fr lemonde.fr www.lefigaro.fr lefigaro.fr
     ] +
     Feed.all_catalogued_publisher_domains
   ).uniq.freeze
