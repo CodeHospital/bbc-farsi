@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — logo centred in the top bar
+
+- User prompt: "put the logo-box in the center".
+- The top bar is now a three-column grid (`.topbar-row`): date at the start, logo centred, language toggle and social icons at the end. On mobile the date is hidden with `visibility` (not `display`) so the logo stays centred. No tests affected; no migrations.
+
+### Changed — logo in the top bar, search in the menu row
+
+- User prompt: "in the web move the logo-box to the topbar / move the search-bar left of mainmenu in the same row / make sure it's all good in mobile view".
+- The masthead is gone: the logo now sits at the start of the top bar (smaller), next to the date. The separate search bar is now part of the main menu row, at its far end (the left in Persian), as a compact input with a search-icon button.
+- Mobile (<576px): the top bar shows only the logo and the language toggle (date and social icons hidden); the menu wraps and the search drops to its own full-width row under it. Checked in a 390px-wide frame in Chrome.
+- 729 tests green, rubocop clean. No migrations.
+
 ### Changed — top bar categories ranked by recent news volume
 
 - User prompt: "primary_nav_categories should be the categories with most news in last 30 days, sorted by quantity".

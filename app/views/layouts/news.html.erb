@@ -97,11 +97,15 @@
     .topbar a:hover { color: var(--accent); }
     .topbar .social a { margin-inline-start: 12px; font-size: .9rem; }
 
-    /* ── Masthead ────────────────────────────────────────────── */
-    .masthead { padding: 22px 0; text-align: center; }
-    .logo-box { display: inline-flex; align-items: center; gap: 10px; }
-    .logo-mark { width: 44px; height: 44px; border-radius: 10px; display: block; }
-    .logo-text { font-size: 2rem; font-weight: 800; }
+    /* ── Logo (lives in the top bar) ─────────────────────────── */
+    /* Three columns: date | centred logo | language + social */
+    .topbar-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+    .topbar-row .date { justify-self: start; }
+    .topbar-row .social { justify-self: end; }
+    .topbar .logo-box { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
+    .topbar .logo-box:hover { color: var(--ink); }
+    .logo-mark { width: 36px; height: 36px; border-radius: 8px; display: block; }
+    .logo-text { font-size: 1.4rem; font-weight: 800; line-height: 1; }
     .logo-text small { color: var(--accent); }
 
     /* ── Feed stories bar ────────────────────────────────────── */
@@ -180,9 +184,10 @@
 
     /* ── Main menu ───────────────────────────────────────────── */
     .mainmenu { background: var(--ink); }
+    .mainmenu > .container { display: flex; align-items: stretch; flex-wrap: wrap; column-gap: 12px; }
     .mainmenu .menu-list {
-      list-style: none; margin: 0; padding: 0;
-      display: flex; justify-content: center; align-items: stretch;
+      list-style: none; margin: 0; padding: 0; flex: 0 1 auto;
+      display: flex; justify-content: flex-start; align-items: stretch;
       flex-wrap: wrap;
     }
     .mainmenu .menu-list > li { flex: 0 0 auto; }
@@ -302,19 +307,22 @@
     .not-found-title { font-weight: 800; font-size: 1.8rem; margin: 18px 0 10px; }
     .not-found-body { color: var(--muted); font-size: 1rem; }
 
-    /* ── Search bar ─────────────────────────────────────────── */
-    .search-bar { padding: 8px 0; background: #f7f7f7; border-bottom: 1px solid var(--line); }
-    .search-bar form { display: flex; gap: 6px; max-width: 480px; margin: 0 auto; }
-    .search-bar input[type=search] {
-      flex: 1; border: 1px solid #ccc; border-radius: 3px; padding: 6px 12px;
-      font-family: inherit; font-size: .9rem; outline: none;
+    /* ── Search (inside the main menu bar) ──────────────────── */
+    .mainmenu .menu-search { flex: 0 0 240px; margin: 6px 0; margin-inline-start: auto; }
+    .mainmenu .menu-search form { display: flex; margin: 0; }
+    .mainmenu .menu-search input[type=search] {
+      flex: 1; min-width: 0; border: 1px solid rgba(255,255,255,.25); border-inline-end: 0;
+      border-start-start-radius: 3px; border-end-start-radius: 3px;
+      background: rgba(255,255,255,.08); color: #fff; padding: 6px 12px;
+      font-family: inherit; font-size: .85rem; outline: none;
     }
-    .search-bar input[type=search]:focus { border-color: var(--accent); }
-    .search-bar button {
-      background: var(--accent); color: #fff; border: none; border-radius: 3px;
-      padding: 6px 14px; font-family: inherit; font-size: .9rem; font-weight: 700; cursor: pointer;
+    .mainmenu .menu-search input[type=search]::placeholder { color: rgba(255,255,255,.6); }
+    .mainmenu .menu-search input[type=search]:focus { border-color: var(--accent); background: rgba(255,255,255,.14); }
+    .mainmenu .menu-search button {
+      background: var(--accent); color: #fff; border: 0; padding: 6px 12px; cursor: pointer;
+      border-start-end-radius: 3px; border-end-end-radius: 3px;
     }
-    .search-bar button:hover { background: #b82a2a; }
+    .mainmenu .menu-search button:hover { background: #b82a2a; }
 
     /* ── Footer ──────────────────────────────────────────────── */
     .site-footer { background: #111; color: #bbb; margin-top: 40px; }
@@ -324,9 +332,13 @@
 
     /* ── Mobile overrides ────────────────────────────────────── */
     @media (max-width: 575px) {
-      /* Masthead */
-      .masthead { padding: 12px 0; }
-      .logo-text { font-size: 1.4rem; }
+      /* Top bar: logo + language toggle only */
+      .topbar .date { visibility: hidden; } /* keeps the grid cell so the logo stays centred */
+      .logo-text { font-size: 1.2rem; }
+      .logo-mark { width: 30px; height: 30px; }
+
+      /* Search drops under the menu, full width */
+      .mainmenu .menu-search { flex: 1 0 100%; margin: 0 0 8px; }
 
       /* Hero card height reduced on small screens */
       .overlay-card.hero { min-height: 280px; }
@@ -366,12 +378,16 @@
 </head>
 <body>
   <a class="visually-hidden-focusable skip-link" href="#main-content"><%= news_ui(:skip_to_content) %></a>
-  <%# ── Top bar ──────────────────────────────────────────────── %>
+  <%# ── Top bar: logo, date, language, social ────────────────── %>
   <div class="topbar">
-    <div class="container d-flex justify-content-between align-items-center py-1">
-      <span><i class="bi bi-calendar3"></i>
+    <div class="container topbar-row py-1">
+      <span class="date"><i class="bi bi-calendar3"></i>
         <%= english_edition? ? Date.current.strftime("%d %B %Y") : jalali_date_string(Date.current) %>
       </span>
+      <%= link_to home_path, class: "logo-box" do %>
+        <%= image_tag "/logo.png", alt: "", class: "logo-mark", width: 36, height: 36 %>
+        <span class="logo-text"><%= english_edition? ? "World News" : "خبر فارسی" %><small>.</small></span>
+      <% end %>
       <span class="social">
         <%= link_to news_ui(:switch_label), lang_switch_url, class: "fw-bold me-3", rel: "alternate" %>
         <a href="#" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
@@ -382,27 +398,7 @@
     </div>
   </div>
 
-  <%# ── Masthead ─────────────────────────────────────────────── %>
-  <header class="masthead">
-    <%= link_to home_path, class: "logo-box" do %>
-      <%= image_tag "/logo.png", alt: "", class: "logo-mark", width: 44, height: 44 %>
-      <span class="logo-text"><%= english_edition? ? "World News" : "خبر فارسی" %><small>.</small></span>
-    <% end %>
-  </header>
-
   <%= render "news/feed_stories" if @story_feeds.present? %>
-
-  <%# ── Search bar ────────────────────────────────────────────── %>
-  <div class="search-bar">
-    <%= form_with url: news_search_path, method: :get, local: true do |f| %>
-      <%= f.search_field :q,
-            value: params[:q],
-            placeholder: news_ui(:search_placeholder),
-            autocomplete: "off",
-            "aria-label": news_ui(:search_label) %>
-      <%= f.submit news_ui(:search_label) %>
-    <% end %>
-  </div>
 
   <%# ── Main menu ────────────────────────────────────────────── %>
   <nav class="mainmenu">
@@ -434,6 +430,16 @@
           </li>
         <% end %>
       </ul>
+      <div class="menu-search" role="search">
+        <%= form_with url: news_search_path, method: :get, local: true do |f| %>
+          <%= f.search_field :q,
+                value: params[:q],
+                placeholder: news_ui(:search_placeholder),
+                autocomplete: "off",
+                "aria-label": news_ui(:search_label) %>
+          <button type="submit" aria-label="<%= news_ui(:search_label) %>"><i class="bi bi-search" aria-hidden="true"></i></button>
+        <% end %>
+      </div>
     </div>
   </nav>
 
