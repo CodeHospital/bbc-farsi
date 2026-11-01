@@ -116,7 +116,7 @@ class Admin::FeedsController < Admin::BaseController
   private
 
   def set_feed = @feed = Feed.find(params[:id])
-  def feed_params = params.require(:feed).permit(:name, :url, :category, :source, :enabled, :fetch_hour, autopost_target_channel_ids: [])
+  def feed_params = params.require(:feed).permit(:name, :name_fa, :url, :category, :source, :enabled, :fetch_hour, autopost_target_channel_ids: [])
 
   # Computed once per request instead of once per row — the inline autopost
   # checkboxes on every feed row need the same channel list.

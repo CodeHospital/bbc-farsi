@@ -221,6 +221,12 @@ module NewsHelper
   end
 
   def source_name(feed)   = publisher_info(feed)[:name]
+
+  # The feed's name as shown in stories: the Persian name on the Persian
+  # edition when one is set, otherwise the feed's own name.
+  def feed_display_name(feed)
+    (english_edition? ? nil : feed.name_fa.presence) || feed.name
+  end
   def source_domain(feed) = publisher_info(feed)[:domain]
   def source_url(feed)    = publisher_info(feed)[:url]
 
@@ -290,7 +296,7 @@ module NewsHelper
       feed = profile.feed
       {
         id: feed.id,
-        name: feed.name,
+        name: feed_display_name(feed),
         publisher: source_name(feed),
         initials: feed_initials(feed),
         color: category_color(feed.category),

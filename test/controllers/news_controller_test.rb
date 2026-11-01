@@ -160,6 +160,21 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "خبر جهان" ], story_data.flat_map { |profile| profile["pages"].map { |page| page["title"] } }
   end
 
+  test "story bar shows the feed's Persian name, falling back to its name" do
+    named_feed = create_feed(name: "World", name_fa: "جهان", category: "world")
+    plain_feed = create_feed(name: "Business", category: "business")
+    [ named_feed, plain_feed ].each do |feed|
+      create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 2.hours.ago })))
+    end
+
+    get root_path
+
+    assert_select "button.feed-story[data-feed-id=?] .label", named_feed.id.to_s, text: "جهان"
+    assert_select "button.feed-story[data-feed-id=?] .label", plain_feed.id.to_s, text: "Business"
+    story_data = JSON.parse(css_select("#story-viewer-data").first.text)
+    assert_equal [ "Business", "جهان" ], story_data.map { |profile| profile["name"] }.sort
+  end
+
   test "story bar is absent when nothing was published in the last 24 hours" do
     create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 3.days.ago })))
 

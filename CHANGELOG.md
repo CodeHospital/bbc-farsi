@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Persian name for feeds, used in the stories
+
+- User prompt: "every feed should also have a farsi name which is used in the stories".
+- New `feeds.name_fa` column (migration `20261101000001_add_name_fa_to_feeds.rb`, `schema.rb` updated by hand, **not run** — run `bin/rails db:migrate` on deploy). Editable in the admin feed form ("Persian name") and shown next to the name in the feed list. `NewsHelper#feed_display_name` returns it on the Persian edition and falls back to `name` when blank (existing feeds keep working until given a Persian name) and on the English edition.
+- Used in the story bar labels, the story viewer header (`story_viewer_json`) and the feed page heading/title. Test added; 730 tests green, rubocop clean.
+
 ### Changed — logo centred in the top bar
 
 - User prompt: "put the logo-box in the center".

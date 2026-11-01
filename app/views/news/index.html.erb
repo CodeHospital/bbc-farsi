@@ -1,5 +1,5 @@
 <% if @feed %>
-  <% content_for :title, "#{source_name(@feed)} · #{@feed.name} — #{news_ui(:site_name)}" %>
+  <% content_for :title, "#{source_name(@feed)} · #{feed_display_name(@feed)} — #{news_ui(:site_name)}" %>
 <% elsif @category %>
   <% content_for :title, "#{category_name(@category)} — #{news_ui(:site_name)}" %>
 <% else %>
@@ -61,7 +61,7 @@
   </div>
 <% else %>
   <% if @feed %>
-    <h1 class="block-title" style="<%= category_style(@feed.category) %>"><span><%= source_name(@feed) %> · <%= @feed.name %></span></h1>
+    <h1 class="block-title" style="<%= category_style(@feed.category) %>"><span><%= source_name(@feed) %> · <%= feed_display_name(@feed) %></span></h1>
   <% elsif @category %>
     <h1 class="block-title" style="<%= category_style(@category) %>"><span><%= category_name(@category) %></span></h1>
   <% end %>

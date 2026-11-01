@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_18_000006) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_01_000001) do
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -88,6 +88,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_18_000006) do
     t.string "source", default: "bbc", null: false
     t.integer "fetch_hour"
     t.datetime "last_scheduled_fetch_at"
+    t.string "name_fa"
     t.index ["url"], name: "index_feeds_on_url", unique: true
   end
 

@@ -11,9 +11,9 @@
           <button type="button" class="feed-story" data-story-open="<%= index %>"
                   data-feed-id="<%= feed.id %>" data-latest="<%= profile.stories.first.article_id %>"
                   style="<%= category_style(feed.category) %>"
-                  title="<%= source_name(feed) %> · <%= feed.name %>">
+                  title="<%= source_name(feed) %> · <%= feed_display_name(feed) %>">
             <span class="ring"><span class="avatar"><%= feed_initials(feed) %></span></span>
-            <span class="label"><%= feed.name %></span>
+            <span class="label"><%= feed_display_name(feed) %></span>
           </button>
         </li>
       <% end %>

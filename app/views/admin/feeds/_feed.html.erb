@@ -2,6 +2,7 @@
 <% autopost_channel_options ||= [] %>
 <tr id="<%= dom_id(feed) %>">
   <td><%= feed.name %>
+  <% if feed.name_fa.present? %><span class="text-muted small" dir="rtl">(<%= feed.name_fa %>)</span><% end %>
   <br />
   <span class="badge bg-secondary"><%= feed.category %></span>
   <br />
