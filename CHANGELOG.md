@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — top bar categories ranked by recent news volume
+
+- User prompt: "primary_nav_categories should be the categories with most news in last 30 days, sorted by quantity".
+- `NewsHelper#primary_nav_categories` now picks the 5 categories with the most stories published in the last 30 days (`PRIMARY_NAV_WINDOW`), busiest first, instead of the fixed list (`PRIMARY_NAV_CATEGORIES` removed). Ties and categories without recent news keep the canonical order; everything else stays in the "More" dropdown. Computed from the page's existing story pool, no extra queries. No migrations.
+
+### Changed — story bar opens an Instagram-style viewer, last 24 hours only
+
+- User prompt: "i want the stories to open like instagram or facebook stories, showing news page by page, it should only be there for news from past 24 hours".
+- Bubbles in the feed bar are now buttons that open a full-screen story viewer (inline script in `news/_feed_stories.html.erb`, no new dependency). Each feed's news from the last 24 hours (`NewsController::STORY_WINDOW`) is shown page by page: image, category, title, short text and a "Read the full story" link. Segmented progress bars, auto-advance after 7 s, tap/click the sides (or arrow keys) to go back/forward, hold to pause, Esc or the X to close, and it rolls on to the next feed at the end. Navigation follows the reading direction (right side goes back in Persian). With reduced-motion set it does not auto-advance.
+- Feeds with no news in the last 24 hours no longer appear in the bar (the bar is hidden when none qualify); older news is never in the viewer. A bubble turns grey once its latest story was viewed (localStorage). The viewer header links to the feed's page (`/channel/:feed_id`), which still lists all of that feed's stories.
+- Tests updated/added in `news_controller_test.rb`; 728 tests green, rubocop clean. No migrations.
+
+### Added — story-style feed bar
+
+- User prompt: "create a story style bar at the top treating each feed as a profile".
+- New bar under the masthead (all public news pages that load the site chrome): one round bubble per feed that has published stories, most recently active first, scrolling sideways. The avatar shows the publisher's initials (`feed_initials`) in the category colour; the label is the feed name. A gradient ring means the feed posted in the last day (`STORY_BAR_FRESH_WINDOW`), grey otherwise.
+- Each bubble links to a new feed page `/channel/:feed_id` (`/en/channel/:feed_id`), served by `news#index` as a flat list of that feed's stories (no 10-day cut-off there). A feed with no published stories gives the in-app 404.
+- Fixed: the earlier top-bar "More" label shared the `:more` UI key with the section "more ›" links and was silently overwritten; it now uses `:menu_more`.
+- Tests added in `news_controller_test.rb`; 726 tests green, rubocop clean. No migrations.
+
 ### Changed — shorter top bar with a "More" dropdown
 
 - User prompt: "there are too many categories in the top bar, redesign it".

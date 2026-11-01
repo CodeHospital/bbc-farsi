@@ -104,6 +104,80 @@
     .logo-text { font-size: 2rem; font-weight: 800; }
     .logo-text small { color: var(--accent); }
 
+    /* ── Feed stories bar ────────────────────────────────────── */
+    .feed-stories { border-block: 1px solid var(--line); background: #fff; }
+    .feed-stories ul {
+      list-style: none; margin: 0; padding: 12px 0; display: flex; gap: 16px;
+      overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+    }
+    .feed-stories ul::-webkit-scrollbar { display: none; }
+    .feed-story {
+      flex: 0 0 auto; width: 72px; text-align: center; display: block; color: var(--ink);
+      background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+    }
+    .feed-story .ring {
+      width: 64px; height: 64px; margin: 0 auto 6px; border-radius: 50%; padding: 3px; display: flex;
+      background: conic-gradient(var(--cat), var(--accent), var(--cat));
+    }
+    .feed-story.seen .ring { background: #cfd3d8; }
+    .feed-story:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
+    .feed-story .avatar {
+      flex: 1; border-radius: 50%; border: 2px solid #fff; background: var(--cat); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: .8rem; letter-spacing: -.02em;
+    }
+    .feed-story .label {
+      display: block; font-size: .72rem; line-height: 1.25; font-weight: 600;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ── Story viewer (full-screen, Instagram-style) ────────── */
+    .story-viewer[hidden] { display: none; }
+    .story-viewer {
+      position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.92);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .story-frame {
+      position: relative; width: 100%; height: 100%; max-width: 440px; max-height: 100dvh;
+      background: #111; color: #fff; overflow: hidden;
+    }
+    @media (min-width: 600px) { .story-frame { height: min(100dvh, 780px); border-radius: 14px; } }
+    .story-progress { position: absolute; top: 8px; inset-inline: 10px; z-index: 4; display: flex; gap: 4px; }
+    .story-progress span { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,.3); overflow: hidden; }
+    .story-progress i { display: block; height: 100%; width: 0; background: #fff; }
+    .story-head {
+      position: absolute; top: 18px; inset-inline: 10px; z-index: 4;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .story-who { display: flex; align-items: center; gap: 8px; color: #fff; min-width: 0; font-size: .85rem; font-weight: 700; }
+    .story-who:hover { color: #fff; }
+    .story-avatar {
+      flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; background: var(--cat);
+      display: flex; align-items: center; justify-content: center; font-size: .65rem; font-weight: 800;
+      border: 2px solid #fff;
+    }
+    .story-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .story-time { font-weight: 400; opacity: .75; white-space: nowrap; }
+    .story-close { background: none; border: 0; color: #fff; font-size: 1.2rem; padding: 8px; cursor: pointer; }
+    .story-page { position: absolute; inset: 0; background: linear-gradient(160deg, var(--cat), #111 70%); }
+    .story-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .story-page::after {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, rgba(0,0,0,.55), transparent 22%, transparent 35%, rgba(0,0,0,.88) 100%);
+    }
+    .story-text { position: absolute; inset-inline: 0; bottom: 0; z-index: 3; padding: 20px 20px 28px; pointer-events: none; }
+    .story-cat { display: inline-block; background: var(--cat); font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 3px; }
+    .story-title { font-size: 1.45rem; line-height: 1.4; font-weight: 800; margin: 10px 0 8px; }
+    .story-excerpt { font-size: .95rem; line-height: 1.8; opacity: .9; margin: 0 0 16px; }
+    .story-read {
+      pointer-events: auto; display: inline-block; background: #fff; color: #111; font-weight: 700;
+      font-size: .9rem; padding: 9px 18px; border-radius: 999px;
+    }
+    .story-read:hover { color: #111; }
+    .story-zone { position: absolute; top: 70px; bottom: 90px; z-index: 2; background: none; border: 0; padding: 0; cursor: pointer; }
+    .story-zone-prev { inset-inline-start: 0; width: 35%; }
+    .story-zone-next { inset-inline-end: 0; width: 65%; }
+
     /* ── Main menu ───────────────────────────────────────────── */
     .mainmenu { background: var(--ink); }
     .mainmenu .menu-list {
@@ -316,6 +390,8 @@
     <% end %>
   </header>
 
+  <%= render "news/feed_stories" if @story_feeds.present? %>
+
   <%# ── Search bar ────────────────────────────────────────────── %>
   <div class="search-bar">
     <%= form_with url: news_search_path, method: :get, local: true do |f| %>
@@ -346,7 +422,7 @@
           <li class="menu-more">
             <details>
               <summary class="menu-link <%= 'active' if overflow_categories.any? { |slug, _| @category == slug } %>">
-                <%= news_ui(:more) %> <i class="bi bi-chevron-down" aria-hidden="true"></i>
+                <%= news_ui(:menu_more) %> <i class="bi bi-chevron-down" aria-hidden="true"></i>
               </summary>
               <ul class="menu-dropdown">
                 <% overflow_categories.each do |slug, name| %>

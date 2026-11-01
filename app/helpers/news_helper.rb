@@ -89,7 +89,12 @@ module NewsHelper
       home:         "خانه",
       latest_news:  "آخرین اخبار",
       categories:   "دسته‌بندی‌ها",
-      more:         "بیشتر",
+      menu_more:    "بیشتر",
+      feeds:        "منابع خبری",
+      close:        "بستن",
+      previous:     "قبلی",
+      next:         "بعدی",
+      read_story:   "خواندن خبر کامل",
       sections:     "دسته‌ها",
       follow:       "دنبال کنید",
       more:         "بیشتر ›",
@@ -121,7 +126,12 @@ module NewsHelper
       home:         "Home",
       latest_news:  "Latest News",
       categories:   "Categories",
-      more:         "More",
+      menu_more:    "More",
+      feeds:        "News sources",
+      close:        "Close",
+      previous:     "Previous",
+      next:         "Next",
+      read_story:   "Read the full story",
       sections:     "Sections",
       follow:       "Follow",
       more:         "More ›",
@@ -230,12 +240,81 @@ module NewsHelper
     CATEGORY_NAMES_FA.keys.map { |slug| [ slug, names[slug] || slug ] }
   end
 
-  # Categories shown directly in the top bar; every other category goes in the
-  # "More" dropdown so the bar stays short.
-  PRIMARY_NAV_CATEGORIES = %w[top world politics business technology].freeze
+  # Number of categories shown directly in the top bar; every other category
+  # goes in the "More" dropdown so the bar stays short.
+  PRIMARY_NAV_COUNT = 5
+  # The primary categories are the ones with the most news in this window.
+  PRIMARY_NAV_WINDOW = 30.days
 
-  def primary_nav_categories = nav_categories.select { |slug, _| PRIMARY_NAV_CATEGORIES.include?(slug) }
-  def overflow_nav_categories = nav_categories.reject { |slug, _| PRIMARY_NAV_CATEGORIES.include?(slug) }
+  def primary_nav_categories
+    labels_by_slug = nav_categories.to_h
+    primary_nav_slugs.map { |slug| [ slug, labels_by_slug[slug] ] }
+  end
+
+  def overflow_nav_categories
+    primary_slugs = primary_nav_slugs
+    nav_categories.reject { |slug, _| primary_slugs.include?(slug) }
+  end
+
+  # Slugs of the PRIMARY_NAV_COUNT categories with the most stories published
+  # in the last PRIMARY_NAV_WINDOW, busiest first. Ties (and categories with no
+  # recent news) keep the canonical order. Computed from the page's story pool.
+  def primary_nav_slugs
+    @primary_nav_slugs ||= begin
+      cutoff = PRIMARY_NAV_WINDOW.ago
+      stories_per_category = Array(@all_stories)
+        .select { |story| story_time(story) >= cutoff }
+        .filter_map { |story| story.article.feed&.category }
+        .tally
+      canonical_order = CATEGORY_NAMES_FA.keys
+      canonical_order
+        .sort_by { |slug| [ -stories_per_category.fetch(slug, 0), canonical_order.index(slug) ] }
+        .first(PRIMARY_NAV_COUNT)
+    end
+  end
+
+  # Short avatar text for a feed profile: an all-caps first word ("BBC"),
+  # otherwise the initials of the first two words ("heise online" -> "HO").
+  def feed_initials(feed)
+    words = source_name(feed).split.reject { |word| word.casecmp?("the") }
+    first_word = words.first.to_s
+    return first_word if first_word.length.between?(2, 4) && first_word == first_word.upcase
+
+    words.first(2).map { |word| word[0] }.join.upcase
+  end
+
+  # JSON for the story viewer: one entry per feed profile with its
+  # last-24-hours stories as pages (title, short text, image, link).
+  def story_viewer_json(profiles, image_urls)
+    profiles.map do |profile|
+      feed = profile.feed
+      {
+        id: feed.id,
+        name: feed.name,
+        publisher: source_name(feed),
+        initials: feed_initials(feed),
+        color: category_color(feed.category),
+        feed_url: channel_path(feed_id: feed.id),
+        latest: profile.stories.first.article_id,
+        pages: profile.stories.map do |story|
+          {
+            title: story_title(story),
+            text: story_page_text(story),
+            image: image_urls[story.article.id],
+            url: news_story_path(story),
+            category: category_name(story.article.feed&.category),
+            time: story_timestamp(story_time(story))
+          }
+        end
+      }
+    end.to_json
+  end
+
+  # Plain-text teaser for a story page: markdown marks stripped, cut at a word.
+  def story_page_text(story, length: 260)
+    plain = strip_tags(story_body(story)).gsub(/[#*_>`]+/, "").squish
+    truncate(plain, length: length, separator: " ")
+  end
 
   # Friendly public URL for a story. Admin routes keep the plain numeric id.
   def news_story_path(translation) = news_path(id: translation.seo_param)

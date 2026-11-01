@@ -123,6 +123,72 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "nav.mainmenu .menu-more .menu-dropdown a[href=?]", category_path(category: "sports")
   end
 
+  test "top bar primary categories are the ones with the most news in the last 30 days, busiest first" do
+    sports_feed = create_feed(name: "Sports", category: "sports")
+    health_feed = create_feed(name: "Health", category: "health")
+    old_world_feed = create_feed(name: "World", category: "world")
+    3.times do
+      create_translation(rewrite: create_rewrite(article: create_article(feed: sports_feed, attrs: { published_at: 2.days.ago })))
+    end
+    create_translation(rewrite: create_rewrite(article: create_article(feed: health_feed, attrs: { published_at: 3.days.ago })))
+    5.times do
+      create_translation(rewrite: create_rewrite(article: create_article(feed: old_world_feed, attrs: { published_at: 60.days.ago })))
+    end
+
+    get root_path
+
+    assert_select "nav.mainmenu .menu-list > li > a.menu-link[href=?]", category_path(category: "sports")
+    assert_select "nav.mainmenu .menu-list > li > a.menu-link[href=?]", category_path(category: "health")
+    primary_hrefs = css_select("nav.mainmenu .menu-list > li > a.menu-link").map { |link| link["href"] }
+    assert_operator primary_hrefs.index(category_path(category: "sports")), :<, primary_hrefs.index(category_path(category: "health"))
+  end
+
+  test "story bar only holds feeds with news from the last 24 hours" do
+    feed = create_feed(name: "World", category: "world")
+    stale_feed = create_feed(name: "Business", category: "business")
+    create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 2.hours.ago })),
+      attrs: { translated_title: "خبر جهان" })
+    create_translation(rewrite: create_rewrite(article: create_article(feed: stale_feed, attrs: { published_at: 3.days.ago })),
+      attrs: { translated_title: "خبر اقتصاد" })
+
+    get root_path
+
+    assert_select "nav.feed-stories button.feed-story", 1
+    assert_select "button.feed-story[data-feed-id=?]", feed.id.to_s
+    assert_select "#story-viewer"
+    story_data = JSON.parse(css_select("#story-viewer-data").first.text)
+    assert_equal [ "خبر جهان" ], story_data.flat_map { |profile| profile["pages"].map { |page| page["title"] } }
+  end
+
+  test "story bar is absent when nothing was published in the last 24 hours" do
+    create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 3.days.ago })))
+
+    get root_path
+
+    assert_select "nav.feed-stories", 0
+  end
+
+  test "feed page lists that feed's stories" do
+    feed = create_feed(name: "World", category: "world")
+    other_feed = create_feed(name: "Business", category: "business")
+    create_translation(rewrite: create_rewrite(article: create_article(feed:)), attrs: { translated_title: "خبر جهان" })
+    create_translation(rewrite: create_rewrite(article: create_article(feed: other_feed)), attrs: { translated_title: "خبر اقتصاد" })
+
+    get channel_path(feed_id: feed.id)
+
+    assert_response :success
+    assert_select "main#main-content", text: /خبر جهان/
+    assert_select "main#main-content", text: /خبر اقتصاد/, count: 0
+  end
+
+  test "feed page for a feed without stories is not found" do
+    feed = create_feed
+
+    get channel_path(feed_id: feed.id)
+
+    assert_response :not_found
+  end
+
   test "index renders a hero featured card" do
     create_translation(attrs: { translated_title: "خبر ویژه" })
 

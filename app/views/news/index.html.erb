@@ -1,4 +1,6 @@
-<% if @category %>
+<% if @feed %>
+  <% content_for :title, "#{source_name(@feed)} · #{@feed.name} — #{news_ui(:site_name)}" %>
+<% elsif @category %>
   <% content_for :title, "#{category_name(@category)} — #{news_ui(:site_name)}" %>
 <% else %>
   <% content_for :title, "#{news_ui(:site_name)} — #{news_ui(:latest_news)}" %>
@@ -58,7 +60,9 @@
     <p><%= news_ui(:empty_body) %></p>
   </div>
 <% else %>
-  <% if @category %>
+  <% if @feed %>
+    <h1 class="block-title" style="<%= category_style(@feed.category) %>"><span><%= source_name(@feed) %> · <%= @feed.name %></span></h1>
+  <% elsif @category %>
     <h1 class="block-title" style="<%= category_style(@category) %>"><span><%= category_name(@category) %></span></h1>
   <% end %>
 
@@ -76,8 +80,8 @@
     </div>
   <% end %>
 
-  <%# ── Category page: flat list ─────────────────────────────────────────── %>
-  <% if @category %>
+  <%# ── Category / feed page: flat list ──────────────────────────────────── %>
+  <% if @category || @feed %>
     <section>
       <% @rest.each do |story| %>
         <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id] %>

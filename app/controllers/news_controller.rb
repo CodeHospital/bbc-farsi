@@ -15,6 +15,8 @@ class NewsController < ApplicationController
   # FRONT_PAGE_MIN_STORIES are shown regardless of age.
   FRONT_PAGE_MAX_STORY_AGE = 10.days
   FRONT_PAGE_MIN_STORIES = 10
+  # The story bar/viewer only includes news published within this window.
+  STORY_WINDOW = 24.hours
 
   before_action :set_news_lang
   before_action :load_chrome, only: %i[index show search]
@@ -27,12 +29,20 @@ class NewsController < ApplicationController
   rescue_from ActiveRecord::RecordNotFound, with: :render_story_not_found
 
   def index
-    stories = @category ? @all_stories.select { |s| s.article.feed&.category == @category } : @all_stories
-    @featured, @rest = FeaturedSelector.select(fresh_front_page_stories(stories))
+    stories = if @feed
+      @all_stories.select { |s| s.article.feed_id == @feed.id }
+    elsif @category
+      @all_stories.select { |s| s.article.feed&.category == @category }
+    else
+      @all_stories
+    end
+    # A feed's own page lists everything it has published, however old.
+    stories = fresh_front_page_stories(stories) unless @feed
+    @featured, @rest = FeaturedSelector.select(stories)
 
     # On the homepage, group the remaining stories into category blocks like a
     # magazine front page; a category page is just a flat list.
-    @sections = @category ? {} : sections_by_category(@rest)
+    @sections = @category || @feed ? {} : sections_by_category(@rest)
 
     @image_urls = ArticleImageFetcher.call_many(
       (@featured + @rest + @sidebar_recent).map(&:article)
@@ -313,6 +323,12 @@ class NewsController < ApplicationController
     @category = params[:category].presence
     @all_stories = story_pool
     @sidebar_recent = @all_stories.first(6)
+    @story_feeds = story_feed_profiles(@all_stories)
+    @story_image_urls = ArticleImageFetcher.call_many(@story_feeds.flat_map { |profile| profile.stories.map(&:article) })
+    if params[:feed_id].present?
+      @feed = Feed.find_by(id: params[:feed_id])
+      raise ActiveRecord::RecordNotFound, "feed #{params[:feed_id]}" unless @feed && @all_stories.any? { |story| story.article.feed_id == @feed.id }
+    end
     @sidebar_image_urls = ArticleImageFetcher.call_many(@sidebar_recent.map(&:article))
   end
 
@@ -347,6 +363,24 @@ class NewsController < ApplicationController
       .limit(limit)
       .map { |article| ArticleStory.new(article) }
   end
+
+  FeedProfile = Struct.new(:feed, :stories, :latest_at, keyword_init: true)
+
+  # One "profile" per feed that published in the last STORY_WINDOW, for the
+  # story viewer: feeds with the most recent news first, each feed's stories
+  # newest first. Older news never appears in the viewer.
+  def story_feed_profiles(stories)
+    cutoff = STORY_WINDOW.ago
+    fresh_stories = stories.select { |story| story_published_at(story) >= cutoff }
+    fresh_stories.group_by { |story| story.article.feed }.filter_map do |feed, feed_stories|
+      next unless feed
+
+      sorted = feed_stories.sort_by { |story| -story_published_at(story).to_f }
+      FeedProfile.new(feed: feed, stories: sorted, latest_at: story_published_at(sorted.first))
+    end.sort_by { |profile| -profile.latest_at.to_f }
+  end
+
+  def story_published_at(story) = story.article.published_at || story.created_at
 
   # Drop stories older than FRONT_PAGE_MAX_STORY_AGE. If fewer than
   # FRONT_PAGE_MIN_STORIES are that fresh, top up with the next newest instead

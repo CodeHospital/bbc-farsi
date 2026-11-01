@@ -1,0 +1,155 @@
+<%# Story bar: one bubble per feed with news from the last 24 hours. Tapping a
+    bubble opens the full-screen story viewer (below), paging through that
+    feed's stories. A bubble turns grey once its latest story has been viewed
+    (remembered in localStorage). %>
+<nav class="feed-stories" aria-label="<%= news_ui(:feeds) %>">
+  <div class="container">
+    <ul>
+      <% @story_feeds.each_with_index do |profile, index| %>
+        <% feed = profile.feed %>
+        <li>
+          <button type="button" class="feed-story" data-story-open="<%= index %>"
+                  data-feed-id="<%= feed.id %>" data-latest="<%= profile.stories.first.article_id %>"
+                  style="<%= category_style(feed.category) %>"
+                  title="<%= source_name(feed) %> · <%= feed.name %>">
+            <span class="ring"><span class="avatar"><%= feed_initials(feed) %></span></span>
+            <span class="label"><%= feed.name %></span>
+          </button>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+</nav>
+
+<div class="story-viewer" id="story-viewer" role="dialog" aria-modal="true" aria-label="<%= news_ui(:feeds) %>" hidden>
+  <div class="story-frame">
+    <div class="story-progress" aria-hidden="true"></div>
+    <div class="story-head">
+      <a class="story-who" href="#"><span class="story-avatar"></span><span class="story-name"></span><span class="story-time"></span></a>
+      <button type="button" class="story-close" aria-label="<%= news_ui(:close) %>"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="story-page">
+      <img class="story-image" alt="" hidden>
+      <div class="story-text">
+        <span class="story-cat"></span>
+        <h2 class="story-title"></h2>
+        <p class="story-excerpt"></p>
+        <a class="story-read" href="#"><%= news_ui(:read_story) %></a>
+      </div>
+    </div>
+    <button type="button" class="story-zone story-zone-prev" aria-label="<%= news_ui(:previous) %>"></button>
+    <button type="button" class="story-zone story-zone-next" aria-label="<%= news_ui(:next) %>"></button>
+  </div>
+</div>
+
+<script type="application/json" id="story-viewer-data"><%= json_escape(story_viewer_json(@story_feeds, @story_image_urls)).html_safe %></script>
+<script>
+(function () {
+  var viewer = document.getElementById("story-viewer");
+  var profiles = JSON.parse(document.getElementById("story-viewer-data").textContent);
+  var isRtl = document.documentElement.dir === "rtl";
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var PAGE_MS = 7000;
+  var progress = viewer.querySelector(".story-progress");
+  var image = viewer.querySelector(".story-image");
+  var profileIndex = 0, pageIndex = 0, opener = null, timer = null, startedAt = 0, remaining = PAGE_MS;
+
+  function seenMap() { try { return JSON.parse(localStorage.getItem("storiesSeen") || "{}"); } catch (e) { return {}; } }
+  function markSeen(profile) {
+    try { var seen = seenMap(); seen[profile.id] = profile.latest; localStorage.setItem("storiesSeen", JSON.stringify(seen)); } catch (e) {}
+    var bubble = document.querySelector('.feed-story[data-feed-id="' + profile.id + '"]');
+    if (bubble) bubble.classList.add("seen");
+  }
+  (function applySeen() {
+    var seen = seenMap();
+    document.querySelectorAll(".feed-story").forEach(function (bubble) {
+      if (String(seen[bubble.dataset.feedId]) === bubble.dataset.latest) bubble.classList.add("seen");
+    });
+  })();
+
+  function buildProgress(profile) {
+    progress.textContent = "";
+    profile.pages.forEach(function () {
+      var bar = document.createElement("span"); bar.appendChild(document.createElement("i")); progress.appendChild(bar);
+    });
+  }
+
+  function render() {
+    var profile = profiles[profileIndex], page = profile.pages[pageIndex];
+    viewer.style.setProperty("--cat", profile.color);
+    var who = viewer.querySelector(".story-who");
+    who.href = profile.feed_url;
+    viewer.querySelector(".story-avatar").textContent = profile.initials;
+    viewer.querySelector(".story-name").textContent = profile.publisher + " · " + profile.name;
+    viewer.querySelector(".story-time").textContent = page.time;
+    viewer.querySelector(".story-cat").textContent = page.category;
+    viewer.querySelector(".story-title").textContent = page.title;
+    viewer.querySelector(".story-excerpt").textContent = page.text;
+    viewer.querySelector(".story-read").href = page.url;
+    if (page.image) { image.src = page.image; image.hidden = false; } else { image.removeAttribute("src"); image.hidden = true; }
+    viewer.querySelector(".story-page").classList.toggle("no-image", !page.image);
+    Array.prototype.forEach.call(progress.children, function (bar, i) {
+      var fill = bar.firstChild;
+      fill.style.transition = "none";
+      fill.style.width = i < pageIndex || reduceMotion && i === pageIndex ? "100%" : "0%";
+    });
+    markSeen(profile);
+    startTimer(PAGE_MS);
+  }
+
+  function startTimer(ms) {
+    clearTimeout(timer);
+    if (reduceMotion) return; // manual paging only
+    remaining = ms; startedAt = Date.now();
+    var fill = progress.children[pageIndex].firstChild;
+    var done = (PAGE_MS - ms) / PAGE_MS * 100;
+    fill.style.transition = "none"; fill.style.width = done + "%";
+    void fill.offsetWidth;
+    fill.style.transition = "width " + ms + "ms linear"; fill.style.width = "100%";
+    timer = setTimeout(next, ms);
+  }
+  function pause() { if (reduceMotion || !timer) return; clearTimeout(timer); timer = null; remaining -= Date.now() - startedAt;
+    var fill = progress.children[pageIndex].firstChild; var w = getComputedStyle(fill).width; fill.style.transition = "none"; fill.style.width = w; }
+  function resume() { if (!reduceMotion && !timer && !viewer.hidden) startTimer(Math.max(remaining, 300)); }
+
+  function open(index) {
+    opener = document.activeElement; profileIndex = index; pageIndex = 0;
+    buildProgress(profiles[profileIndex]);
+    viewer.hidden = false; document.body.style.overflow = "hidden";
+    render(); viewer.querySelector(".story-close").focus();
+  }
+  function close() {
+    clearTimeout(timer); timer = null; viewer.hidden = true; document.body.style.overflow = "";
+    if (opener && opener.focus) opener.focus();
+  }
+  function next() {
+    var profile = profiles[profileIndex];
+    if (pageIndex < profile.pages.length - 1) { pageIndex++; render(); }
+    else if (profileIndex < profiles.length - 1) { profileIndex++; pageIndex = 0; buildProgress(profiles[profileIndex]); render(); }
+    else close();
+  }
+  function prev() {
+    if (pageIndex > 0) { pageIndex--; render(); }
+    else if (profileIndex > 0) { profileIndex--; pageIndex = profiles[profileIndex].pages.length - 1; buildProgress(profiles[profileIndex]); render(); }
+    else render();
+  }
+
+  document.querySelectorAll("[data-story-open]").forEach(function (button) {
+    button.addEventListener("click", function () { open(parseInt(button.dataset.storyOpen, 10)); });
+  });
+  viewer.querySelector(".story-close").addEventListener("click", close);
+  // In RTL the reading direction flips: the left zone advances, like Instagram in Persian.
+  viewer.querySelector(".story-zone-next").addEventListener("click", next);
+  viewer.querySelector(".story-zone-prev").addEventListener("click", prev);
+  ["pointerdown"].forEach(function (name) { viewer.querySelectorAll(".story-zone").forEach(function (zone) { zone.addEventListener(name, pause); }); });
+  ["pointerup", "pointerleave", "pointercancel"].forEach(function (name) { viewer.querySelectorAll(".story-zone").forEach(function (zone) { zone.addEventListener(name, resume); }); });
+  viewer.addEventListener("click", function (event) { if (event.target === viewer) close(); });
+  document.addEventListener("keydown", function (event) {
+    if (viewer.hidden) return;
+    if (event.key === "Escape") close();
+    else if (event.key === "ArrowRight") (isRtl ? prev : next)();
+    else if (event.key === "ArrowLeft") (isRtl ? next : prev)();
+  });
+  document.addEventListener("visibilitychange", function () { document.hidden ? pause() : resume(); });
+})();
+</script>
