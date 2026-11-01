@@ -114,6 +114,15 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_match "خبر کهنه", @response.body
   end
 
+  test "top bar shows primary categories and tucks the rest into a More dropdown" do
+    get root_path
+
+    assert_response :success
+    assert_select "nav.mainmenu .menu-list > li > a.menu-link[href=?]", category_path(category: "world")
+    assert_select "nav.mainmenu .menu-list > li > a.menu-link[href=?]", category_path(category: "sports"), count: 0
+    assert_select "nav.mainmenu .menu-more .menu-dropdown a[href=?]", category_path(category: "sports")
+  end
+
   test "index renders a hero featured card" do
     create_translation(attrs: { translated_title: "خبر ویژه" })
 

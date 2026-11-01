@@ -89,6 +89,7 @@ module NewsHelper
       home:         "خانه",
       latest_news:  "آخرین اخبار",
       categories:   "دسته‌بندی‌ها",
+      more:         "بیشتر",
       sections:     "دسته‌ها",
       follow:       "دنبال کنید",
       more:         "بیشتر ›",
@@ -120,6 +121,7 @@ module NewsHelper
       home:         "Home",
       latest_news:  "Latest News",
       categories:   "Categories",
+      more:         "More",
       sections:     "Sections",
       follow:       "Follow",
       more:         "More ›",
@@ -227,6 +229,13 @@ module NewsHelper
     names = english_edition? ? CATEGORY_NAMES_EN : CATEGORY_NAMES_FA
     CATEGORY_NAMES_FA.keys.map { |slug| [ slug, names[slug] || slug ] }
   end
+
+  # Categories shown directly in the top bar; every other category goes in the
+  # "More" dropdown so the bar stays short.
+  PRIMARY_NAV_CATEGORIES = %w[top world politics business technology].freeze
+
+  def primary_nav_categories = nav_categories.select { |slug, _| PRIMARY_NAV_CATEGORIES.include?(slug) }
+  def overflow_nav_categories = nav_categories.reject { |slug, _| PRIMARY_NAV_CATEGORIES.include?(slug) }
 
   # Friendly public URL for a story. Admin routes keep the plain numeric id.
   def news_story_path(translation) = news_path(id: translation.seo_param)

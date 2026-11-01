@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — shorter top bar with a "More" dropdown
+
+- User prompt: "there are too many categories in the top bar, redesign it".
+- The top bar now shows Home plus five primary categories (Breaking, World, Politics, Business, Technology; `NewsHelper::PRIMARY_NAV_CATEGORIES`). The other twelve move into a "More" (بیشتر) dropdown, a plain `<details>` element (no JS). "More" is highlighted when the current category is inside it. The bar no longer scrolls sideways. The footer still lists every category.
+- Test added in `news_controller_test.rb`. No migrations.
+
 ### Changed — front page hides news older than 10 days
 
 - User prompt: "don't show news older than 10 days in frontpage, unless there not 10 news".
