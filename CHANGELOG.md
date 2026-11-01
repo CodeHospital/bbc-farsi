@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — front page hides news older than 10 days
+
+- User prompt: "don't show news older than 10 days in frontpage, unless there not 10 news".
+- `NewsController#index` (homepage and category pages) leaves out stories published more than 10 days ago (`FRONT_PAGE_MAX_STORY_AGE`). If fewer than 10 stories (`FRONT_PAGE_MIN_STORIES`) are that fresh, it shows the 10 newest instead, so the page is never nearly empty. The age is the article's `published_at` (falling back to `created_at`). Sidebar, search, RSS, sitemap and story pages are unchanged.
+- Tests: two new cases in `news_controller_test.rb`. 723 tests green; rubocop clean. No migrations.
+
 ### Added — landing page on api.khabarestan.com with processed-task stats
 
 - User prompt: "api should also host a landing page, maybe showing stats of processed api".

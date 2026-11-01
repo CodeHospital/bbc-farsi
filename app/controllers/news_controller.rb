@@ -10,6 +10,12 @@ class NewsController < ApplicationController
 
   LANGUAGES = %w[fa en].freeze
 
+  # The front page hides stories older than this, unless that would leave it
+  # with fewer than FRONT_PAGE_MIN_STORIES, in which case the newest
+  # FRONT_PAGE_MIN_STORIES are shown regardless of age.
+  FRONT_PAGE_MAX_STORY_AGE = 10.days
+  FRONT_PAGE_MIN_STORIES = 10
+
   before_action :set_news_lang
   before_action :load_chrome, only: %i[index show search]
 
@@ -22,7 +28,7 @@ class NewsController < ApplicationController
 
   def index
     stories = @category ? @all_stories.select { |s| s.article.feed&.category == @category } : @all_stories
-    @featured, @rest = FeaturedSelector.select(stories)
+    @featured, @rest = FeaturedSelector.select(fresh_front_page_stories(stories))
 
     # On the homepage, group the remaining stories into category blocks like a
     # magazine front page; a category page is just a flat list.
@@ -340,6 +346,15 @@ class NewsController < ApplicationController
       .order(published_at: :desc)
       .limit(limit)
       .map { |article| ArticleStory.new(article) }
+  end
+
+  # Drop stories older than FRONT_PAGE_MAX_STORY_AGE. If fewer than
+  # FRONT_PAGE_MIN_STORIES are that fresh, top up with the next newest instead
+  # (`stories` is newest-first, so its head is the fresh ones plus the top-up).
+  def fresh_front_page_stories(stories)
+    cutoff = FRONT_PAGE_MAX_STORY_AGE.ago
+    fresh_stories = stories.select { |story| (story.article.published_at || story.created_at) >= cutoff }
+    fresh_stories.size >= FRONT_PAGE_MIN_STORIES ? fresh_stories : stories.first(FRONT_PAGE_MIN_STORIES)
   end
 
   # Group stories by feed category, preserving the recency order within each and

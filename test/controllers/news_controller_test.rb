@@ -86,6 +86,34 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     Rails.cache = original
   end
 
+  test "index hides stories older than 10 days when at least 10 fresh ones exist" do
+    10.times do |index|
+      create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: (index + 1).hours.ago })),
+        attrs: { translated_title: "خبر تازه #{index}" })
+    end
+    create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 11.days.ago })),
+      attrs: { translated_title: "خبر کهنه" })
+
+    get root_path
+
+    assert_response :success
+    assert_match "خبر تازه 0", @response.body
+    assert_no_match "خبر کهنه", @response.body
+  end
+
+  test "index tops up with older stories when fewer than 10 are fresh" do
+    create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 1.hour.ago })),
+      attrs: { translated_title: "خبر تازه" })
+    create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 30.days.ago })),
+      attrs: { translated_title: "خبر کهنه" })
+
+    get root_path
+
+    assert_response :success
+    assert_match "خبر تازه", @response.body
+    assert_match "خبر کهنه", @response.body
+  end
+
   test "index renders a hero featured card" do
     create_translation(attrs: { translated_title: "خبر ویژه" })
 
