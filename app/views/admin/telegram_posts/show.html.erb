@@ -8,6 +8,11 @@
   <% end %>
   <h2 class="mb-0">Channel Post #<%= @post.id %></h2>
   <%= render "admin/shared/status_badge", status: @post.status %>
+  <% if @post.status == "pending" %>
+    <%= button_to "Cancel scheduled post", cancel_admin_telegram_post_path(@post), method: :patch,
+          class: "btn btn-sm btn-outline-danger ms-auto",
+          form: { data: { turbo_confirm: "Cancel this scheduled post?" } } %>
+  <% end %>
 </div>
 
 <div class="card mb-3">

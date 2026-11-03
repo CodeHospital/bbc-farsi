@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Admin can cancel a scheduled Telegram post
+
+- User prompt: "admin should be able to cancel an schedule post".
+- New `PATCH /admin/telegram_posts/:id/cancel` and a "Cancel" button (with confirmation) on each row of the Scheduled tab and on the post's detail page.
+- Cancelling sets the new `cancelled` status instead of deleting the row, so Autoposter does not queue the same translation again. A manual "post" reuses the cancelled row and queues it again.
+- Only `pending` posts can be cancelled. The update is conditional, so a post that a delivery sweep has just claimed (`sending`) or sent is left alone and the admin sees a notice.
+- Cancelled posts appear in the History tab (new status filter and grey badge).
+- No migrations: `status` is a plain string column.
+
 ### Added — Le Monde and Le Figaro as feed sources; France 24 images allowed
 
 - User prompt: "add feeds from https://www.lemonde.fr/en/about-us/article/2026/03/27/le-monde-rss-feeds_6751860_115.html and https://www.lefigaro.fr/rss".

@@ -2,7 +2,7 @@ class Admin::TelegramPostsController < Admin::BaseController
   include Pagy::Method
 
   VIEWS = %w[scheduled history].freeze
-  HISTORY_STATUSES = %w[posted error].freeze
+  HISTORY_STATUSES = %w[posted error cancelled].freeze
 
   SORT_COLUMNS = {
     "channel" => "telegram_channels.name",
@@ -24,6 +24,19 @@ class Admin::TelegramPostsController < Admin::BaseController
 
   def show
     @post = TelegramPost.includes(:telegram_channel, translation: :article).find(params[:id])
+  end
+
+  # Withdraws a queued post. Only "pending" can be cancelled: the conditional
+  # UPDATE loses cleanly to a delivery sweep that just claimed the post.
+  def cancel
+    post = TelegramPost.find(params[:id])
+    cancelled = TelegramPost.where(id: post.id, status: "pending").update_all(status: "cancelled", updated_at: Time.current) == 1
+
+    if cancelled
+      redirect_back_or_to admin_telegram_posts_path(view: "scheduled"), notice: "Scheduled post cancelled."
+    else
+      redirect_back_or_to admin_telegram_posts_path(view: "scheduled"), alert: "Only posts that are still waiting can be cancelled."
+    end
   end
 
   private

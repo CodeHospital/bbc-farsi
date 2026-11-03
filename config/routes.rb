@@ -101,7 +101,9 @@ Rails.application.routes.draw do
         member { patch :toggle }
       end
 
-      resources :telegram_posts, only: %i[index show]
+      resources :telegram_posts, only: %i[index show] do
+        member { patch :cancel }
+      end
 
       resources :ollama_servers, only: %i[index new create edit update destroy] do
         member { patch :toggle }

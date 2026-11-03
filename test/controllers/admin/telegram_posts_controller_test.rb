@@ -75,4 +75,39 @@ class Admin::TelegramPostsControllerTest < ActionDispatch::IntegrationTest
     assert_match "متن پیام", response.body
     assert_match "rate limited", response.body
   end
+
+  test "cancel withdraws a pending post, keeps the row, and lists it in history" do
+    translation = create_translation
+    post_record = TelegramPost.create!(translation:, telegram_channel: @channel, status: "pending")
+
+    patch cancel_admin_telegram_post_path(post_record)
+    assert_redirected_to admin_telegram_posts_path(view: "scheduled")
+    assert_equal "cancelled", post_record.reload.status
+    assert_not_includes Translation.unposted_for(@channel), translation
+
+    get admin_telegram_posts_path(view: "history", status: "cancelled")
+    assert_response :success
+    assert_select "a[href=?]", admin_telegram_post_path(post_record)
+  end
+
+  test "cancel refuses a post that is already sending or posted" do
+    sending = TelegramPost.create!(translation: create_translation, telegram_channel: @channel, status: "sending")
+    posted  = TelegramPost.create!(translation: create_translation, telegram_channel: @channel, status: "posted", posted_at: 1.hour.ago)
+
+    [ sending, posted ].each do |post_record|
+      previous_status = post_record.status
+      patch cancel_admin_telegram_post_path(post_record)
+      assert_equal previous_status, post_record.reload.status
+      assert_equal "Only posts that are still waiting can be cancelled.", flash[:alert]
+    end
+  end
+
+  test "a cancelled post can be queued again manually" do
+    translation = create_translation
+    TelegramPost.create!(translation:, telegram_channel: @channel, status: "cancelled")
+
+    result = Publisher.post_to_channel(translation, @channel)
+    assert result.success?
+    assert_equal "pending", TelegramPost.find_by!(translation:, telegram_channel: @channel).status
+  end
 end
