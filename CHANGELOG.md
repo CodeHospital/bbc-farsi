@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — `bbc:backfill_feed_tags` failed with "unknown attribute `tag_id`"
+
+- The user reported that `bin/rails bbc:backfill_feed_tags` raised `ActiveModel::MissingAttributeError: can't write unknown attribute 'tag_id'`.
+- Cause: `feeds.tag_id` had been added to `20261105000001_create_tags` after that migration was already applied to the development database. Rails never re-runs an applied migration, so the column was never created.
+- Fix: `20261105000001_create_tags` is restored to the version that was applied, and `feeds.tag_id` moved into a new migration, `20261105000002_add_tag_to_feeds`. `schema.rb` is at version `2026_11_05_000002`. **Run `bin/rails db:migrate`, then `bin/rails bbc:backfill_feed_tags`.**
+
 ### Changed — Feed tags are ordinary tags
 
 - User prompt: "the channel tags should be just like normal tags, it's not a special case".

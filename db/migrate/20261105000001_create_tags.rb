@@ -3,8 +3,6 @@ class CreateTags < ActiveRecord::Migration[8.0]
   # (AI tagging can leave one blank until an editor fills it in); articles get
   # many tags through article_tags. `articles.tags_generated_at` records that
   # AI tagging ran for the article, so `bbc:tag` doesn't enqueue it again.
-  # `feeds.tag_id` is the feed's own (ordinary, editable) tag, attached to
-  # every article taken from that feed.
   def change
     create_table :tags do |t|
       t.string :name_fa
@@ -22,6 +20,5 @@ class CreateTags < ActiveRecord::Migration[8.0]
     add_index :article_tags, %i[article_id tag_id], unique: true
 
     add_column :articles, :tags_generated_at, :datetime
-    add_reference :feeds, :tag, foreign_key: true
   end
 end
