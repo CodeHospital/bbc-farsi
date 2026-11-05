@@ -463,6 +463,15 @@ was set from Telegram or from the web admin.
 - **Social**: Open Graph + Twitter Card tags (site-icon fallback when a story has no lead image) and share buttons on article pages.
 - **LLMs / readers**: `/llms.txt` (site summary + latest articles), a Markdown twin of every story (`/news/<slug>.md`, `/en/news/<slug>.md`), and RSS feeds at `/feed.xml` and `/en/feed.xml`.
 
+## Article Tags
+
+Every story has several tags:
+
+- **Default tag: its source feed.** It is always shown first on the story page and links to the feed's page. Its Persian and English names come from the feed (`name_fa` / `name`), so you rename it on the feed.
+- **Topic tags.** These are stored as bilingual `Tag` rows (`name_fa` + `name_en`) linked to articles through `article_tags`. The AI `tag` task (`bin/rails bbc:tag`) creates them from "فارسی | English" pairs and only ever adds tags; it never removes ones an editor set. Each edition shows tag names in its own language and hides tags that don't have a name in that language yet.
+- **Editing.** Admins and editors whose edits need no approval manage tags from **Admin → Tags**: add a tag, fill in a missing name (filter "Missing a translation"), rename it, or delete it from every article. They add or remove a single article's tags in the **Tags** card on its admin article page. Editors whose edits need approval can only view tags.
+- **Upgrading.** After migrating, run `bin/rails bbc:import_cached_tags` once. It copies tags that were generated before tags were stored in the database (they lived only in the cache) into the new tables. Installs whose `tag` prompt was seeded earlier keep their Persian-only prompt; the parser still accepts its output, and the English names can be filled in on the Tags page. Edit the prompt (see `Prompt::DEFAULTS["tag"]`) to get English names from the AI too.
+
 ## Admin Interface
 
 All admin routes are under `/admin`, behind a session-based login backed by

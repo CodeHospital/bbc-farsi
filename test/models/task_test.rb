@@ -419,19 +419,17 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal "completed", translation.reload.status # not flipped to "running"
   end
 
-  test "tag task complete! caches the generated tags for the article" do
-    original = Rails.cache
-    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+  test "tag task complete! stores the generated bilingual tags on the article" do
     translation = create_translation(attrs: { translated_title: "عنوان" })
     task = Task.enqueue_tag(translation, server: @server, model: "qwen3:14b")
 
     Task.claim_next!
-    task.complete!("tags" => "ایران, اقتصاد")
+    task.complete!("tags" => "ایران | Iran, اقتصاد | Economy")
 
     assert_equal "completed", task.reload.status
     assert_equal %w[ایران اقتصاد], TagGenerator.tags_for(translation.article)
-  ensure
-    Rails.cache = original
+    assert_equal %w[Iran Economy], TagGenerator.tags_for(translation.article, language: "en")
+    assert translation.article.reload.tags_generated_at
   end
 
   # ── analyze kind (bias/fact scores stored on the article) ─────────────────

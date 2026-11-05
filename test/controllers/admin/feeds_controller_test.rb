@@ -11,6 +11,37 @@ class Admin::FeedsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "index shows summary tiles, a seed menu with every source and a search box" do
+    create_article(feed: @feed)
+
+    get admin_feeds_path
+    assert_response :success
+    assert_select ".feeds-stat", count: 4
+    assert_select ".feeds-stat .stat-value", text: "1", minimum: 1
+    Admin::FeedsController::SEED_METHODS.each_key do |source_key|
+      assert_select "form[action=?]", seed_admin_feeds_path(source: source_key)
+    end
+    assert_select "input[type=search][data-table-filter-target=input]"
+  end
+
+  test "feed rows carry search text and per-feed article counts" do
+    create_article(feed: @feed)
+    create_article(feed: @feed)
+
+    get admin_feeds_path
+    assert_response :success
+    assert_select "tr##{ActionView::RecordIdentifier.dom_id(@feed)}[data-search-text*=?]", @feed.name.downcase do
+      assert_select "a[href=?]", admin_articles_path(feed_id: @feed.id), text: "2"
+      assert_select "a[href=?]", channel_path(feed_id: @feed.id)
+    end
+  end
+
+  test "shows an empty state when no feed matches the filters" do
+    get admin_feeds_path(category: "no-such-category")
+    assert_response :success
+    assert_select "[data-table-filter-target=empty]:not([hidden])"
+  end
+
   test "defaults to showing only enabled feeds" do
     disabled_feed = create_feed(name: "Disabled Feed", url: "https://www.bbc.co.uk/news/disabled.xml", enabled: false)
 

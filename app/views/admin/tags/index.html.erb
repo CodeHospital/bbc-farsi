@@ -1,0 +1,69 @@
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Tags</h2>
+</div>
+
+<p class="text-muted">
+  Every tag has a Persian and an English name; the Persian portal shows the Persian name and the English portal
+  the English one (a tag missing a name is hidden on that edition). AI tagging creates tags automatically —
+  complete their missing names here. Each story's <strong>default tag is its feed</strong>; rename that on the feed.
+  Add or remove an article's tags on its article page.
+</p>
+
+<% can_edit_tags = current_user.can_edit_tags? %>
+
+<% if can_edit_tags %>
+  <div class="card mb-4">
+    <div class="card-body">
+      <%= form_with model: [:admin, @new_tag], class: "row g-2 align-items-center" do |f| %>
+        <div class="col-md-4"><%= f.text_field :name_fa, class: "form-control", dir: "rtl", placeholder: "نام فارسی" %></div>
+        <div class="col-md-4"><%= f.text_field :name_en, class: "form-control", placeholder: "English name" %></div>
+        <div class="col-md-2"><%= f.submit "Add tag", class: "btn btn-primary" %></div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%= form_with url: admin_tags_path, method: :get, class: "row g-2 align-items-center mb-3" do %>
+  <div class="col-md-4"><%= search_field_tag :q, params[:q], class: "form-control", placeholder: "Search Persian or English name" %></div>
+  <div class="col-auto form-check ms-2">
+    <%= check_box_tag :missing, "1", params[:missing] == "1", class: "form-check-input", onchange: "this.form.requestSubmit()" %>
+    <%= label_tag :missing, "Missing a translation (#{@missing_translation_count})", class: "form-check-label" %>
+  </div>
+  <div class="col-auto"><%= submit_tag "Search", class: "btn btn-outline-secondary", name: nil %></div>
+<% end %>
+
+<% if @tags.empty? %>
+  <div class="alert alert-info">No tags found.</div>
+<% else %>
+  <table class="table table-hover align-middle">
+    <thead class="table-light">
+      <tr><th>Persian</th><th>English</th><th class="text-end">Articles</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% @tags.each do |tag| %>
+        <tr id="tag_<%= tag.id %>" class="<%= 'table-warning' if tag.missing_translation? %>">
+          <% if can_edit_tags %>
+            <td colspan="2">
+              <%= form_with model: [:admin, tag], method: :patch, class: "row g-2 align-items-center", id: "edit_tag_#{tag.id}" do |f| %>
+                <div class="col-md-5"><%= f.text_field :name_fa, class: "form-control form-control-sm", dir: "rtl", placeholder: "نام فارسی" %></div>
+                <div class="col-md-5"><%= f.text_field :name_en, class: "form-control form-control-sm", placeholder: "English name" %></div>
+                <div class="col-md-2"><%= f.submit "Save", class: "btn btn-sm btn-outline-primary" %></div>
+              <% end %>
+            </td>
+          <% else %>
+            <td dir="rtl"><%= tag.name_fa || content_tag(:span, "missing", class: "text-muted") %></td>
+            <td><%= tag.name_en || content_tag(:span, "missing", class: "text-muted") %></td>
+          <% end %>
+          <td class="text-end"><%= tag.articles_count %></td>
+          <td class="text-end">
+            <% if can_edit_tags %>
+              <%= button_to "Delete", admin_tag_path(tag), method: :delete, class: "btn btn-sm btn-outline-danger",
+                    data: { turbo_confirm: "Delete tag “#{tag.display_name}” from all #{tag.articles_count} article(s)?" } %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <%= render "admin/shared/pagination", pagy: @pagy %>
+<% end %>

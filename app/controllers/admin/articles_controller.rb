@@ -59,6 +59,7 @@ class Admin::ArticlesController < Admin::BaseController
     @translations   = @article.translations.includes(:ollama_server).order(created_at: :desc)
     @ollama_servers = OllamaServer.enabled.order(:name)
     @telegram_channels = TelegramChannel.enabled.order(:name)
+    @tag_suggestions = current_user.can_edit_tags? ? Tag.alphabetical.limit(1000) : Tag.none
 
     # Best published translation for the portal preview button.
     @portal_translation = @translations.find { |t|

@@ -71,19 +71,19 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_not_requested source_page_request
   end
 
-  test "show renders AI tags when the article has cached tags" do
-    original = Rails.cache
-    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+  test "show renders the article's tags in the edition's language" do
     translation = create_translation
-    TagGenerator.store(translation.article_id, %w[ایران اقتصاد])
+    TagGenerator.store(translation.article_id, [ { name_fa: "ایران", name_en: "Iran" }, { name_fa: "اقتصاد" } ])
 
     get news_path(id: translation.seo_param)
 
     assert_response :success
     assert_select ".article-tags .tag-chip", count: 3
     assert_select ".tag-chip", /ایران/
-  ensure
-    Rails.cache = original
+
+    get news_path(id: ArticleStory.new(translation.article).seo_param, lang: "en")
+    assert_select ".article-tags .tag-chip", count: 2 # feed + "Iran"; "اقتصاد" has no English name yet
+    assert_select ".tag-chip", /Iran/
   end
 
   test "the source feed is every story's default tag, linked to the feed page" do
@@ -101,19 +101,16 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/- Tags: .*جهان/, @response.body)
   end
 
-  test "an AI tag equal to the feed tag is not repeated" do
-    original = Rails.cache
-    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+  test "a tag equal to the feed tag is not repeated" do
     feed = create_feed(name: "World", name_fa: "جهان", category: "world")
     translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)))
-    feed_tag = ApplicationController.new.view_context.tap { |view| view.instance_variable_set(:@news_lang, "fa") }.feed_tag_label(feed)
+    get news_path(id: translation.seo_param)
+    feed_tag = css_select(".article-tags .tag-feed").first.text.strip
     TagGenerator.store(translation.article_id, [ feed_tag, "ایران" ])
 
     get news_path(id: translation.seo_param)
 
     assert_select ".article-tags .tag-chip", count: 2
-  ensure
-    Rails.cache = original
   end
 
   test "index hides stories older than 10 days when at least 10 fresh ones exist" do

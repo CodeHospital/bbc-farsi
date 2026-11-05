@@ -10,7 +10,17 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_01_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_05_000001) do
+  create_table "article_tags", force: :cascade do |t|
+    t.integer "article_id", null: false
+    t.integer "tag_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["article_id", "tag_id"], name: "index_article_tags_on_article_id_and_tag_id", unique: true
+    t.index ["article_id"], name: "index_article_tags_on_article_id"
+    t.index ["tag_id"], name: "index_article_tags_on_tag_id"
+  end
+
   create_table "article_views", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "translation_id"
@@ -46,6 +56,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_01_000001) do
     t.datetime "analyzed_at"
     t.string "image_url"
     t.datetime "image_resolved_at"
+    t.datetime "tags_generated_at"
     t.index ["feed_id"], name: "index_articles_on_feed_id"
     t.index ["image_resolved_at"], name: "index_articles_on_image_resolved_at"
     t.index ["slug"], name: "index_articles_on_slug", unique: true
@@ -232,6 +243,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_01_000001) do
     t.index ["key_hash"], name: "index_solid_cache_entries_on_key_hash", unique: true
   end
 
+  create_table "tags", force: :cascade do |t|
+    t.string "name_fa"
+    t.string "name_en"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name_en"], name: "index_tags_on_name_en", unique: true
+    t.index ["name_fa"], name: "index_tags_on_name_fa", unique: true
+  end
+
   create_table "tasks", force: :cascade do |t|
     t.string "kind", null: false
     t.string "status", default: "pending", null: false
@@ -347,6 +367,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_01_000001) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  add_foreign_key "article_tags", "articles"
+  add_foreign_key "article_tags", "tags"
   add_foreign_key "article_views", "articles"
   add_foreign_key "articles", "feeds"
   add_foreign_key "edit_links", "articles"

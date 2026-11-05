@@ -33,6 +33,8 @@ Rails.application.routes.draw do
 
       resources :articles, only: %i[index show] do
         resources :edit_links, only: :create
+        # An article's tags: add (existing or new tag) / remove.
+        resources :tags, only: %i[create destroy], controller: "article_tags"
         member do
           post :rewrite
           post :multi_rewrite
@@ -91,6 +93,9 @@ Rails.application.routes.draw do
           post :reject
         end
       end
+
+      # Bilingual article tags (admins and unrestricted editors).
+      resources :tags, only: %i[index create update destroy]
 
       # Phrases that make feed ingestion skip an entry (admin-only).
       resources :skip_phrases, only: %i[index create update destroy] do

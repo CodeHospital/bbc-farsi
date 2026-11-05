@@ -136,4 +136,9 @@ namespace :bbc do
     candidates.each { |translation| Task.enqueue_tag(translation, server:, model:) }
     puts "Enqueued #{candidates.size} tag task(s) (#{server.name} / #{model})."
   end
+
+  desc "One-off: move AI tags cached before tags were stored in the database into the tags tables"
+  task import_cached_tags: :environment do
+    puts "Imported cached tags for #{TagGenerator.import_cached_tags!} article(s)."
+  end
 end

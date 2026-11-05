@@ -60,7 +60,7 @@ class Admin::FeedsController < Admin::BaseController
     # while viewing "Enabled" only) should disappear from the turbo-stream
     # response instead of lingering with a stale row.
     @feed_matches_filter = feed_matches_filter?(@feed)
-    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    load_row_stats
     respond_to do |format|
       format.turbo_stream
       format.html { redirect_to admin_feeds_path, notice: "Feed #{@feed.enabled? ? 'enabled' : 'disabled'}." }
@@ -71,7 +71,7 @@ class Admin::FeedsController < Admin::BaseController
   # from the index row. An out-of-range hour just re-renders the unchanged row.
   def schedule
     @feed.reload unless @feed.update(fetch_hour: params[:fetch_hour].presence)
-    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    load_row_stats
     respond_to do |format|
       format.turbo_stream
       format.html do
@@ -90,7 +90,7 @@ class Admin::FeedsController < Admin::BaseController
       @feed.update!(autopost_target_channel_ids: requested_channel_ids)
     end
     @feed.reload
-    @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    load_row_stats
     respond_to do |format|
       format.turbo_stream
       format.html do
@@ -134,7 +134,28 @@ class Admin::FeedsController < Admin::BaseController
     @category_counts  = Feed.group(:category).count
 
     @feeds = filtered_feeds.includes(:autopost_target_channels).order(:name)
+    load_row_stats
+    @summary_stats = summary_stats
+  end
+
+  # Per-feed numbers every row needs, each as one grouped query (rather than
+  # a count per row). Shared by the index and the single-row turbo streams.
+  def load_row_stats
     @telegram_posts_counts_by_feed_id = telegram_posts_counts_by_feed_id
+    @articles_counts_by_feed_id       = Article.group(:feed_id).count
+    @latest_article_at_by_feed_id     = Article.group(:feed_id).maximum(:published_at)
+  end
+
+  # Header tiles across all feeds, independent of the active filters.
+  def summary_stats
+    {
+      total_feeds:      @enabled_counts.values.sum,
+      enabled_feeds:    @enabled_counts[true].to_i,
+      scheduled_feeds:  Feed.where(enabled: true).where.not(fetch_hour: nil).count,
+      autopost_feeds:   Feed.where(enabled: true).joins(:feed_autopost_channels).distinct.count,
+      total_articles:   @articles_counts_by_feed_id.values.sum,
+      posted_articles:  @telegram_posts_counts_by_feed_id.values.sum
+    }
   end
 
   def filtered_feeds

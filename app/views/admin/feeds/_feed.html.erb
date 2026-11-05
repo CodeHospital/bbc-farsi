@@ -1,29 +1,62 @@
 <% telegram_posts_counts_by_feed_id ||= {} %>
 <% autopost_channel_options ||= [] %>
-<tr id="<%= dom_id(feed) %>">
-  <td><%= feed.name %>
-  <% if feed.name_fa.present? %><span class="text-muted small" dir="rtl">(<%= feed.name_fa %>)</span><% end %>
-  <br />
-  <span class="badge bg-secondary"><%= feed.category %></span>
-  <br />
-  <span class="badge bg-info text-dark"><%= feed.source %></span></td>
-  <%# Scheme stripped to keep long NYT/BBC feed paths shorter; wraps onto
-      multiple lines within the column instead of being clipped. %>
-  <td style="max-width: 220px;">
-    <small class="text-muted" style="word-break: break-all;" title="<%= feed.url %>"><%= feed.url.sub(%r{\Ahttps?://}, "") %></small>
+<% articles_counts_by_feed_id ||= nil %>
+<% latest_article_at_by_feed_id ||= {} %>
+<% articles_count = articles_counts_by_feed_id ? articles_counts_by_feed_id.fetch(feed.id, 0) : feed.articles.count %>
+<% telegram_posts_count = telegram_posts_counts_by_feed_id.fetch(feed.id, 0) %>
+<% posted_percentage = articles_count.zero? ? 0 : 100.0 * telegram_posts_count / articles_count %>
+<% latest_article_at = latest_article_at_by_feed_id[feed.id] %>
+<% autopost_target_channels = feed.autopost_target_channels.to_a %>
+<% feed_url_without_scheme = feed.url.sub(%r{\Ahttps?://}, "") %>
+<%# data-search-text feeds the client-side search box on the index page. %>
+<tr id="<%= dom_id(feed) %>" class="feed-row <%= 'feed-row-disabled' unless feed.enabled? %>"
+    data-table-filter-target="row"
+    data-search-text="<%= [ feed.name, feed.name_fa, feed.source, feed.category, feed.url ].compact.join(' ').downcase %>">
+  <td data-sort-value="<%= feed.name.to_s.downcase %>" class="feed-identity">
+    <div class="d-flex align-items-start gap-2">
+      <span class="feed-avatar" aria-hidden="true"><%= feed.source.to_s.first(2).upcase %></span>
+      <div class="min-w-0">
+        <div class="fw-semibold">
+          <%= link_to feed.name, edit_admin_feed_path(feed), class: "text-reset text-decoration-none" %>
+          <% if feed.name_fa.present? %><span class="text-muted small ms-1" dir="rtl"><%= feed.name_fa %></span><% end %>
+        </div>
+        <div class="d-flex flex-wrap gap-1 my-1">
+          <span class="badge rounded-pill text-bg-info"><%= feed.source %></span>
+          <span class="badge rounded-pill text-bg-light border"><%= feed.category %></span>
+        </div>
+        <%# Scheme stripped to keep long NYT/BBC feed paths shorter. %>
+        <a href="<%= feed.url %>" target="_blank" rel="noopener" class="feed-url small text-muted" title="<%= feed.url %>">
+          <i class="bi bi-link-45deg"></i><%= feed_url_without_scheme %>
+        </a>
+      </div>
+    </div>
   </td>
-  <% articles_count = feed.articles.count %>
-  <td data-sort-value="<%= articles_count %>">
-    <%= link_to articles_count, admin_articles_path(feed_id: feed.id) %>
-  </td>
-  <% telegram_posts_count = telegram_posts_counts_by_feed_id.fetch(feed.id, 0) %>
-  <% posted_percentage = articles_count.zero? ? 0 : 100.0 * telegram_posts_count / articles_count %>
-  <td data-sort-value="<%= telegram_posts_count %>"><%= telegram_posts_count %></td>
-  <td data-sort-value="<%= posted_percentage %>">
-    <% unless articles_count.zero? %>
-      <span class="badge bg-primary"><%= posted_percentage.round %>%</span>
+
+  <td data-sort-value="<%= articles_count %>" class="text-nowrap">
+    <%= link_to admin_articles_path(feed_id: feed.id), class: "fw-semibold text-decoration-none" do %>
+      <%= number_with_delimiter(articles_count) %>
+    <% end %>
+    <span class="text-muted small">articles</span>
+    <% if latest_article_at %>
+      <small class="d-block <%= latest_article_at < 3.days.ago ? 'text-danger' : 'text-muted' %>"
+             title="Newest article <%= l(latest_article_at, format: :long) %>">
+        <i class="bi bi-clock-history"></i> <%= time_ago_in_words(latest_article_at) %> ago
+      </small>
     <% end %>
   </td>
+
+  <td data-sort-value="<%= posted_percentage %>" class="feed-posted">
+    <div class="d-flex justify-content-between small">
+      <span><%= number_with_delimiter(telegram_posts_count) %> posted</span>
+      <% unless articles_count.zero? %><span class="fw-semibold"><%= posted_percentage.round %>%</span><% end %>
+    </div>
+    <div class="progress" role="progressbar" style="height: 6px;"
+         aria-label="Posted share for <%= feed.name %>" aria-valuenow="<%= posted_percentage.round %>"
+         aria-valuemin="0" aria-valuemax="100">
+      <div class="progress-bar" style="width: <%= posted_percentage.round(1) %>%"></div>
+    </div>
+  </td>
+
   <%# Unscheduled feeds sort after every scheduled hour (0-23). %>
   <td data-sort-value="<%= feed.fetch_hour || 99 %>">
     <%= form_with url: schedule_admin_feed_path(feed), method: :patch, class: "d-inline" do %>
@@ -33,15 +66,17 @@
               feed.fetch_hour
             ),
             onchange: "this.form.requestSubmit()",
-            class: "form-select form-select-sm", style: "width: auto;",
+            class: "form-select form-select-sm #{'text-muted' if feed.fetch_hour.nil?}", style: "width: auto;",
             aria: { label: "Scheduled fetch hour for #{feed.name}" } %>
     <% end %>
     <% if feed.last_scheduled_fetch_at %>
-      <small class="text-muted d-block"><%= time_ago_in_words(feed.last_scheduled_fetch_at) %> ago</small>
+      <small class="text-muted d-block mt-1" title="Last scheduled fetch">
+        <i class="bi bi-arrow-repeat"></i> <%= time_ago_in_words(feed.last_scheduled_fetch_at) %> ago
+      </small>
     <% end %>
   </td>
+
   <%# Feeds with no autopost target sort last (below any channel name). %>
-  <% autopost_target_channels = feed.autopost_target_channels.to_a %>
   <td data-sort-value="<%= autopost_target_channels.empty? ? "~" : feed.autopost_channel_label %>">
     <% if autopost_channel_options.empty? %>
       <small class="text-muted">No channels yet</small>
@@ -63,17 +98,58 @@
       <% end %>
     <% end %>
   </td>
+
   <td data-sort-value="<%= feed.enabled? ? 1 : 0 %>">
-    <%= button_to feed.enabled? ? "Disable" : "Enable",
-          toggle_admin_feed_path(feed, request.query_parameters.except("page")), method: :patch,
-          class: "btn btn-sm #{feed.enabled? ? 'btn-success' : 'btn-outline-secondary'}" %>
+    <%= button_to toggle_admin_feed_path(feed, request.query_parameters.except("page")), method: :patch,
+          class: "btn btn-sm feed-status-toggle #{feed.enabled? ? 'btn-success' : 'btn-outline-secondary'}",
+          title: feed.enabled? ? "Click to disable this feed" : "Click to enable this feed",
+          aria: { label: "#{feed.enabled? ? 'Disable' : 'Enable'} #{feed.name}" } do %>
+      <i class="bi <%= feed.enabled? ? 'bi-toggle-on' : 'bi-toggle-off' %>"></i>
+      <%= feed.enabled? ? "Enabled" : "Disabled" %>
+    <% end %>
   </td>
-  <td>
-    <%= button_to "Fetch", fetch_admin_feed_path(feed), method: :post,
-          class: "btn btn-sm btn-outline-info me-1" %>
-    <%= link_to "Edit", edit_admin_feed_path(feed), class: "btn btn-sm btn-outline-primary me-1" %>
-    <%= button_to "Delete", admin_feed_path(feed), method: :delete,
-          class: "btn btn-sm btn-outline-danger",
-          data: { turbo_confirm: "Delete this feed?" } %>
+
+  <td class="text-end text-nowrap">
+    <div class="d-inline-flex gap-1">
+      <%= button_to fetch_admin_feed_path(feed), method: :post,
+            class: "btn btn-sm btn-outline-primary", title: "Fetch now" do %>
+        <i class="bi bi-cloud-download"></i><span class="d-none d-xl-inline"> Fetch</span>
+      <% end %>
+      <%= link_to edit_admin_feed_path(feed), class: "btn btn-sm btn-outline-secondary", title: "Edit" do %>
+        <i class="bi bi-pencil"></i><span class="visually-hidden">Edit</span>
+      <% end %>
+      <div class="dropdown">
+        <%# Fixed positioning lets the menu escape the table's scroll container. %>
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown"
+                data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="More actions">
+          <i class="bi bi-three-dots"></i><span class="visually-hidden">More actions for <%= feed.name %></span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+          <li>
+            <%= link_to admin_articles_path(feed_id: feed.id), class: "dropdown-item" do %>
+              <i class="bi bi-newspaper me-2"></i>View articles
+            <% end %>
+          </li>
+          <li>
+            <%= link_to portal_route(:channel, feed_id: feed.id), class: "dropdown-item", target: "_blank", rel: "noopener" do %>
+              <i class="bi bi-box-arrow-up-right me-2"></i>Public feed page
+            <% end %>
+          </li>
+          <li>
+            <a class="dropdown-item" href="<%= feed.url %>" target="_blank" rel="noopener">
+              <i class="bi bi-rss me-2"></i>Open RSS source
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <%= button_to admin_feed_path(feed), method: :delete,
+                  class: "dropdown-item text-danger",
+                  form: { data: { turbo_confirm: "Delete the feed “#{feed.name}”?" } } do %>
+              <i class="bi bi-trash me-2"></i>Delete
+            <% end %>
+          </li>
+        </ul>
+      </div>
+    </div>
   </td>
 </tr>

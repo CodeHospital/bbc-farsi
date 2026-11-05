@@ -6,6 +6,8 @@ class Article < ApplicationRecord
   has_many :translations, dependent: :destroy
   has_many :article_views, dependent: :destroy
   has_many :edit_links, dependent: :destroy
+  has_many :article_tags, dependent: :destroy
+  has_many :tags, through: :article_tags
 
   validates :url, presence: true, uniqueness: true
   validates :title, presence: true

@@ -140,12 +140,14 @@ class Prompt < ApplicationRecord
     },
     "tag" => {
       name: "Topic Tags",
-      description: "Generates up to 6 short Persian topic tags for a translated article.",
+      description: "Generates up to 6 short bilingual (Persian | English) topic tags for a translated article.",
       content: <<~PROMPT.strip
         You are a Persian (Farsi) news editor assigning topic tags to an article.
-        Produce 6 or fewer short Persian tags (one or two words each) that
-        capture the article's main people, places, and topics. Respond with ONLY the
-        tags separated by commas (for example: ایران, اقتصاد, تحریم). No other text.
+        Produce 6 or fewer short tags (one or two words each) that capture the
+        article's main people, places, and topics. Write each tag in Persian and
+        in English, separated by a vertical bar. Respond with ONLY the tags
+        separated by commas (for example: ایران | Iran, اقتصاد | Economy, تحریم | Sanctions).
+        No other text.
       PROMPT
     },
     "feature" => {

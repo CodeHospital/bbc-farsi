@@ -37,6 +37,11 @@ class User < ApplicationRecord
   # Admins and unrestricted editors approve/reject queued edits.
   def can_review_edits? = active? && !edits_need_approval?
 
+  # Tags are edited directly (there is no approval queue for them), so only
+  # users whose edits need no approval may change them: admins and
+  # unrestricted editors.
+  def can_edit_tags? = can_review_edits?
+
   def self.authenticate(username, password)
     user = active.find_by("LOWER(username) = ?", username.to_s.downcase)
     user if user&.authenticate(password)

@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Editable bilingual article tags
+
+- User prompt: "how can admin or editor edit the tags? each tag should have both languages / how do we edit article tags?"
+- Before this change, AI tags existed only in `Rails.cache` (30-day TTL), were Persian only, and could not be edited.
+- New `tags` table (`name_fa`, `name_en`, each unique) and `article_tags` join table (`Tag`, `ArticleTag`, both tracked by PaperTrail). New `articles.tags_generated_at` column marks articles the AI tagger has already processed. Migration `20261105000001_create_tags`, with `schema.rb` updated by hand. **The migration has not been run.**
+- AI tagging asks for "Persian | English" pairs (the default `tag` prompt was updated). The parser also accepts the old Persian-only lists. New tags are matched to existing tags by either name, and a missing name is filled in. AI tagging never removes tags an editor added.
+- **Admin → Tags** (new menu item): search tags, filter those missing a translation, add, edit both names, and delete (which removes the tag from every article). It shows how many articles use each tag.
+- New **Tags** card on the admin article page. It shows the feed (the default tag, read-only) and the article's tags, with buttons to remove a tag and a form to add one (Persian and/or English name, with suggestions from existing tags).
+- Permissions: admins and editors whose edits need no approval can edit tags (`User#can_edit_tags?`). Editors whose edits need approval can only view them.
+- The public story page shows tag names in the edition's language (the feed tag is still first). Tags without a name in that language are hidden on that edition.
+- `bin/rails bbc:import_cached_tags`: one-off task that copies tags from the old cache into the database.
+- 21 new tests (Tag model, TagGenerator, Admin::TagsController, Admin::ArticleTagsController, plus updates to the existing ones).
+
+### Changed — Admin feeds page redesign
+
+- User prompt: "redesign admin feeds page".
+- Four summary tiles at the top: total and enabled feeds, enabled feeds with a fetch schedule, enabled feeds that autopost, and total and posted articles.
+- The ten "Seed … Feeds" buttons are now one "Seed feeds" dropdown. It is built from `Admin::FeedsController::SEED_METHODS` and shows how many feeds each source already has.
+- The filters are in one toolbar: status as a button group, the category select, the source pills, a "Reset" link, and a new instant search box (new `table_filter` Stimulus controller). The search matches name, Persian name, source, category and URL, and it re-applies itself when a Turbo Stream replaces or removes a row.
+- The table is more compact. One "Feed" cell holds the name, Persian name, source and category badges, and a clickable URL. "Articles" shows how long ago the newest article was published, in red after 3 days without one. "Posted" has a progress bar. Status is an on/off button. Row actions are Fetch, Edit and a ⋯ menu (view articles, public feed page, open RSS source, delete with a confirmation).
+- Shows an empty state when no feed matches the filters.
+- Per-feed article counts and newest-article times now come from one grouped query each, instead of one query per row.
+- No migrations. 3 new controller tests; 760 tests green, rubocop clean.
+
 ### Fixed — Admin sidebar logo opened the admin dashboard instead of the public site
 
 - User prompt: "root_path is admin_root in admin?!".

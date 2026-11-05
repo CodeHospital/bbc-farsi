@@ -25,6 +25,12 @@ class Admin::BaseController < ApplicationController
     redirect_to admin_pending_edits_path, alert: "Only admins and approved editors can review edits." unless current_user&.can_review_edits?
   end
 
+  # Restricts tag editing (Tags page, an article's tags) to admins and
+  # unrestricted editors — see User#can_edit_tags?.
+  def require_tag_editor!
+    redirect_back fallback_location: admin_root_path, alert: "You don't have permission to edit tags." unless current_user&.can_edit_tags?
+  end
+
   # For a restricted editor, pre-fills the edit form with their own
   # still-pending proposal (so reopening the form doesn't lose it) and
   # returns that PendingEdit; nil for everyone else.

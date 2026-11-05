@@ -115,6 +115,11 @@
           <% end %>
         </li>
         <li class="nav-item">
+          <%= link_to admin_tags_path, class: "nav-link #{'active' if controller_name == 'tags'}" do %>
+            <i class="bi bi-tags"></i> Tags
+          <% end %>
+        </li>
+        <li class="nav-item">
           <%= link_to admin_prompts_path, class: "nav-link #{'active' if controller_name == 'prompts'}" do %>
             <i class="bi bi-chat-square-text"></i> Prompts
           <% end %>

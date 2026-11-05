@@ -1,5 +1,7 @@
 <%= turbo_stream.replace dom_id(@feed) do %>
   <%= render "feed", feed: @feed,
         telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id,
-        autopost_channel_options: @autopost_channel_options %>
+        autopost_channel_options: @autopost_channel_options,
+        articles_counts_by_feed_id: @articles_counts_by_feed_id,
+        latest_article_at_by_feed_id: @latest_article_at_by_feed_id %>
 <% end %>

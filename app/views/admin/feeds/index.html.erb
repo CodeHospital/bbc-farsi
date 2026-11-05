@@ -1,75 +1,87 @@
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h2>Feeds</h2>
+<style>
+  .feeds-stat { border: 0; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .feeds-stat .stat-icon { width: 38px; height: 38px; border-radius: 10px; display: inline-flex;
+                           align-items: center; justify-content: center; font-size: 1.1rem; }
+  .feeds-stat .stat-value { font-size: 1.35rem; font-weight: 700; line-height: 1.1; }
+  .feeds-toolbar { box-shadow: 0 1px 2px rgba(0,0,0,.06); border: 0; }
+  .feeds-table { box-shadow: 0 1px 2px rgba(0,0,0,.06); border: 0; }
+  .feeds-table table { margin-bottom: 0; }
+  .feeds-table thead th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+                          color: #6c757d; background: #f8f9fa; white-space: nowrap; }
+  .feeds-table td { vertical-align: middle; }
+  .feed-identity { min-width: 260px; max-width: 360px; }
+  .feed-avatar { flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: #e7f1ff;
+                 color: #0d6efd; font-size: .7rem; font-weight: 700; display: inline-flex;
+                 align-items: center; justify-content: center; }
+  .feed-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+              max-width: 300px; text-decoration: none; }
+  .feed-url:hover { text-decoration: underline; }
+  .feed-posted { min-width: 130px; }
+  .feed-row-disabled .feed-identity { opacity: .6; }
+  .feed-status-toggle { white-space: nowrap; }
+  .feeds-table .dropdown-menu form { margin: 0; }
+  .min-w-0 { min-width: 0; }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
   <div>
-    <%= button_to "Seed BBC Feeds", seed_admin_feeds_path, method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed NYT Feeds", seed_admin_feeds_path(source: "nyt"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed Ad Hoc News Feeds", seed_admin_feeds_path(source: "adhocnews"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed heise Feeds", seed_admin_feeds_path(source: "heise"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed German News Feeds", seed_admin_feeds_path(source: "germannews"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed Australian News Feeds", seed_admin_feeds_path(source: "australianews"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed Israel News Feeds", seed_admin_feeds_path(source: "israelnews"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed France 24 Feeds", seed_admin_feeds_path(source: "france24"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed Le Monde Feeds", seed_admin_feeds_path(source: "lemonde"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= button_to "Seed Le Figaro Feeds", seed_admin_feeds_path(source: "lefigaro"), method: :post,
-          class: "btn btn-outline-secondary me-2" %>
-    <%= link_to "New Feed", new_admin_feed_path, class: "btn btn-primary" %>
+    <h2 class="mb-0">Feeds</h2>
+    <p class="text-muted small mb-0">RSS sources ingested into the news pipeline.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-database-add me-1"></i>Seed feeds
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+        <li><h6 class="dropdown-header">Add a publisher's catalog</h6></li>
+        <% Admin::FeedsController::SEED_METHODS.each do |source_key, (_seed_method, source_label)| %>
+          <li>
+            <%= button_to seed_admin_feeds_path(source: source_key), method: :post, class: "dropdown-item" do %>
+              <%= source_label %>
+              <% if @source_counts[source_key].to_i.positive? %>
+                <span class="badge text-bg-light border ms-1"><%= @source_counts[source_key] %></span>
+              <% end %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+    <%= link_to new_admin_feed_path, class: "btn btn-primary" do %>
+      <i class="bi bi-plus-lg me-1"></i>New Feed
+    <% end %>
   </div>
 </div>
 
-<% base_params = request.query_parameters.except("page") %>
-<div class="mb-3">
-  <div class="mb-2">
-    <span class="text-muted small me-1">Status:</span>
-    <% [
-         [ "enabled",  "Enabled",  @enabled_counts[true].to_i ],
-         [ "disabled", "Disabled", @enabled_counts[false].to_i ],
-         [ "all",      "All",      @enabled_counts.values.sum ]
-       ].each do |value, text, count| %>
-      <% active = @enabled_filter == value %>
-      <%= link_to url_for(base_params.merge("enabled" => value)),
-            "aria-pressed": active,
-            class: "btn btn-sm me-1 #{active ? 'btn-secondary' : 'btn-outline-secondary'}" do %>
-        <%= text %> <span class="badge bg-secondary"><%= count %></span>
-      <% end %>
-    <% end %>
-  </div>
-
-  <% if @source_counts.size > 1 %>
-    <%= render "admin/shared/filter_group", label: "Source", param: :source,
-          options: @source_counts.keys.sort.map { |source| [ source, source.upcase ] },
-          counts: @source_counts %>
+<% stat_tiles = [
+     [ "Feeds",       @summary_stats[:total_feeds],     "#{@summary_stats[:enabled_feeds]} enabled",       "bi-rss",             "primary" ],
+     [ "Scheduled",   @summary_stats[:scheduled_feeds], "enabled feeds with a fetch hour",                 "bi-calendar-check",  "info" ],
+     [ "Autoposting", @summary_stats[:autopost_feeds],  "enabled feeds with a channel",                    "bi-send",            "success" ],
+     [ "Articles",    @summary_stats[:total_articles],  "#{number_with_delimiter(@summary_stats[:posted_articles])} posted", "bi-newspaper", "warning" ]
+   ] %>
+<div class="row g-3 mb-3">
+  <% stat_tiles.each do |tile_label, tile_value, tile_caption, tile_icon, tile_color| %>
+    <div class="col-6 col-lg-3">
+      <div class="card feeds-stat h-100">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <span class="stat-icon bg-<%= tile_color %>-subtle text-<%= tile_color %>-emphasis"><i class="bi <%= tile_icon %>"></i></span>
+          <div class="min-w-0">
+            <div class="text-muted small"><%= tile_label %></div>
+            <div class="stat-value"><%= number_with_delimiter(tile_value) %></div>
+            <div class="text-muted small text-truncate"><%= tile_caption %></div>
+          </div>
+        </div>
+      </div>
+    </div>
   <% end %>
-
-  <div class="mb-2">
-    <span class="text-muted small me-1">Category:</span>
-    <%= form_with url: admin_feeds_path, method: :get, local: true, class: "d-inline" do %>
-      <% base_params.except("category").each do |key, value| %>
-        <%= hidden_field_tag key, value %>
-      <% end %>
-      <%= select_tag :category,
-            options_for_select(
-              [ [ "All categories (#{@category_counts.values.sum})", "" ] ] +
-                @category_counts.keys.sort.map { |category| [ "#{category} (#{@category_counts[category]})", category ] },
-              params[:category]
-            ),
-            onchange: "this.form.requestSubmit()",
-            class: "form-select form-select-sm d-inline-block", style: "width: auto;" %>
-    <% end %>
-  </div>
 </div>
 
 <% if @fetch_result %>
-  <div class="card mb-3">
-    <div class="card-header">Fetch results — <%= @feed.name %></div>
+  <div class="card mb-3 border-<%= @fetch_result[:error] ? 'danger' : 'success' %>">
+    <div class="card-header d-flex align-items-center gap-2">
+      <i class="bi <%= @fetch_result[:error] ? 'bi-exclamation-triangle text-danger' : 'bi-check-circle text-success' %>"></i>
+      Fetch results — <%= @feed.name %>
+    </div>
     <div class="card-body">
       <% if @fetch_result[:error] %>
         <p class="text-danger mb-0">Failed: <%= @fetch_result[:error] %></p>
@@ -99,23 +111,104 @@
   </div>
 <% end %>
 
-<table class="table table-hover" data-controller="sortable-table">
-  <thead>
-    <tr>
-      <th data-action="click->sortable-table#sort">Name</th>
-      <th data-action="click->sortable-table#sort">URL</th>
-      <th data-action="click->sortable-table#sort" data-sort-type="number">Articles</th>
-      <th data-action="click->sortable-table#sort" data-sort-type="number">Posted</th>
-      <th data-action="click->sortable-table#sort" data-sort-type="number">Posted %</th>
-      <th data-action="click->sortable-table#sort" data-sort-type="number">Schedule</th>
-      <th data-action="click->sortable-table#sort">Autopost to</th>
-      <th data-action="click->sortable-table#sort" data-sort-type="number">Status</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <%= render partial: "feed", collection: @feeds,
-          locals: { telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id,
-                    autopost_channel_options: @autopost_channel_options } %>
-  </tbody>
-</table>
+<% base_params = request.query_parameters.except("page") %>
+<div data-controller="table-filter">
+  <div class="card feeds-toolbar mb-3">
+    <div class="card-body py-3">
+      <div class="row g-2 align-items-center">
+        <div class="col-12 col-md-auto">
+          <div class="btn-group btn-group-sm" role="group" aria-label="Status filter">
+            <% [
+                 [ "enabled",  "Enabled",  @enabled_counts[true].to_i ],
+                 [ "disabled", "Disabled", @enabled_counts[false].to_i ],
+                 [ "all",      "All",      @enabled_counts.values.sum ]
+               ].each do |value, text, count| %>
+              <% active = @enabled_filter == value %>
+              <%= link_to url_for(base_params.merge("enabled" => value)),
+                    "aria-pressed": active,
+                    class: "btn #{active ? 'btn-secondary' : 'btn-outline-secondary'}" do %>
+                <%= text %> <span class="badge <%= active ? 'text-bg-light' : 'bg-secondary' %>"><%= count %></span>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-auto">
+          <%= form_with url: admin_feeds_path, method: :get, local: true do %>
+            <% base_params.except("category").each do |key, value| %>
+              <%= hidden_field_tag key, value, id: nil %>
+            <% end %>
+            <%= select_tag :category,
+                  options_for_select(
+                    [ [ "All categories (#{@category_counts.values.sum})", "" ] ] +
+                      @category_counts.keys.compact.sort.map { |category| [ "#{category} (#{@category_counts[category]})", category ] },
+                    params[:category]
+                  ),
+                  onchange: "this.form.requestSubmit()",
+                  class: "form-select form-select-sm", aria: { label: "Category filter" } %>
+          <% end %>
+        </div>
+        <div class="col-12 col-sm-6 col-md">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="search" class="form-control" placeholder="Search name, source, URL…"
+                   aria-label="Search feeds" data-table-filter-target="input" data-action="input->table-filter#filter">
+          </div>
+        </div>
+        <% filters_active = params[:source].present? || params[:category].present? || @enabled_filter != "enabled" %>
+        <% if filters_active %>
+          <div class="col-auto">
+            <%= link_to admin_feeds_path, class: "btn btn-sm btn-link text-decoration-none" do %>
+              <i class="bi bi-x-circle"></i> Reset
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+
+      <% if @source_counts.size > 1 %>
+        <div class="mt-2 mb-n2">
+          <%= render "admin/shared/filter_group", label: "Source", param: :source,
+                options: @source_counts.keys.sort.map { |source| [ source, source.upcase ] },
+                counts: @source_counts %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="card feeds-table">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center small text-muted">
+      <span>
+        <span data-table-filter-target="count"><%= @feeds.size %></span> feeds shown
+      </span>
+      <span class="d-none d-md-inline">Click a column header to sort</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle" data-controller="sortable-table">
+        <thead>
+          <tr>
+            <th data-action="click->sortable-table#sort">Feed</th>
+            <th data-action="click->sortable-table#sort" data-sort-type="number">Articles</th>
+            <th data-action="click->sortable-table#sort" data-sort-type="number">Posted</th>
+            <th data-action="click->sortable-table#sort" data-sort-type="number">Schedule</th>
+            <th data-action="click->sortable-table#sort">Autopost to</th>
+            <th data-action="click->sortable-table#sort" data-sort-type="number">Status</th>
+            <th class="text-end"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <%= render partial: "feed", collection: @feeds,
+                locals: { telegram_posts_counts_by_feed_id: @telegram_posts_counts_by_feed_id,
+                          autopost_channel_options: @autopost_channel_options,
+                          articles_counts_by_feed_id: @articles_counts_by_feed_id,
+                          latest_article_at_by_feed_id: @latest_article_at_by_feed_id } %>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-body text-center text-muted py-5" data-table-filter-target="empty" <%= "hidden" if @feeds.any? %>>
+      <i class="bi bi-rss fs-2 d-block mb-2"></i>
+      No feeds match these filters.
+      <% if @feeds.none? && Feed.none? %>
+        Use <strong>Seed feeds</strong> or <strong>New Feed</strong> to add one.
+      <% end %>
+    </div>
+  </div>
+</div>
