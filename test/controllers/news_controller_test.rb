@@ -216,37 +216,43 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "main .mosaic .lead .overlay-title", text: "نسخه بهتر"
   end
 
-  test "posted news gets its own story line above the regular one" do
-    feed = create_feed(name: "World", category: "world")
-    posted = create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 3.hours.ago })),
-      attrs: { translated_title: "خبر ارسال‌شده" })
-    create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 1.hour.ago })),
+  test "posted news is its own story at the start of the story bar" do
+    world_feed = create_feed(name: "World", category: "world")
+    business_feed = create_feed(name: "Business", category: "business")
+    posted_world = create_translation(rewrite: create_rewrite(article: create_article(feed: world_feed, attrs: { published_at: 3.hours.ago })),
+      attrs: { translated_title: "خبر ارسال‌شده جهان" })
+    posted_business = create_translation(rewrite: create_rewrite(article: create_article(feed: business_feed, attrs: { published_at: 4.hours.ago })),
+      attrs: { translated_title: "خبر ارسال‌شده اقتصاد" })
+    create_translation(rewrite: create_rewrite(article: create_article(feed: world_feed, attrs: { published_at: 1.hour.ago })),
       attrs: { translated_title: "خبر تازه" })
     TelegramPost.create!(translation: create_translation(
-      rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 2.hours.ago })),
+      rewrite: create_rewrite(article: create_article(feed: world_feed, attrs: { published_at: 2.hours.ago })),
       attrs: { translated_title: "خبر لغوشده" }), telegram_channel: create_channel, status: "cancelled")
-    post_to_telegram(posted)
+    [ posted_world, posted_business ].each { |translation| post_to_telegram(translation) }
 
     get root_path
 
-    assert_select "nav.feed-stories .story-line", 2
-    assert_select "nav.feed-stories .story-line-posted button.feed-story.posted[data-story-key=?][data-story-open=?]", "posted-#{feed.id}", "0"
-    assert_select "nav.feed-stories .story-line-latest button.feed-story[data-story-key=?][data-story-open=?]", feed.id.to_s, "1"
+    assert_select "nav.feed-stories ul", 1
+    assert_select "nav.feed-stories button.feed-story", 2
+    assert_select "nav.feed-stories li:first-child button.feed-story.posted[data-story-key=posted][data-story-open=?]", "0"
+    assert_select "nav.feed-stories button.feed-story[data-feed-id=?][data-story-open=?]", world_feed.id.to_s, "1"
+    assert_select "nav.feed-stories button.feed-story[data-feed-id=?]", business_feed.id.to_s, 0
     story_data = JSON.parse(css_select("#story-viewer-data").first.text)
-    assert_equal [ "posted-#{feed.id}", feed.id.to_s ], story_data.map { |profile| profile["key"] }
-    assert_equal [ [ "خبر ارسال‌شده" ], [ "خبر تازه", "خبر لغوشده" ] ],
+    assert_equal [ "posted", world_feed.id.to_s ], story_data.map { |profile| profile["key"] }
+    assert_equal [ [ "خبر ارسال‌شده جهان", "خبر ارسال‌شده اقتصاد" ], [ "خبر تازه", "خبر لغوشده" ] ],
       story_data.map { |profile| profile["pages"].map { |page| page["title"] } }
   end
 
-  test "story bar renders only the posted line when every fresh story was posted" do
-    posted = create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 2.hours.ago })))
-    post_to_telegram(posted)
+  test "story bar holds just the posted story when every fresh story was posted" do
+    post_to_telegram(create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 2.hours.ago }))))
+    post_to_telegram(create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 3.days.ago }))))
 
     get root_path
 
-    assert_select "nav.feed-stories .story-line", 1
-    assert_select "nav.feed-stories .story-line-posted button.feed-story.posted", 1
-    assert_select "nav.feed-stories .story-line-title", 0
+    assert_select "nav.feed-stories button.feed-story", 1
+    assert_select "nav.feed-stories button.feed-story.posted", 1
+    story_data = JSON.parse(css_select("#story-viewer-data").first.text)
+    assert_equal 1, story_data.first["pages"].size
   end
 
   test "story bar is absent when nothing was published in the last 24 hours" do

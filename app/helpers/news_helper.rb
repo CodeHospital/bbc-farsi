@@ -94,8 +94,7 @@ module NewsHelper
       categories:   "دسته‌بندی‌ها",
       menu_more:    "بیشتر",
       feeds:        "منابع خبری",
-      posted_stories: "اخبار منتخب",
-      latest_stories: "تازه‌ترین‌ها",
+      posted_stories: "Telegram",
       close:        "بستن",
       previous:     "قبلی",
       next:         "بعدی",
@@ -133,8 +132,7 @@ module NewsHelper
       categories:   "Categories",
       menu_more:    "More",
       feeds:        "News sources",
-      posted_stories: "Stories",
-      latest_stories: "Latest",
+      posted_stories: "Telegram",
       close:        "Close",
       previous:     "Previous",
       next:         "Next",
@@ -296,42 +294,58 @@ module NewsHelper
     words.first(2).map { |word| word[0] }.join.upcase
   end
 
-  # Key under which the story viewer remembers a bubble as seen. The posted
-  # line gets its own namespace so a feed appearing in both lines is tracked
-  # separately; the regular line keeps the bare feed id (backwards compatible
-  # with what visitors' localStorage already holds).
-  def story_line_key(feed, posted:) = posted ? "posted-#{feed.id}" : feed.id.to_s
+  # Story-viewer key (and localStorage "seen" key) of the posted-news bubble.
+  # Feed bubbles use their bare feed id, so the two never collide.
+  POSTED_STORY_KEY = "posted".freeze
+  # Telegram brand blue, for the posted-news bubble and its viewer avatar.
+  POSTED_STORY_COLOR = "#229ed9".freeze
 
-  # JSON for the story viewer: one entry per feed profile with its
-  # last-24-hours stories as pages (title, short text, image, link). Profiles
-  # of the posted line come first, matching the order the bubbles are
-  # rendered in (the bubbles' data-story-open indexes into this array).
-  def story_viewer_json(profiles, image_urls, posted_profiles: [])
-    lines = posted_profiles.map { |profile| [ profile, true ] } + profiles.map { |profile| [ profile, false ] }
-    lines.map do |profile, posted|
+  # JSON for the story viewer, in the same order the bubbles are rendered
+  # (each bubble's data-story-open indexes into this array): the single
+  # "posted on Telegram" story first (when any news was posted), then one
+  # entry per feed profile, each with its last-24-hours stories as pages
+  # (title, short text, image, link).
+  def story_viewer_json(profiles, image_urls, posted_stories: [])
+    entries = []
+    if posted_stories.any?
+      entries << {
+        key: POSTED_STORY_KEY,
+        name: news_ui(:posted_stories),
+        publisher: news_ui(:site_name),
+        icon: "bi-telegram",
+        initials: "",
+        color: POSTED_STORY_COLOR,
+        feed_url: home_path,
+        latest: posted_stories.first.article_id,
+        pages: posted_stories.map { |story| story_viewer_page(story, image_urls) }
+      }
+    end
+    profiles.each do |profile|
       feed = profile.feed
-      {
+      entries << {
         id: feed.id,
-        key: story_line_key(feed, posted: posted),
-        posted: posted,
+        key: feed.id.to_s,
         name: feed_display_name(feed),
         publisher: source_name(feed),
         initials: feed_initials(feed),
         color: category_color(feed.category),
         feed_url: channel_path(feed_id: feed.id),
         latest: profile.stories.first.article_id,
-        pages: profile.stories.map do |story|
-          {
-            title: story_title(story),
-            text: story_page_text(story),
-            image: image_urls[story.article.id],
-            url: news_story_path(story),
-            category: category_name(story.article.feed&.category),
-            time: story_timestamp(story_time(story))
-          }
-        end
+        pages: profile.stories.map { |story| story_viewer_page(story, image_urls) }
       }
-    end.to_json
+    end
+    entries.to_json
+  end
+
+  def story_viewer_page(story, image_urls)
+    {
+      title: story_title(story),
+      text: story_page_text(story),
+      image: image_urls[story.article.id],
+      url: news_story_path(story),
+      category: category_name(story.article.feed&.category),
+      time: story_timestamp(story_time(story))
+    }
   end
 
   # Plain-text teaser for a story page: markdown marks stripped, cut at a word.

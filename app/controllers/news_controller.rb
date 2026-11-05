@@ -325,10 +325,10 @@ class NewsController < ApplicationController
     @all_stories = posted_first(story_pool)
     @sidebar_recent = @all_stories.first(6)
     posted_stories, unposted_stories = @all_stories.partition { |story| posted_story?(story) }
-    @posted_story_feeds = story_feed_profiles(posted_stories)
+    @posted_story_pages = fresh_stories_newest_first(posted_stories)
     @story_feeds = story_feed_profiles(unposted_stories)
     @story_image_urls = ArticleImageFetcher.call_many(
-      (@posted_story_feeds + @story_feeds).flat_map { |profile| profile.stories.map(&:article) }
+      (@posted_story_pages + @story_feeds.flat_map(&:stories)).map(&:article)
     )
     if params[:feed_id].present?
       @feed = Feed.find_by(id: params[:feed_id])
@@ -413,6 +413,14 @@ class NewsController < ApplicationController
   end
 
   def story_published_at(story) = story.article.published_at || story.created_at
+
+  # Stories from the last STORY_WINDOW, newest first, across every feed — the
+  # pages of the single "posted on Telegram" story bubble.
+  def fresh_stories_newest_first(stories)
+    cutoff = STORY_WINDOW.ago
+    stories.select { |story| story_published_at(story) >= cutoff }
+           .sort_by { |story| -story_published_at(story).to_f }
+  end
 
   # Drop stories older than FRONT_PAGE_MAX_STORY_AGE. If fewer than
   # FRONT_PAGE_MIN_STORIES are that fresh, top up with the next newest instead

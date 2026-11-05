@@ -2,39 +2,40 @@
     bubble opens the full-screen story viewer (below), paging through that
     feed's stories. A bubble turns grey once its latest story has been viewed
     (remembered in localStorage).
-    News already posted to Telegram gets its own line above the regular one;
-    each story appears in exactly one of the two lines. Bubble indexes are
-    global across both lines, matching the order of story_viewer_json. %>
-<% story_lines = [] %>
-<% story_lines << [ :posted, @posted_story_feeds ] if @posted_story_feeds.present? %>
-<% story_lines << [ :latest, @story_feeds ] if @story_feeds.present? %>
-<% bubble_index = 0 %>
+    News already posted to Telegram is its own story — a single bubble at the
+    start of the bar paging through every posted story of the last 24 hours;
+    those stories are left out of their feeds' bubbles. Bubble indexes match
+    the order of story_viewer_json. %>
+<% bubble_offset = @posted_story_pages.present? ? 1 : 0 %>
 <nav class="feed-stories" aria-label="<%= news_ui(:feeds) %>">
   <div class="container">
-    <% story_lines.each do |line, profiles| %>
-      <% posted_line = line == :posted %>
-      <div class="story-line story-line-<%= line %>">
-        <% if story_lines.size > 1 %>
-          <span class="story-line-title"><%= news_ui(posted_line ? :posted_stories : :latest_stories) %></span>
-        <% end %>
-        <ul>
-          <% profiles.each do |profile| %>
-            <% feed = profile.feed %>
-            <li>
-              <button type="button" class="feed-story<%= ' posted' if posted_line %>" data-story-open="<%= bubble_index %>"
-                      data-feed-id="<%= feed.id %>" data-story-key="<%= story_line_key(feed, posted: posted_line) %>"
-                      data-latest="<%= profile.stories.first.article_id %>"
-                      style="<%= category_style(feed.category) %>"
-                      title="<%= source_name(feed) %> · <%= feed_display_name(feed) %>">
-                <span class="ring"><span class="avatar"><%= feed_initials(feed) %></span></span>
-                <span class="label"><%= feed_display_name(feed) %></span>
-              </button>
-            </li>
-            <% bubble_index += 1 %>
-          <% end %>
-        </ul>
-      </div>
-    <% end %>
+    <ul>
+      <% if @posted_story_pages.present? %>
+        <li>
+          <button type="button" class="feed-story posted" data-story-open="0"
+                  data-story-key="<%= NewsHelper::POSTED_STORY_KEY %>"
+                  data-latest="<%= @posted_story_pages.first.article_id %>"
+                  style="--cat: <%= NewsHelper::POSTED_STORY_COLOR %>"
+                  title="<%= news_ui(:posted_stories) %>">
+            <span class="ring"><span class="avatar"><i class="bi bi-telegram"></i></span></span>
+            <span class="label"><%= news_ui(:posted_stories) %></span>
+          </button>
+        </li>
+      <% end %>
+      <% @story_feeds.each_with_index do |profile, index| %>
+        <% feed = profile.feed %>
+        <li>
+          <button type="button" class="feed-story" data-story-open="<%= index + bubble_offset %>"
+                  data-feed-id="<%= feed.id %>" data-story-key="<%= feed.id %>"
+                  data-latest="<%= profile.stories.first.article_id %>"
+                  style="<%= category_style(feed.category) %>"
+                  title="<%= source_name(feed) %> · <%= feed_display_name(feed) %>">
+            <span class="ring"><span class="avatar"><%= feed_initials(feed) %></span></span>
+            <span class="label"><%= feed_display_name(feed) %></span>
+          </button>
+        </li>
+      <% end %>
+    </ul>
   </div>
 </nav>
 
@@ -59,7 +60,7 @@
   </div>
 </div>
 
-<script type="application/json" id="story-viewer-data"><%= json_escape(story_viewer_json(@story_feeds, @story_image_urls, posted_profiles: @posted_story_feeds)).html_safe %></script>
+<script type="application/json" id="story-viewer-data"><%= json_escape(story_viewer_json(@story_feeds, @story_image_urls, posted_stories: @posted_story_pages)).html_safe %></script>
 <script>
 (function () {
   var viewer = document.getElementById("story-viewer");
@@ -96,7 +97,9 @@
     viewer.style.setProperty("--cat", profile.color);
     var who = viewer.querySelector(".story-who");
     who.href = profile.feed_url;
-    viewer.querySelector(".story-avatar").textContent = profile.initials;
+    var avatar = viewer.querySelector(".story-avatar");
+    avatar.textContent = profile.initials;
+    if (profile.icon) { var icon = document.createElement("i"); icon.className = "bi " + profile.icon; avatar.appendChild(icon); }
     viewer.querySelector(".story-name").textContent = profile.publisher + " · " + profile.name;
     viewer.querySelector(".story-time").textContent = page.time;
     viewer.querySelector(".story-cat").textContent = page.category;
