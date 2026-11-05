@@ -62,7 +62,12 @@
 <div class="container-fluid">
   <div class="row">
     <nav class="col-md-2 sidebar p-3" id="adminSidebar">
-      <div class="text-white fw-bold fs-5 mb-4"><img src="/logo.png" alt="" width="30" height="30" class="rounded me-1 align-text-bottom">Khabarestan</div>
+      <div class="text-white fw-bold fs-5 mb-4">
+        <a href="<%= root_path %>" target="_blank" class="text-white text-decoration-none">
+          <img src="/logo.png" alt="" width="30" height="30" class="rounded me-1 align-text-bottom">Khabarestan
+        </a>
+      </div>
+      <div class="text-secondary small px-2 mb-1" style="font-size:.7rem;letter-spacing:.05em;text-transform:uppercase">Admin Menu</div>
       <ul class="nav flex-column">
         <li class="nav-item">
           <%= link_to admin_root_path, class: "nav-link #{'active' if controller_name == 'dashboard'}" do %>
