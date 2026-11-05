@@ -115,6 +115,13 @@
       overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
     }
     .feed-stories ul::-webkit-scrollbar { display: none; }
+    .feed-stories .story-line + .story-line { border-top: 1px solid var(--line); }
+    .feed-stories .story-line-title {
+      display: block; padding-top: 10px; font-size: .75rem; font-weight: 700; color: var(--muted);
+    }
+    .feed-stories .story-line-title + ul { padding-top: 8px; }
+    .feed-story.posted .ring { background: conic-gradient(#229ed9, #5ec8f2, #229ed9); }
+    .feed-story.posted.seen .ring { background: #cfd3d8; }
     .feed-story {
       flex: 0 0 auto; width: 72px; text-align: center; display: block; color: var(--ink);
       background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
@@ -398,7 +405,7 @@
     </div>
   </div>
 
-  <%= render "news/feed_stories" if @story_feeds.present? %>
+  <%= render "news/feed_stories" if @story_feeds.present? || @posted_story_feeds.present? %>
 
   <%# ── Main menu ────────────────────────────────────────────── %>
   <nav class="mainmenu">

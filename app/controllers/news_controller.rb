@@ -38,7 +38,7 @@ class NewsController < ApplicationController
     end
     # A feed's own page lists everything it has published, however old.
     stories = fresh_front_page_stories(stories) unless @feed
-    @featured, @rest = FeaturedSelector.select(stories)
+    @featured, @rest = posted_first_featured_selection(stories)
 
     # On the homepage, group the remaining stories into category blocks like a
     # magazine front page; a category page is just a flat list.
@@ -97,7 +97,7 @@ class NewsController < ApplicationController
   def search
     @query = params[:q].to_s.strip
     if @query.present?
-      @results = portal_search(@query)
+      @results = posted_first(portal_search(@query))
       @image_urls = ArticleImageFetcher.call_many(@results.map(&:article))
       SearchQuery.track!(@query, edition: @news_lang, results_count: @results.size)
     else
@@ -321,15 +321,47 @@ class NewsController < ApplicationController
   # "latest news" sidebar list (with its thumbnails).
   def load_chrome
     @category = params[:category].presence
-    @all_stories = story_pool
+    @posted_article_ids = posted_article_ids
+    @all_stories = posted_first(story_pool)
     @sidebar_recent = @all_stories.first(6)
-    @story_feeds = story_feed_profiles(@all_stories)
-    @story_image_urls = ArticleImageFetcher.call_many(@story_feeds.flat_map { |profile| profile.stories.map(&:article) })
+    posted_stories, unposted_stories = @all_stories.partition { |story| posted_story?(story) }
+    @posted_story_feeds = story_feed_profiles(posted_stories)
+    @story_feeds = story_feed_profiles(unposted_stories)
+    @story_image_urls = ArticleImageFetcher.call_many(
+      (@posted_story_feeds + @story_feeds).flat_map { |profile| profile.stories.map(&:article) }
+    )
     if params[:feed_id].present?
       @feed = Feed.find_by(id: params[:feed_id])
       raise ActiveRecord::RecordNotFound, "feed #{params[:feed_id]}" unless @feed && @all_stories.any? { |story| story.article.feed_id == @feed.id }
     end
     @sidebar_image_urls = ArticleImageFetcher.call_many(@sidebar_recent.map(&:article))
+  end
+
+  # Article ids with at least one translation already posted to a Telegram
+  # channel. Keyed by article (not translation) so a later refinement of a
+  # posted translation still counts as posted.
+  def posted_article_ids
+    TelegramPost.posted.joins(:translation).distinct.pluck("translations.article_id").to_set
+  end
+
+  def posted_story?(story) = @posted_article_ids.include?(story.article_id)
+
+  # Stable partition: stories already posted to Telegram first, then the rest,
+  # each half keeping its incoming (newest-first) order.
+  def posted_first(stories)
+    stories.partition { |story| posted_story?(story) }.flatten(1)
+  end
+
+  # Hero selection that keeps posted news above unposted news: featured slots
+  # are filled from posted stories first and only topped up with unposted ones
+  # when fewer than FeaturedSelector::DEFAULT_LIMIT stories have been posted.
+  def posted_first_featured_selection(stories)
+    posted_stories, unposted_stories = stories.partition { |story| posted_story?(story) }
+    featured_posted, rest_posted = FeaturedSelector.select(posted_stories)
+    open_slots = FeaturedSelector::DEFAULT_LIMIT - featured_posted.size
+    featured_unposted, rest_unposted =
+      open_slots.positive? ? FeaturedSelector.select(unposted_stories, limit: open_slots) : [ [], unposted_stories ]
+    [ featured_posted + featured_unposted, rest_posted + rest_unposted ]
   end
 
   # The story pool driving every page. Persian shows only translated stories;

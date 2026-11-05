@@ -1,23 +1,40 @@
 <%# Story bar: one bubble per feed with news from the last 24 hours. Tapping a
     bubble opens the full-screen story viewer (below), paging through that
     feed's stories. A bubble turns grey once its latest story has been viewed
-    (remembered in localStorage). %>
+    (remembered in localStorage).
+    News already posted to Telegram gets its own line above the regular one;
+    each story appears in exactly one of the two lines. Bubble indexes are
+    global across both lines, matching the order of story_viewer_json. %>
+<% story_lines = [] %>
+<% story_lines << [ :posted, @posted_story_feeds ] if @posted_story_feeds.present? %>
+<% story_lines << [ :latest, @story_feeds ] if @story_feeds.present? %>
+<% bubble_index = 0 %>
 <nav class="feed-stories" aria-label="<%= news_ui(:feeds) %>">
   <div class="container">
-    <ul>
-      <% @story_feeds.each_with_index do |profile, index| %>
-        <% feed = profile.feed %>
-        <li>
-          <button type="button" class="feed-story" data-story-open="<%= index %>"
-                  data-feed-id="<%= feed.id %>" data-latest="<%= profile.stories.first.article_id %>"
-                  style="<%= category_style(feed.category) %>"
-                  title="<%= source_name(feed) %> · <%= feed_display_name(feed) %>">
-            <span class="ring"><span class="avatar"><%= feed_initials(feed) %></span></span>
-            <span class="label"><%= feed_display_name(feed) %></span>
-          </button>
-        </li>
-      <% end %>
-    </ul>
+    <% story_lines.each do |line, profiles| %>
+      <% posted_line = line == :posted %>
+      <div class="story-line story-line-<%= line %>">
+        <% if story_lines.size > 1 %>
+          <span class="story-line-title"><%= news_ui(posted_line ? :posted_stories : :latest_stories) %></span>
+        <% end %>
+        <ul>
+          <% profiles.each do |profile| %>
+            <% feed = profile.feed %>
+            <li>
+              <button type="button" class="feed-story<%= ' posted' if posted_line %>" data-story-open="<%= bubble_index %>"
+                      data-feed-id="<%= feed.id %>" data-story-key="<%= story_line_key(feed, posted: posted_line) %>"
+                      data-latest="<%= profile.stories.first.article_id %>"
+                      style="<%= category_style(feed.category) %>"
+                      title="<%= source_name(feed) %> · <%= feed_display_name(feed) %>">
+                <span class="ring"><span class="avatar"><%= feed_initials(feed) %></span></span>
+                <span class="label"><%= feed_display_name(feed) %></span>
+              </button>
+            </li>
+            <% bubble_index += 1 %>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
   </div>
 </nav>
 
@@ -42,7 +59,7 @@
   </div>
 </div>
 
-<script type="application/json" id="story-viewer-data"><%= json_escape(story_viewer_json(@story_feeds, @story_image_urls)).html_safe %></script>
+<script type="application/json" id="story-viewer-data"><%= json_escape(story_viewer_json(@story_feeds, @story_image_urls, posted_profiles: @posted_story_feeds)).html_safe %></script>
 <script>
 (function () {
   var viewer = document.getElementById("story-viewer");
@@ -56,14 +73,14 @@
 
   function seenMap() { try { return JSON.parse(localStorage.getItem("storiesSeen") || "{}"); } catch (e) { return {}; } }
   function markSeen(profile) {
-    try { var seen = seenMap(); seen[profile.id] = profile.latest; localStorage.setItem("storiesSeen", JSON.stringify(seen)); } catch (e) {}
-    var bubble = document.querySelector('.feed-story[data-feed-id="' + profile.id + '"]');
+    try { var seen = seenMap(); seen[profile.key] = profile.latest; localStorage.setItem("storiesSeen", JSON.stringify(seen)); } catch (e) {}
+    var bubble = document.querySelector('.feed-story[data-story-key="' + profile.key + '"]');
     if (bubble) bubble.classList.add("seen");
   }
   (function applySeen() {
     var seen = seenMap();
     document.querySelectorAll(".feed-story").forEach(function (bubble) {
-      if (String(seen[bubble.dataset.feedId]) === bubble.dataset.latest) bubble.classList.add("seen");
+      if (String(seen[bubble.dataset.storyKey]) === bubble.dataset.latest) bubble.classList.add("seen");
     });
   })();
 

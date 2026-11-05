@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Posted news shown first, with its own story line
+
+- User prompt: "always show posted news above unposted news / also create a separate story line for posted news".
+- "Posted" means the article has a translation with a `TelegramPost` in status `posted`. The check uses the article, so a later refinement of a posted translation still counts as posted.
+- The news site lists posted stories before unposted ones on the homepage, category pages, feed pages, the "latest news" sidebar and search results. Within each group, the newest stories still come first.
+- The hero is filled from posted stories first. Unposted stories fill it only when fewer than three stories have been posted.
+- The story bar now has two lines: "Posted on Telegram" (blue rings) above the regular "Latest" line. Each story appears in only one line. Line titles appear only when both lines are shown.
+- "Seen" state is stored separately for each line: `posted-<feed id>` for the posted line, and the plain feed id for the regular line, so existing visitors keep their seen state.
+- RSS, sitemap and `llms.txt` still use plain newest-first order.
+- No migrations.
+
 ### Added — Admin can cancel a scheduled Telegram post
 
 - User prompt: "admin should be able to cancel an schedule post".

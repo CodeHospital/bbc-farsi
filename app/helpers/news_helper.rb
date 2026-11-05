@@ -94,6 +94,8 @@ module NewsHelper
       categories:   "دسته‌بندی‌ها",
       menu_more:    "بیشتر",
       feeds:        "منابع خبری",
+      posted_stories: "اخبار منتخب",
+      latest_stories: "تازه‌ترین‌ها",
       close:        "بستن",
       previous:     "قبلی",
       next:         "بعدی",
@@ -131,6 +133,8 @@ module NewsHelper
       categories:   "Categories",
       menu_more:    "More",
       feeds:        "News sources",
+      posted_stories: "Stories",
+      latest_stories: "Latest",
       close:        "Close",
       previous:     "Previous",
       next:         "Next",
@@ -292,13 +296,24 @@ module NewsHelper
     words.first(2).map { |word| word[0] }.join.upcase
   end
 
+  # Key under which the story viewer remembers a bubble as seen. The posted
+  # line gets its own namespace so a feed appearing in both lines is tracked
+  # separately; the regular line keeps the bare feed id (backwards compatible
+  # with what visitors' localStorage already holds).
+  def story_line_key(feed, posted:) = posted ? "posted-#{feed.id}" : feed.id.to_s
+
   # JSON for the story viewer: one entry per feed profile with its
-  # last-24-hours stories as pages (title, short text, image, link).
-  def story_viewer_json(profiles, image_urls)
-    profiles.map do |profile|
+  # last-24-hours stories as pages (title, short text, image, link). Profiles
+  # of the posted line come first, matching the order the bubbles are
+  # rendered in (the bubbles' data-story-open indexes into this array).
+  def story_viewer_json(profiles, image_urls, posted_profiles: [])
+    lines = posted_profiles.map { |profile| [ profile, true ] } + profiles.map { |profile| [ profile, false ] }
+    lines.map do |profile, posted|
       feed = profile.feed
       {
         id: feed.id,
+        key: story_line_key(feed, posted: posted),
+        posted: posted,
         name: feed_display_name(feed),
         publisher: source_name(feed),
         initials: feed_initials(feed),

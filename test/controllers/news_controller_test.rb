@@ -175,6 +175,80 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "Business", "جهان" ], story_data.map { |profile| profile["name"] }.sort
   end
 
+  def post_to_telegram(translation)
+    TelegramPost.create!(translation:, telegram_channel: create_channel, status: "posted", posted_at: Time.current)
+  end
+
+  test "posted news is listed above newer unposted news" do
+    feed = create_feed(name: "World", category: "world")
+    posted = create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 3.days.ago })),
+      attrs: { translated_title: "خبر ارسال‌شده" })
+    unposted_titles = (1..4).map do |number|
+      title = "خبر تازه #{number}"
+      create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: number.hours.ago })),
+        attrs: { translated_title: title })
+      title
+    end
+    post_to_telegram(posted)
+
+    get category_path(category: "world")
+
+    main_titles = css_select("main .mosaic .overlay-title, main section .post-title a").map { |link| link.text.strip }.uniq
+    assert_equal "خبر ارسال‌شده", main_titles.first
+    assert_equal unposted_titles.size + 1, main_titles.size
+
+    get news_search_path(q: "خبر")
+    search_titles = css_select("main .post-title a").map { |link| link.text.strip }
+    assert_equal "خبر ارسال‌شده", search_titles.first
+  end
+
+  test "a refinement of a posted translation still counts as posted" do
+    article = create_article(attrs: { published_at: 3.days.ago })
+    original = create_translation(rewrite: create_rewrite(article:), attrs: { translated_title: "نسخه اول" })
+    post_to_telegram(original)
+    create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 1.hour.ago })),
+      attrs: { translated_title: "خبر تازه" })
+    create_translation(rewrite: original.rewrite, attrs: { translated_title: "نسخه بهتر", prompt_name: "refine" })
+
+    get news_search_path(q: "نسخه")
+    assert_equal [ "نسخه بهتر" ], css_select("main .post-title a").map { |link| link.text.strip }
+    get root_path
+    assert_select "main .mosaic .lead .overlay-title", text: "نسخه بهتر"
+  end
+
+  test "posted news gets its own story line above the regular one" do
+    feed = create_feed(name: "World", category: "world")
+    posted = create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 3.hours.ago })),
+      attrs: { translated_title: "خبر ارسال‌شده" })
+    create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 1.hour.ago })),
+      attrs: { translated_title: "خبر تازه" })
+    TelegramPost.create!(translation: create_translation(
+      rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 2.hours.ago })),
+      attrs: { translated_title: "خبر لغوشده" }), telegram_channel: create_channel, status: "cancelled")
+    post_to_telegram(posted)
+
+    get root_path
+
+    assert_select "nav.feed-stories .story-line", 2
+    assert_select "nav.feed-stories .story-line-posted button.feed-story.posted[data-story-key=?][data-story-open=?]", "posted-#{feed.id}", "0"
+    assert_select "nav.feed-stories .story-line-latest button.feed-story[data-story-key=?][data-story-open=?]", feed.id.to_s, "1"
+    story_data = JSON.parse(css_select("#story-viewer-data").first.text)
+    assert_equal [ "posted-#{feed.id}", feed.id.to_s ], story_data.map { |profile| profile["key"] }
+    assert_equal [ [ "خبر ارسال‌شده" ], [ "خبر تازه", "خبر لغوشده" ] ],
+      story_data.map { |profile| profile["pages"].map { |page| page["title"] } }
+  end
+
+  test "story bar renders only the posted line when every fresh story was posted" do
+    posted = create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 2.hours.ago })))
+    post_to_telegram(posted)
+
+    get root_path
+
+    assert_select "nav.feed-stories .story-line", 1
+    assert_select "nav.feed-stories .story-line-posted button.feed-story.posted", 1
+    assert_select "nav.feed-stories .story-line-title", 0
+  end
+
   test "story bar is absent when nothing was published in the last 24 hours" do
     create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 3.days.ago })))
 
