@@ -137,6 +137,11 @@ namespace :bbc do
     puts "Enqueued #{candidates.size} tag task(s) (#{server.name} / #{model})."
   end
 
+  desc "One-off: give articles created before feed tags existed their feed's tag"
+  task backfill_feed_tags: :environment do
+    puts "Attached feed tags to #{TagGenerator.backfill_feed_tags!} article(s)."
+  end
+
   desc "One-off: move AI tags cached before tags were stored in the database into the tags tables"
   task import_cached_tags: :environment do
     puts "Imported cached tags for #{TagGenerator.import_cached_tags!} article(s)."

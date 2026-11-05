@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Feed tags are ordinary tags
+
+- User prompt: "the channel tags should be just like normal tags, it's not a special case".
+- Each feed now has its own regular `Tag`, linked through `feeds.tag_id` (added to the not-yet-run `20261105000001_create_tags` migration; `schema.rb` updated). The tag is named "BBC News · World" in English and "BBC News · جهان" in Persian, or has no Persian name when the feed has none.
+- `Article` attaches its feed's tag when the article is created (`after_create`). Tagging errors are reported to Sentry and never stop ingestion. The tag can be edited, renamed or removed in admin like any other tag. If it is deleted, the feed is detached from it and the feed's next article recreates it.
+- New `bin/rails bbc:backfill_feed_tags` gives existing articles their feed's tag.
+- Removed the special handling of the feed tag: `NewsHelper#feed_tag_label`, the extra feed tag added on the public story page and its link to the feed page, and the read-only feed badge on the admin article card. Tags are shown in the order they were attached (`Article#ordered_tags`).
+- `TagGenerator.tagged?` and `untagged_candidates` now rely only on `tags_generated_at`, so an article that has only its feed tag is still sent for AI tagging.
+
 ### Added — Editable bilingual article tags
 
 - User prompt: "how can admin or editor edit the tags? each tag should have both languages / how do we edit article tags?"

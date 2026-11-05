@@ -232,8 +232,6 @@ module NewsHelper
   def feed_display_name(feed)
     (english_edition? ? nil : feed.name_fa.presence) || feed.name
   end
-  # A story's default tag: the feed it was taken from, e.g. "BBC · جهان".
-  def feed_tag_label(feed) = "#{source_name(feed)} · #{feed_display_name(feed)}"
   def source_domain(feed) = publisher_info(feed)[:domain]
   def source_url(feed)    = publisher_info(feed)[:url]
 

@@ -3,9 +3,8 @@
 # Runs through the worker queue (a `tag` Task): the LLM is given the Persian
 # title and body and asked for a few short topic tags, each as a
 # "Persian | English" pair. The tags are stored as bilingual Tag rows linked
-# to the article (ArticleTag), where admins/editors can edit them. Every
-# story's default tag — its source feed — is not generated here; it comes from
-# the feed itself (see NewsHelper#feed_tag_label).
+# to the article (ArticleTag), where admins/editors can edit them. (Each
+# article also starts with its feed's tag — see Feed#default_tag.)
 class TagGenerator
   MAX_TAGS = 6
   # Cache key prefix of the pre-database tags (see `import_cached_tags!`).
@@ -72,10 +71,11 @@ class TagGenerator
   # The article's tags in a portal edition's language ("fa"/"en"), skipping
   # tags not yet translated into it.
   def self.tags_for(article, language: "fa")
-    article.tags.sort_by(&:id).filter_map { |tag| tag.name_for(language) }
+    article.ordered_tags.filter_map { |tag| tag.name_for(language) }
   end
 
-  def self.tagged?(article) = article.tags_generated_at.present? || article.article_tags.exists?
+  # Whether AI tagging ran (an article's feed tag alone doesn't count).
+  def self.tagged?(article) = article.tags_generated_at.present?
 
   # Newest completed, non-archived translations (one per article) whose
   # article was never tagged — the work `bbc:tag` enqueues.
@@ -85,11 +85,25 @@ class TagGenerator
       .where(archived: false)
       .joins(:article)
       .where(articles: { archived: false, tags_generated_at: nil })
-      .where.not(article_id: ArticleTag.select(:article_id))
       .includes(:article)
       .order(created_at: :desc)
       .group_by(&:article_id)
       .map { |_id, versions| versions.first }
+  end
+
+  # One-off: attach each feed's tag to the articles created before feed tags
+  # existed (new articles get it on create). Returns the number of articles
+  # that gained it. Run via `bin/rails bbc:backfill_feed_tags`.
+  def self.backfill_feed_tags!
+    backfilled_count = 0
+    Feed.find_each do |feed|
+      feed_tag = feed.default_tag or next
+      feed.articles.where.not(id: feed_tag.article_tags.select(:article_id)).find_each do |article|
+        article.article_tags.create!(tag: feed_tag)
+        backfilled_count += 1
+      end
+    end
+    backfilled_count
   end
 
   # One-off move of tags generated before tags were stored in the database

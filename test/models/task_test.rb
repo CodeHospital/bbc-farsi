@@ -427,8 +427,9 @@ class TaskTest < ActiveSupport::TestCase
     task.complete!("tags" => "ایران | Iran, اقتصاد | Economy")
 
     assert_equal "completed", task.reload.status
-    assert_equal %w[ایران اقتصاد], TagGenerator.tags_for(translation.article)
-    assert_equal %w[Iran Economy], TagGenerator.tags_for(translation.article, language: "en")
+    feed_tag = translation.article.feed.tag
+    assert_equal [ feed_tag.name_en, "Iran", "Economy" ], TagGenerator.tags_for(translation.article, language: "en")
+    assert_equal %w[ایران اقتصاد], TagGenerator.tags_for(translation.article).last(2)
     assert translation.article.reload.tags_generated_at
   end
 

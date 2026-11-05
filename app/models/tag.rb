@@ -3,14 +3,14 @@
 # admin/editor then completes on the Tags admin page. The public portal shows
 # each tag in the edition's language and skips tags without a name in it.
 #
-# Not to be confused with a story's feed tag: every story's default tag is the
-# feed it was taken from, derived from Feed#name / Feed#name_fa (see
-# NewsHelper#feed_tag_label), so it is never stored here.
+# Every feed has one too (Feed#default_tag), attached to each article taken
+# from that feed; it is an ordinary tag in every other respect.
 class Tag < ApplicationRecord
   has_paper_trail
 
   has_many :article_tags, dependent: :destroy
   has_many :articles, through: :article_tags
+  has_many :feeds, dependent: :nullify
 
   normalizes :name_fa, :name_en, with: ->(name) { name.to_s.strip.delete_prefix("#").squish.presence }
 

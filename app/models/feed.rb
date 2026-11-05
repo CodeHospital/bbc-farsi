@@ -6,6 +6,9 @@ class Feed < ApplicationRecord
   # none by default. See #autopost_channels for the delivery gating.
   has_many :feed_autopost_channels, dependent: :delete_all
   has_many :autopost_target_channels, -> { order(:name) }, through: :feed_autopost_channels, source: :telegram_channel
+  # The feed's tag: an ordinary Tag (editable/removable like any other) that
+  # every article taken from this feed starts with. Created on first use.
+  belongs_to :tag, optional: true
 
   SOURCES = %w[bbc nyt adhocnews heise germannews australianews israelnews france24 lemonde lefigaro].freeze
 
@@ -66,6 +69,26 @@ class Feed < ApplicationRecord
     return nil unless multi_publisher_source?
 
     self.class.const_get("#{source.upcase}_PUBLISHERS")[url] || derived_publisher_info
+  end
+
+  # The publisher's display name ("BBC News", "tagesschau", …).
+  def publisher_name
+    publisher_info&.dig(:name) || NewsHelper::SOURCE_INFO.dig(source, :name) || source.to_s
+  end
+
+  # This feed's tag, creating it on first use: "BBC News · World" in English
+  # and "BBC News · جهان" in Persian (left blank when the feed has no Persian
+  # name — an editor completes it on the Tags page, like any other tag).
+  # An existing tag with either name is reused.
+  def default_tag
+    return tag if tag
+
+    feed_tag = Tag.resolve(
+      name_en: "#{publisher_name} · #{name}",
+      name_fa: name_fa.presence && "#{publisher_name} · #{name_fa}"
+    )
+    update_column(:tag_id, feed_tag.id) if feed_tag && persisted?
+    self.tag = feed_tag
   end
 
   BBC_FEEDS = {

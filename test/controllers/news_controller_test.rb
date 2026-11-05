@@ -71,46 +71,37 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_not_requested source_page_request
   end
 
-  test "show renders the article's tags in the edition's language" do
-    translation = create_translation
+  test "show renders the article's tags in the edition's language, the feed's tag first" do
+    feed = create_feed(name: "World", name_fa: "جهان", category: "world")
+    translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)))
     TagGenerator.store(translation.article_id, [ { name_fa: "ایران", name_en: "Iran" }, { name_fa: "اقتصاد" } ])
 
     get news_path(id: translation.seo_param)
 
     assert_response :success
-    assert_select ".article-tags .tag-chip", count: 3
-    assert_select ".tag-chip", /ایران/
-
-    get news_path(id: ArticleStory.new(translation.article).seo_param, lang: "en")
-    assert_select ".article-tags .tag-chip", count: 2 # feed + "Iran"; "اقتصاد" has no English name yet
-    assert_select ".tag-chip", /Iran/
-  end
-
-  test "the source feed is every story's default tag, linked to the feed page" do
-    feed = create_feed(name: "World", name_fa: "جهان", category: "world")
-    translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)))
-
-    get news_path(id: translation.seo_param)
-
-    assert_response :success
-    assert_select ".article-tags .tag-chip", count: 1
-    assert_select ".article-tags a.tag-chip.tag-feed[href=?]", channel_path(feed_id: feed.id), text: /جهان/
+    chips = css_select(".article-tags .tag-chip").map { |chip| chip.text.strip }
+    assert_equal [ "#{feed.publisher_name} · جهان", "ایران", "اقتصاد" ], chips
     assert_select "meta[property='article:tag'][content*=?]", "جهان"
 
-    get news_path(id: translation.seo_param, format: :md)
-    assert_match(/- Tags: .*جهان/, @response.body)
+    get news_path(id: ArticleStory.new(translation.article).seo_param, lang: "en")
+    chips = css_select(".article-tags .tag-chip").map { |chip| chip.text.strip }
+    assert_equal [ "#{feed.publisher_name} · World", "Iran" ], chips # "اقتصاد" has no English name yet
+
+    get news_path(id: translation.seo_param, format: :md, lang: nil)
+    assert_match(/- Tags: .*جهان, ایران, اقتصاد/, @response.body)
   end
 
-  test "a tag equal to the feed tag is not repeated" do
+  test "a removed or renamed feed tag behaves like any other tag" do
     feed = create_feed(name: "World", name_fa: "جهان", category: "world")
     translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)))
-    get news_path(id: translation.seo_param)
-    feed_tag = css_select(".article-tags .tag-feed").first.text.strip
-    TagGenerator.store(translation.article_id, [ feed_tag, "ایران" ])
+    feed.tag.update!(name_fa: "اخبار جهان")
 
     get news_path(id: translation.seo_param)
+    assert_select ".article-tags .tag-chip", text: "اخبار جهان"
 
-    assert_select ".article-tags .tag-chip", count: 2
+    translation.article.article_tags.destroy_all
+    get news_path(id: translation.seo_param)
+    assert_select ".article-tags", 0
   end
 
   test "index hides stories older than 10 days when at least 10 fresh ones exist" do

@@ -31,18 +31,19 @@ class TagGeneratorTest < ActiveSupport::TestCase
     assert_match "عنوان", requests.first[:messages].last[:content]
   end
 
-  test "store links bilingual tags to the article and marks it tagged" do
-    article = create_article
+  test "store links bilingual tags to the article after its feed's tag and marks it tagged" do
+    article = create_article(feed: create_feed(name: "World", name_fa: "جهان"))
+    feed_tag = article.feed.tag
 
-    assert_empty TagGenerator.tags_for(article)
+    assert_equal [ feed_tag.name_fa ], TagGenerator.tags_for(article)
     refute TagGenerator.tagged?(article)
 
     TagGenerator.store(article.id, [ { name_fa: "ایران", name_en: "Iran" }, { name_fa: "اقتصاد", name_en: nil } ])
 
     article.reload
     assert TagGenerator.tagged?(article)
-    assert_equal %w[ایران اقتصاد], TagGenerator.tags_for(article)
-    assert_equal %w[Iran], TagGenerator.tags_for(article, language: "en")
+    assert_equal [ feed_tag.name_fa, "ایران", "اقتصاد" ], TagGenerator.tags_for(article)
+    assert_equal [ feed_tag.name_en, "Iran" ], TagGenerator.tags_for(article, language: "en")
   end
 
   test "store reuses existing tags, fills a missing name, and keeps editor-added tags" do
@@ -54,8 +55,8 @@ class TagGeneratorTest < ActiveSupport::TestCase
     TagGenerator.store(article.id, [ { name_fa: "ایران", name_en: "Iran" } ])
 
     assert_equal "Iran", existing_tag.reload.name_en
-    assert_equal 2, Tag.count
-    assert_equal [ editor_tag, existing_tag ].map(&:id).sort, article.reload.tag_ids.sort
+    assert_equal 3, Tag.count # + the feed's tag
+    assert_equal [ article.feed.tag, editor_tag, existing_tag ], article.reload.ordered_tags
   end
 
   test "untagged_candidates excludes already-tagged articles" do
@@ -72,6 +73,23 @@ class TagGeneratorTest < ActiveSupport::TestCase
     refute_includes candidate_ids, tagged_with_nothing.article_id
   end
 
+  test "untagged_candidates still includes articles that only have their feed's tag" do
+    translation = create_translation
+
+    assert_equal 1, translation.article.tags.count
+    assert_includes TagGenerator.untagged_candidates.map(&:article_id), translation.article_id
+  end
+
+  test "backfill_feed_tags! gives older articles their feed's tag, once" do
+    feed = create_feed(name: "World", name_fa: "جهان")
+    article = create_article(feed:)
+    article.article_tags.delete_all
+
+    assert_equal 1, TagGenerator.backfill_feed_tags!
+    assert_equal [ feed.reload.tag ], article.reload.tags.to_a
+    assert_equal 0, TagGenerator.backfill_feed_tags!
+  end
+
   test "import_cached_tags! moves pre-database cached tags into the tags tables" do
     original = Rails.cache
     Rails.cache = ActiveSupport::Cache::MemoryStore.new
@@ -79,7 +97,7 @@ class TagGeneratorTest < ActiveSupport::TestCase
     Rails.cache.write("article_tags/#{article.id}", %w[ایران اقتصاد])
 
     assert_equal 1, TagGenerator.import_cached_tags!
-    assert_equal %w[ایران اقتصاد], TagGenerator.tags_for(article.reload)
+    assert_equal %w[ایران اقتصاد], TagGenerator.tags_for(article.reload).last(2)
     assert_equal 0, TagGenerator.import_cached_tags!
   ensure
     Rails.cache = original

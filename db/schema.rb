@@ -100,6 +100,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_05_000001) do
     t.integer "fetch_hour"
     t.datetime "last_scheduled_fetch_at"
     t.string "name_fa"
+    t.integer "tag_id"
+    t.index ["tag_id"], name: "index_feeds_on_tag_id"
     t.index ["url"], name: "index_feeds_on_url", unique: true
   end
 
@@ -375,6 +377,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_05_000001) do
   add_foreign_key "edit_links", "users", column: "created_by_id"
   add_foreign_key "feed_autopost_channels", "feeds"
   add_foreign_key "feed_autopost_channels", "telegram_channels"
+  add_foreign_key "feeds", "tags"
   add_foreign_key "pending_edits", "edit_links"
   add_foreign_key "pending_edits", "users", column: "author_id"
   add_foreign_key "pending_edits", "users", column: "reviewer_id"

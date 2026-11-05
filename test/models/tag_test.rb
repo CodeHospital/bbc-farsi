@@ -39,4 +39,34 @@ class TagTest < ActiveSupport::TestCase
     assert_equal "ایران", tag.name_for("fa")
     assert_equal "Iran", tag.name_for("en")
   end
+
+  test "a feed's tag is an ordinary tag, attached to every new article from that feed" do
+    feed = create_feed(name: "World", name_fa: "جهان")
+    first_article = create_article(feed:)
+    second_article = create_article(feed:)
+
+    feed_tag = feed.reload.tag
+    assert_equal "#{feed.publisher_name} · World", feed_tag.name_en
+    assert_equal "#{feed.publisher_name} · جهان", feed_tag.name_fa
+    assert_equal [ feed_tag ], first_article.tags.to_a
+    assert_equal [ feed_tag ], second_article.tags.to_a
+    assert_equal 1, Tag.count
+  end
+
+  test "a feed without a Persian name gets a tag missing its Persian name" do
+    feed_tag = create_article(feed: create_feed(name: "Business")).feed.tag
+
+    assert_nil feed_tag.name_fa
+    assert feed_tag.missing_translation?
+  end
+
+  test "deleting a feed's tag detaches it; the next article recreates it" do
+    feed = create_feed(name: "World", name_fa: "جهان")
+    create_article(feed:)
+    feed.reload.tag.destroy!
+
+    assert_nil feed.reload.tag_id
+    create_article(feed:)
+    assert feed.reload.tag
+  end
 end

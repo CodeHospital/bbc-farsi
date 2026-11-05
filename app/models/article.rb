@@ -13,6 +13,7 @@ class Article < ApplicationRecord
   validates :title, presence: true
 
   before_save :ensure_slug
+  after_create :attach_feed_tag
 
   STATUSES = %w[pending rewriting rewritten translating translated posted error].freeze
   validates :status, inclusion: { in: STATUSES }
@@ -32,6 +33,19 @@ class Article < ApplicationRecord
   scope :not_archived, -> { where(archived: false) }
   scope :pending_rewrite, -> { where(status: "pending") }
   scope :rewritten, -> { where(status: "rewritten") }
+
+  # Tags in the order they were attached (so the feed's tag comes first).
+  def ordered_tags = article_tags.includes(:tag).order(:id).map(&:tag)
+
+  # Every article starts with its feed's tag. A tagging failure must never
+  # stop ingestion, so it is reported and skipped.
+  def attach_feed_tag
+    feed_tag = feed&.default_tag
+    article_tags.find_or_create_by!(tag: feed_tag) if feed_tag
+  rescue ActiveRecord::ActiveRecordError => error
+    Rails.logger.warn("[Article] feed tag not attached to article #{id}: #{error.message}")
+    Sentry.capture_exception(error)
+  end
 
   def self.ignorable?(title, url)
     ignore_reason(title, url).present?

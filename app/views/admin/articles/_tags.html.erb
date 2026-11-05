@@ -1,7 +1,6 @@
-<%# Article tags. The source feed is every story's default tag (shown
-    read-only — rename it on the feed); the rest are bilingual Tag rows that
-    admins and unrestricted editors can add and remove here, and rename on the
-    Tags page. locals: article %>
+<%# Article tags: bilingual Tag rows (the first is usually the feed's tag,
+    attached when the article was created) that admins and unrestricted
+    editors add and remove here and rename on the Tags page. locals: article %>
 <% can_edit_tags = current_user.can_edit_tags? %>
 <div class="card mb-4" id="tags">
   <div class="card-header d-flex justify-content-between align-items-center">
@@ -10,12 +9,8 @@
   </div>
   <div class="card-body">
     <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-      <% if article.feed %>
-        <span class="badge rounded-pill text-bg-dark" title="Default tag: the feed this article was taken from">
-          <i class="bi bi-rss"></i> <%= [ article.feed.name_fa.presence, article.feed.name ].compact.join(" / ") %>
-        </span>
-      <% end %>
-      <% article.tags.sort_by(&:id).each do |tag| %>
+      <% article_tags = article.ordered_tags %>
+      <% article_tags.each do |tag| %>
         <span class="badge rounded-pill <%= tag.missing_translation? ? 'text-bg-warning' : 'text-bg-light border' %> d-inline-flex align-items-center gap-1"
               title="<%= 'Missing a translation — complete it on the Tags page' if tag.missing_translation? %>">
           <span dir="rtl"><%= tag.name_fa || "—" %></span> / <span><%= tag.name_en || "—" %></span>
@@ -27,8 +22,11 @@
           <% end %>
         </span>
       <% end %>
-      <% if article.tags.empty? %>
-        <span class="text-muted small">No topic tags yet<%= " — AI tagging hasn't run" unless article.tags_generated_at %>.</span>
+      <% if article_tags.empty? %>
+        <span class="text-muted small">No tags.</span>
+      <% end %>
+      <% unless article.tags_generated_at %>
+        <span class="text-muted small">AI topic tagging hasn't run yet.</span>
       <% end %>
     </div>
 
