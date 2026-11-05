@@ -171,6 +171,15 @@ class SplitHostsTest < ActionDispatch::IntegrationTest
     assert_select "input[value^=?]", "https://#{PUBLIC_HOST}/edit/"
   end
 
+  test "the admin sidebar logo opens the public homepage, not the admin dashboard" do
+    host! ADMIN_HOST
+    log_in_as
+
+    get admin_root_path
+    assert_response :success
+    assert_select "#adminSidebar a[target=_blank][href=?]", "https://#{PUBLIC_HOST}/"
+  end
+
   test "webhook URLs point at the API host" do
     assert_equal "https://#{API_HOST}", AppHosts.api_base_url
     assert_match %r{\Ahttps://#{API_HOST}/api/llm_callbacks\?token=}, LlmarktSubmitter.callback_url(Task.new(id: 1), "k")

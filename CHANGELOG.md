@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Admin sidebar logo opened the admin dashboard instead of the public site
+
+- User prompt: "root_path is admin_root in admin?!".
+- The "Khabarestan" logo in the admin sidebar linked to `root_path`, which is `/`. When the admin UI runs on its own host (`admin.khabarestan.com`), `/` is the admin dashboard, so the logo opened the admin dashboard in a new tab instead of the public site.
+- The logo now uses `portal_route(:root)`. This gives `/` when the admin and public site share a host, and the absolute public URL (`https://www.khabarestan.com/`) when they are on separate hosts.
+- New regression test in `SplitHostsTest`.
+
 ### Added — Source feed is every story's default tag
 
 - User prompt: "every news can have multiple tags, default tag should be the feed it was taken from".
