@@ -80,8 +80,38 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     get news_path(id: translation.seo_param)
 
     assert_response :success
-    assert_select ".article-tags .tag-chip", count: 2
+    assert_select ".article-tags .tag-chip", count: 3
     assert_select ".tag-chip", /ایران/
+  ensure
+    Rails.cache = original
+  end
+
+  test "the source feed is every story's default tag, linked to the feed page" do
+    feed = create_feed(name: "World", name_fa: "جهان", category: "world")
+    translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)))
+
+    get news_path(id: translation.seo_param)
+
+    assert_response :success
+    assert_select ".article-tags .tag-chip", count: 1
+    assert_select ".article-tags a.tag-chip.tag-feed[href=?]", channel_path(feed_id: feed.id), text: /جهان/
+    assert_select "meta[property='article:tag'][content*=?]", "جهان"
+
+    get news_path(id: translation.seo_param, format: :md)
+    assert_match(/- Tags: .*جهان/, @response.body)
+  end
+
+  test "an AI tag equal to the feed tag is not repeated" do
+    original = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    feed = create_feed(name: "World", name_fa: "جهان", category: "world")
+    translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)))
+    feed_tag = ApplicationController.new.view_context.tap { |view| view.instance_variable_set(:@news_lang, "fa") }.feed_tag_label(feed)
+    TagGenerator.store(translation.article_id, [ feed_tag, "ایران" ])
+
+    get news_path(id: translation.seo_param)
+
+    assert_select ".article-tags .tag-chip", count: 2
   ensure
     Rails.cache = original
   end

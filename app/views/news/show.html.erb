@@ -127,7 +127,11 @@
       <div class="article-tags mt-4 pt-3 border-top">
         <span class="tags-label"><%= news_ui(:tags_label) %></span>
         <% @tags.each do |tag| %>
-          <span class="tag-chip"><%= tag %></span>
+          <% if tag == @feed_tag %>
+            <%= link_to tag, channel_path(feed_id: @article.feed_id), class: "tag-chip tag-feed" %>
+          <% else %>
+            <span class="tag-chip"><%= tag %></span>
+          <% end %>
         <% end %>
       </div>
     <% end %>

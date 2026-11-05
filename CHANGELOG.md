@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Source feed is every story's default tag
+
+- User prompt: "every news can have multiple tags, default tag should be the feed it was taken from".
+- Each story page lists the feed the story came from as its first tag, for example "BBC · جهان". The tag is always present, even when the story has no AI tags yet, and it links to that feed's page.
+- The AI topic tags still follow it. An AI tag with the same text as the feed tag is not repeated.
+- The feed tag is also included in the page's `article:tag` meta tags, the JSON-LD `keywords`, and the "Tags" line of the `.md` version of the story.
+- No migrations. AI tags are still stored in the cache, and the feed tag is built from the article's feed when the page loads.
+
 ### Changed — Posted news shown first, with its own story
 
 - User prompt: "always show posted news above unposted news / also create a separate story line for posted news".

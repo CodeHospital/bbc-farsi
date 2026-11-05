@@ -77,13 +77,14 @@ class NewsController < ApplicationController
     @article = @translation.article
     @image_url = ArticleImageFetcher.call(@article)
 
-    # Markdown twin for LLMs / reader tools: no view tracking or task bumping.
-    if request.format.symbol == :md
-      @tags = TagGenerator.tags_for(@article)
-      return render_story_markdown
-    end
+    # Every story carries several tags: its source feed first (the default tag,
+    # always present), then the AI-generated topic tags.
+    @feed_tag = view_context.feed_tag_label(@article.feed) if @article.feed
+    @tags = [ @feed_tag, *TagGenerator.tags_for(@article) ].compact.uniq
 
-    @tags = TagGenerator.tags_for(@article)
+    # Markdown twin for LLMs / reader tools: no view tracking or task bumping.
+    return render_story_markdown if request.format.symbol == :md
+
     @sidebar_image_urls = ArticleImageFetcher.call_many(@sidebar_recent.map(&:article))
 
     bump_pending_task_priorities(@article)
@@ -219,7 +220,7 @@ class NewsController < ApplicationController
       ## What you will find here
       - Persian-language news articles (automatically translated from international news sources)
       - English-language originals (accessible via the /en/ URL prefix)
-      - AI-generated topic tags per article
+      - Tags per article: the source feed, plus AI-generated topic tags
       - Category sections: #{NewsHelper::CATEGORY_NAMES_EN.values.join(', ')}
 
       ## Editions and URLs

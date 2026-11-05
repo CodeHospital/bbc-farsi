@@ -94,7 +94,7 @@ module NewsHelper
       categories:   "دسته‌بندی‌ها",
       menu_more:    "بیشتر",
       feeds:        "منابع خبری",
-      posted_stories: "Telegram",
+      posted_stories: "خواندنی‌ها",
       close:        "بستن",
       previous:     "قبلی",
       next:         "بعدی",
@@ -132,7 +132,7 @@ module NewsHelper
       categories:   "Categories",
       menu_more:    "More",
       feeds:        "News sources",
-      posted_stories: "Telegram",
+      posted_stories: "Spotlight",
       close:        "Close",
       previous:     "Previous",
       next:         "Next",
@@ -232,6 +232,8 @@ module NewsHelper
   def feed_display_name(feed)
     (english_edition? ? nil : feed.name_fa.presence) || feed.name
   end
+  # A story's default tag: the feed it was taken from, e.g. "BBC · جهان".
+  def feed_tag_label(feed) = "#{source_name(feed)} · #{feed_display_name(feed)}"
   def source_domain(feed) = publisher_info(feed)[:domain]
   def source_url(feed)    = publisher_info(feed)[:url]
 
