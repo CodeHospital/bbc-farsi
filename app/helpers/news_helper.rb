@@ -101,6 +101,8 @@ module NewsHelper
       read_story:   "خواندن خبر کامل",
       sections:     "دسته‌ها",
       follow:       "دنبال کنید",
+      terms_title:  "شرایط استفاده",
+      privacy_title: "حریم خصوصی",
       more:         "بیشتر ›",
       tags_label:   "برچسب‌ها:",
       read_source:  "مشاهدهٔ خبر اصلی در %{domain} ↗",
@@ -139,6 +141,8 @@ module NewsHelper
       read_story:   "Read the full story",
       sections:     "Sections",
       follow:       "Follow",
+      terms_title:  "Terms of Use",
+      privacy_title: "Privacy Policy",
       more:         "More ›",
       tags_label:   "Tags:",
       read_source:  "Read the original on %{domain} ↗",
@@ -169,6 +173,9 @@ module NewsHelper
   # The active edition; `@news_lang` is set by NewsController#set_news_lang.
   def news_lang = (@news_lang.presence || "fa")
   def english_edition? = news_lang == "en"
+
+  # Contact address for the legal pages (credential `contact_email`); nil hides it.
+  def legal_contact_email = AppCredentials.fetch(:contact_email)
 
   # A UI chrome string for the active edition.
   def news_ui(key) = UI_STRINGS.fetch(news_lang, UI_STRINGS["fa"]).fetch(key)

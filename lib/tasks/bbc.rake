@@ -94,7 +94,7 @@ namespace :bbc do
     required << :database_url if Rails.env.production?
     optional = %i[app_base_url llmarkt_api_url llmarkt_api_key llmarkt_model_match resend_api_key sender_email
                   sentry_dsn telegram_admin_bot_token telegram_admin_chat_id telegram_admin_webhook_secret ollama_url
-                  legacy_api_on_public rails_log_level rails_max_threads]
+                  contact_email legacy_api_on_public rails_log_level rails_max_threads]
 
     missing_required = required.reject { |key| AppCredentials.fetch(key).present? }
     { "required" => required, "optional" => optional }.each do |group, keys|

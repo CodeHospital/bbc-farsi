@@ -1,0 +1,80 @@
+<% content_for :title,       "#{news_ui(:terms_title)} — #{news_ui(:site_name)}" %>
+<% content_for :description, english_edition? ? "The terms for using Khabarestan." : "شرایط استفاده از خبرستان." %>
+
+<article class="legal-page">
+<% if english_edition? %>
+  <h1>Terms of Use</h1>
+  <p class="text-muted small">Last updated: 11 November 2026</p>
+
+  <h2>1. Who runs the site</h2>
+  <p>Khabarestan is run by its editors<% if legal_contact_email %> (<a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a>)<% end %>. By using this website you agree to these terms. If you do not agree, please do not use the site.</p>
+
+  <h2>2. What the service is</h2>
+  <p>Khabarestan is a news digest. Stories from international news publishers are rewritten and translated into Persian and English with the help of automated language models, and are reviewed or corrected by editors only in part. Reading the site is free and needs no account.</p>
+
+  <h2>3. Automatically generated content</h2>
+  <p>Rewriting and translation by machine can introduce mistakes, omissions and changes of meaning. Stories are provided for general information only. They are not professional advice, and you should check the original article before relying on a story, especially for health, legal, financial or safety decisions. Every story links to its original source.</p>
+
+  <h2>4. Sources and copyright</h2>
+  <p>Khabarestan is not affiliated with or endorsed by the publishers whose reporting it summarises. Names, trademarks and the original articles belong to their respective owners. If you are a rights holder and believe content on this site infringes your rights, contact us<% if legal_contact_email %> at <a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a><% end %> with the address of the story and we will review it promptly.</p>
+  <p>The design, software and our own editorial work are protected by copyright. You may share links to stories and quote short passages with attribution. Systematic copying of the site, or automated bulk collection that burdens our servers, is not permitted unless we agree in writing.</p>
+
+  <h2>5. Suggested corrections</h2>
+  <p>If we give you a link to suggest a correction, what you submit is reviewed by our editors and may be published, changed or rejected. You confirm that your suggestion is your own work or that you may submit it, and you grant us a free, non-exclusive right to use it on Khabarestan. Please do not submit unlawful or misleading content. The personal data you provide is handled as described in our <%= link_to "Privacy Policy", privacy_path %>.</p>
+
+  <h2>6. Acceptable use</h2>
+  <p>Do not misuse the site: do not try to disrupt it, gain unauthorised access, overload it with automated requests, or use it to break the law.</p>
+
+  <h2>7. Links to other websites</h2>
+  <p>We link to original articles and other sites. We have no influence over them and are not responsible for their content.</p>
+
+  <h2>8. Availability</h2>
+  <p>We try to keep the site available but do not guarantee uninterrupted access. We may change, suspend or end any part of the service at any time.</p>
+
+  <h2>9. No warranty and limited liability</h2>
+  <p>The site and its stories are provided “as is”, without warranties of any kind. To the fullest extent the law allows, we are not liable for any loss arising from your use of, or reliance on, the site or its content. Nothing in these terms limits any liability that cannot be limited by law.</p>
+
+  <h2>10. Changes to these terms</h2>
+  <p>We may change these terms, for example when the service or the law changes. The version published on this page applies from the date shown.</p>
+
+  <h2>11. Severability</h2>
+  <p>If a provision of these terms is or becomes invalid, the remaining provisions stay in effect.</p>
+<% else %>
+  <h1>شرایط استفاده</h1>
+  <p class="text-muted small">آخرین به‌روزرسانی: ۲۰ آبان ۱۴۰۵ (۱۱ نوامبر ۲۰۲۶)</p>
+
+  <h2>۱. چه کسی سایت را اداره می‌کند</h2>
+  <p>خبرستان را ویراستارانش اداره می‌کنند<% if legal_contact_email %> (<a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a>)<% end %>. با استفاده از این وب‌سایت، این شرایط را می‌پذیرید. اگر نمی‌پذیرید، لطفاً از سایت استفاده نکنید.</p>
+
+  <h2>۲. این خدمت چیست</h2>
+  <p>خبرستان یک چکیدهٔ خبری است. خبرهای ناشران بین‌المللی با کمک مدل‌های زبانی خودکار به فارسی و انگلیسی بازنویسی و ترجمه می‌شوند و ویراستاران فقط بخشی از آن‌ها را بازبینی یا اصلاح می‌کنند. خواندن سایت رایگان است و حساب کاربری نمی‌خواهد.</p>
+
+  <h2>۳. محتوای تولیدشده به‌صورت خودکار</h2>
+  <p>بازنویسی و ترجمهٔ ماشینی ممکن است خطا، جا‌افتادگی یا تغییر معنا ایجاد کند. خبرها فقط برای اطلاع عمومی ارائه می‌شوند و مشاورهٔ حرفه‌ای نیستند. پیش از تکیه بر یک خبر، به‌ویژه برای تصمیم‌های مربوط به سلامت، حقوقی، مالی یا ایمنی، متن اصلی را بررسی کنید. هر خبر به منبع اصلی خود پیوند دارد.</p>
+
+  <h2>۴. منابع و حق نشر</h2>
+  <p>خبرستان وابسته به ناشرانی که گزارش‌هایشان را خلاصه می‌کند نیست و از سوی آن‌ها تأیید نشده است. نام‌ها، نشان‌های تجاری و مقاله‌های اصلی متعلق به صاحبان آن‌هاست. اگر صاحب حق هستید و فکر می‌کنید محتوایی در این سایت حقوق شما را نقض می‌کند، با نشانی خبر با ما تماس بگیرید<% if legal_contact_email %> (<a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a>)<% end %> تا سریع بررسی کنیم.</p>
+  <p>طراحی، نرم‌افزار و کار تحریریهٔ خود ما مشمول حق نشر است. می‌توانید پیوند خبرها را به اشتراک بگذارید و بخش‌های کوتاه را با ذکر منبع نقل کنید. رونوشت‌برداری سیستماتیک از سایت یا جمع‌آوری خودکار و انبوه که بر سرورهای ما فشار بیاورد، بدون توافق کتبی ما مجاز نیست.</p>
+
+  <h2>۵. پیشنهاد اصلاح</h2>
+  <p>اگر پیوندی برای پیشنهاد اصلاح به شما داده باشیم، آنچه ارسال می‌کنید را ویراستاران بررسی می‌کنند و ممکن است منتشر، تغییر داده یا رد شود. شما تأیید می‌کنید که پیشنهاد، اثر خودتان است یا اجازهٔ ارسال آن را دارید، و حق استفادهٔ رایگان و غیرانحصاری از آن در خبرستان را به ما می‌دهید. لطفاً محتوای غیرقانونی یا گمراه‌کننده ارسال نکنید. با داده‌های شخصی که می‌دهید طبق <%= link_to "سیاست حریم خصوصی", privacy_path %> رفتار می‌شود.</p>
+
+  <h2>۶. استفادهٔ مجاز</h2>
+  <p>از سایت سوءاستفاده نکنید: برای اختلال در آن، دسترسی غیرمجاز، فشار با درخواست‌های خودکار یا نقض قانون تلاش نکنید.</p>
+
+  <h2>۷. پیوند به وب‌سایت‌های دیگر</h2>
+  <p>ما به مقاله‌های اصلی و سایت‌های دیگر پیوند می‌دهیم. بر آن‌ها اختیاری نداریم و مسئول محتوایشان نیستیم.</p>
+
+  <h2>۸. دسترس‌پذیری</h2>
+  <p>می‌کوشیم سایت در دسترس باشد، اما دسترسی بی‌وقفه را تضمین نمی‌کنیم. هر بخش از خدمت را ممکن است هر زمان تغییر دهیم، متوقف یا پایان دهیم.</p>
+
+  <h2>۹. بدون ضمانت و مسئولیت محدود</h2>
+  <p>سایت و خبرهای آن «همان‌گونه که هست» و بدون هیچ‌گونه ضمانتی ارائه می‌شود. تا حداکثر اندازه‌ای که قانون اجازه می‌دهد، ما مسئول هیچ زیانی که از استفاده یا تکیه بر سایت یا محتوای آن پدید آید نیستیم. هیچ‌چیز در این شرایط مسئولیتی را که قانوناً قابل محدود کردن نیست محدود نمی‌کند.</p>
+
+  <h2>۱۰. تغییر این شرایط</h2>
+  <p>ممکن است این شرایط را تغییر دهیم، مثلاً وقتی خدمت یا قانون تغییر کند. نسخهٔ منتشرشده در این صفحه از تاریخ درج‌شده اعمال می‌شود.</p>
+
+  <h2>۱۱. تفکیک‌پذیری</h2>
+  <p>اگر بندی از این شرایط باطل باشد یا شود، بقیهٔ بندها معتبر می‌مانند.</p>
+<% end %>
+</article>

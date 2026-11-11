@@ -64,6 +64,7 @@ template with every key. Copy the ones you need into `credentials:edit`.
 | `resend_api_key` / `sender_email` | optional | Outgoing mail via Resend (see below) |
 | `sentry_dsn` | optional | Error tracking (see below) |
 | `telegram_admin_bot_token` / `telegram_admin_chat_id` / `telegram_admin_webhook_secret` | optional | Telegram admin notification bot (see below) |
+| `contact_email` | optional | Contact address shown on the public `/terms` and `/privacy` pages (hidden when unset). |
 | `ollama_url` | optional | Only used for the admin "debug curl" panels (default `http://localhost:11434`). The app itself never calls Ollama. |
 
 Also in credentials: `legacy_api_on_public`, `rails_log_level` and

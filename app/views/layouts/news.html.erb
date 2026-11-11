@@ -327,6 +327,12 @@
     }
     .mainmenu .menu-search button:hover { background: #b82a2a; }
 
+    /* ── Legal pages (terms, privacy) ───────────────────────── */
+    .legal-page h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: .25rem; }
+    .legal-page h2 { font-size: 1.15rem; font-weight: 700; margin: 1.6rem 0 .5rem; }
+    .legal-page h3 { font-size: 1rem; font-weight: 700; margin: 1rem 0 .3rem; }
+    .legal-page p { line-height: 1.9; }
+
     /* ── Footer ──────────────────────────────────────────────── */
     .site-footer { background: #111; color: #bbb; margin-top: 40px; }
     .site-footer a { color: #bbb; }
@@ -482,7 +488,13 @@
       </div>
     </div>
     <div class="footer-bottom mt-4 py-3">
-      <div class="container">© <%= Date.current.year %> <%= news_ui(:site_name) %></div>
+      <div class="container d-flex flex-wrap justify-content-between gap-2">
+        <span>© <%= Date.current.year %> <%= news_ui(:site_name) %></span>
+        <span class="d-flex gap-3">
+          <%= link_to news_ui(:terms_title), terms_path %>
+          <%= link_to news_ui(:privacy_title), privacy_path %>
+        </span>
+      </div>
     </div>
   </footer>
 

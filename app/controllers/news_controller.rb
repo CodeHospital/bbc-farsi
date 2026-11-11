@@ -19,7 +19,7 @@ class NewsController < ApplicationController
   STORY_WINDOW = 24.hours
 
   before_action :set_news_lang
-  before_action :load_chrome, only: %i[index show search]
+  before_action :load_chrome, only: %i[index show search terms privacy]
 
   # A bad/old slug and an archived (unpublished) translation both raise this —
   # `published_translations`/`Article.not_archived` already exclude archived
@@ -105,6 +105,11 @@ class NewsController < ApplicationController
       @image_urls = {}
     end
   end
+
+  # GET /terms and /privacy (and /en/…) — static legal pages; the copy lives in
+  # app/views/news/{terms,privacy}.html.erb, one block per edition.
+  def terms; end
+  def privacy; end
 
   # GET /sitemap.xml — lists the homepage, category pages and every published story.
   def sitemap

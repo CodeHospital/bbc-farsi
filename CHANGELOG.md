@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Terms of Use and Privacy Policy pages
+
+- User prompt: "add terms and privacy pages".
+- New public pages `/terms` and `/privacy`, in Persian at the root and in English under `/en/` (`NewsController#terms` / `#privacy`, views `news/terms` and `news/privacy`). They use the normal site layout, language switch and sidebar.
+- The pages are written for a project run by its editors, not a company: no company name, country, governing law, court, GDPR citations or regulator are mentioned. (First draft named Aralel GmbH / Aachen / German law; removed at the user's request: "this is not a company website and has nothing to do with aachen or germany".)
+- The privacy text describes what the app really does: server logs, reading statistics (country and city from the IP address via ipwho.is, IP not stored with the view; the IP cache is admin-only), search keywords, correction suggestions (name, e-mail, phone, IP), Sentry, the jsDelivr CDN, and no tracking cookies on public pages.
+- Footer: links to both pages next to the copyright line. Both pages are in `sitemap.xml`.
+- New optional credential `contact_email`, shown on both pages as the contact for privacy requests and copyright notices, hidden when unset. Added to `credentials.example.yml` and `bbc:credentials`.
+- **These are drafts, not legal advice.** Have them reviewed. Retention periods are described in general terms because the app does not delete data on a schedule.
+- Tests: `test/controllers/legal_pages_test.rb`.
+
 ### Changed — More settings moved from env vars into credentials
 
 - User prompt: "either create a sample credentials file or fill in placeholders for missing values in credentials, all env variables should be in credentials".

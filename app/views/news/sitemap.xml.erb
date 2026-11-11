@@ -9,6 +9,15 @@
     <changefreq>hourly</changefreq>
     <priority>1.0</priority>
   </url>
+<% [ [ terms_url(lang: nil), terms_url(lang: "en") ], [ privacy_url(lang: nil), privacy_url(lang: "en") ] ].each do |fa_url, en_url| %>
+  <url>
+    <loc><%= fa_url %></loc>
+    <xhtml:link rel="alternate" hreflang="fa" href="<%= fa_url %>"/>
+    <xhtml:link rel="alternate" hreflang="en" href="<%= en_url %>"/>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+<% end %>
 <% @categories.each do |category| %>
   <url>
     <loc><%= category_url(category: category) %></loc>

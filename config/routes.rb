@@ -221,6 +221,8 @@ Rails.application.routes.draw do
       get "feed",               to: "news#feed",   as: :news_feed, defaults: { format: "xml" }
       get "category/:category", to: "news#index",  as: :category
       get "channel/:feed_id",   to: "news#index",  as: :channel
+      get "terms",              to: "news#terms",   as: :terms
+      get "privacy",            to: "news#privacy", as: :privacy
     end
     get "/en", to: "news#index", defaults: { lang: "en" }, as: :en_root
     get "sitemap.xml", to: "news#sitemap", defaults: { format: "xml" },  as: :sitemap

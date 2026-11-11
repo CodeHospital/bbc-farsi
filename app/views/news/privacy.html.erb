@@ -1,0 +1,90 @@
+<% content_for :title,       "#{news_ui(:privacy_title)} — #{news_ui(:site_name)}" %>
+<% content_for :description, english_edition? ? "How Khabarestan handles personal data." : "نحوهٔ پردازش داده‌های شخصی در خبرستان." %>
+
+<article class="legal-page">
+<% if english_edition? %>
+  <h1>Privacy Policy</h1>
+  <p class="text-muted small">Last updated: 11 November 2026</p>
+
+  <p class="lead">In short: you can read Khabarestan without an account, and we do not use advertising or tracking cookies. We count how often stories are read, by country and city only, and we do not keep a profile of you.</p>
+
+  <h2>1. Who we are</h2>
+  <p>Khabarestan is run by its editors<% if legal_contact_email %>. For any privacy question or request, write to <a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a><% end %>.</p>
+
+  <h2>2. What we process, and why</h2>
+  <h3>Visiting the site (server logs)</h3>
+  <p>When you open a page, our servers and hosting infrastructure process your IP address, the date and time, the requested address, the browser type and the response status. This is needed to deliver the site and keep it secure.</p>
+
+  <h3>Reading statistics</h3>
+  <p>When you open a story we record the story, the edition (Persian or English), and your approximate <em>country and city</em>. To work out the location we send your IP address to the geolocation service <a href="https://ipwho.is" rel="noopener nofollow">ipwho.is</a>. The result is stored with the view, but your IP address is not stored with it. To avoid repeat requests we keep a cache of looked-up IP addresses and their location, which only our administrators can see. We use this to understand which stories our readers value.</p>
+
+  <h3>Search</h3>
+  <p>The words you search for are stored together with the edition and the number of results, without any information that identifies you.</p>
+
+  <h3>Suggesting a correction</h3>
+  <p>If you use a personal “suggest an edit” link, we process the name, e-mail address and phone number you enter, your proposed text, and your IP address, so that our editors can review the suggestion, contact you with questions and prevent abuse. We delete this data when it is no longer needed for these purposes.</p>
+
+  <h3>Error monitoring</h3>
+  <p>If an error occurs, technical details (such as the requested address, browser type and the error itself) may be sent to our error-tracking provider, <strong>Sentry</strong>, so that we can fix the problem.</p>
+
+  <h2>3. Cookies</h2>
+  <p>The public pages do not set advertising, analytics or other tracking cookies. Cookies are used only in the editors’ login area, where a session cookie is strictly necessary to keep editors signed in.</p>
+
+  <h2>4. Content delivery networks</h2>
+  <p>To display the site we load the Bootstrap style sheets, icons and the Vazirmatn font from the content delivery network <strong>jsDelivr</strong>. When your browser fetches these files, the network receives your IP address.</p>
+
+  <h2>5. Service providers</h2>
+  <p>We use service providers for hosting, error tracking, geolocation lookups and sending e-mail to our editors. They process data on our behalf or, in the case of geolocation, receive the IP address described above. They may be located in other countries than yours.</p>
+
+  <h2>6. Storage period</h2>
+  <p>Server logs are kept for a short period and then deleted. Reading statistics contain no IP addresses and may be kept for as long as they are useful. Correction suggestions are kept until they are decided and for as long as we need them to document the editorial decision.</p>
+
+  <h2>7. Your choices</h2>
+  <p>You can ask us<% if legal_contact_email %> (<a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a>)<% end %> what personal data we hold about you, to correct it, or to delete it. Because reading statistics carry no identifying information, they cannot be traced back to you.</p>
+
+  <h2>8. Changes</h2>
+  <p>We may update this policy when the site changes. The current version is always available on this page.</p>
+<% else %>
+  <h1>سیاست حریم خصوصی</h1>
+  <p class="text-muted small">آخرین به‌روزرسانی: ۲۰ آبان ۱۴۰۵ (۱۱ نوامبر ۲۰۲۶)</p>
+
+  <p class="lead">در یک نگاه: برای خواندن خبرستان نیازی به حساب کاربری نیست و ما از کوکی‌های تبلیغاتی یا ردیابی استفاده نمی‌کنیم. فقط می‌شماریم که هر خبر چند بار و از کدام کشور و شهر خوانده شده است و دربارهٔ شما پروفایلی نمی‌سازیم.</p>
+
+  <h2>۱. ما کی هستیم</h2>
+  <p>خبرستان را ویراستارانش اداره می‌کنند<% if legal_contact_email %>. برای هر پرسش یا درخواست دربارهٔ حریم خصوصی به <a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a> نامه بنویسید<% end %>.</p>
+
+  <h2>۲. چه داده‌هایی را و چرا پردازش می‌کنیم</h2>
+  <h3>بازدید از سایت (گزارش‌های سرور)</h3>
+  <p>هنگام باز کردن هر صفحه، سرورها و زیرساخت میزبانی ما نشانی IP، زمان، نشانی درخواست‌شده، نوع مرورگر و وضعیت پاسخ را پردازش می‌کنند. این کار برای ارائهٔ سایت و حفظ امنیت آن لازم است.</p>
+
+  <h3>آمار خواندن</h3>
+  <p>وقتی خبری را باز می‌کنید، خبر، نسخه (فارسی یا انگلیسی) و <em>کشور و شهر تقریبی</em> شما ثبت می‌شود. برای تشخیص موقعیت، نشانی IP شما را به سرویس موقعیت‌یاب <a href="https://ipwho.is" rel="noopener nofollow">ipwho.is</a> می‌فرستیم. نتیجه همراه بازدید ذخیره می‌شود، اما نشانی IP شما همراه آن ذخیره نمی‌شود. برای جلوگیری از درخواست‌های تکراری، فهرستی کش‌شده از نشانی‌های IP جست‌وجوشده و موقعیت آن‌ها نگه داشته می‌شود که فقط مدیران ما آن را می‌بینند. از این آمار می‌فهمیم خوانندگان ما به کدام خبرها علاقه دارند.</p>
+
+  <h3>جست‌وجو</h3>
+  <p>عبارتی که جست‌وجو می‌کنید همراه با نسخهٔ سایت و تعداد نتایج ذخیره می‌شود، بدون هیچ اطلاعاتی که هویت شما را نشان دهد.</p>
+
+  <h3>پیشنهاد اصلاح</h3>
+  <p>اگر از پیوند شخصی «پیشنهاد ویرایش» استفاده کنید، نام، ایمیل و شمارهٔ تلفنی که وارد می‌کنید، متن پیشنهادی و نشانی IP شما را پردازش می‌کنیم تا ویراستاران بتوانند پیشنهاد را بررسی کنند، در صورت لزوم با شما تماس بگیرند و از سوءاستفاده جلوگیری شود. این داده‌ها را وقتی برای این اهداف لازم نباشند حذف می‌کنیم.</p>
+
+  <h3>پایش خطاها</h3>
+  <p>در صورت بروز خطا، جزئیات فنی (مانند نشانی درخواست‌شده، نوع مرورگر و خود خطا) ممکن است برای رفع مشکل به سرویس پایش خطای <strong>Sentry</strong> فرستاده شود.</p>
+
+  <h2>۳. کوکی‌ها</h2>
+  <p>صفحه‌های عمومی کوکی تبلیغاتی، تحلیلی یا ردیابی تنظیم نمی‌کنند. کوکی فقط در بخش ورود ویراستاران استفاده می‌شود و کوکی نشست برای نگه داشتن ورود آن‌ها ضروری است.</p>
+
+  <h2>۴. شبکه‌های توزیع محتوا</h2>
+  <p>برای نمایش سایت، شیوه‌نامه‌های Bootstrap، آیکون‌ها و قلم وزیرمتن را از شبکهٔ توزیع محتوای <strong>jsDelivr</strong> بارگذاری می‌کنیم. وقتی مرورگر شما این فایل‌ها را می‌گیرد، نشانی IP شما به آن شبکه می‌رسد.</p>
+
+  <h2>۵. ارائه‌دهندگان خدمات</h2>
+  <p>برای میزبانی، پایش خطا، موقعیت‌یابی و ارسال ایمیل به ویراستاران از ارائه‌دهندگان خدمات استفاده می‌کنیم. آن‌ها از طرف ما داده را پردازش می‌کنند یا (در مورد موقعیت‌یابی) نشانی IP یادشده را دریافت می‌کنند. ممکن است در کشورهایی غیر از کشور شما باشند.</p>
+
+  <h2>۶. مدت نگهداری</h2>
+  <p>گزارش‌های سرور مدتی کوتاه نگه داشته و سپس حذف می‌شوند. آمار خواندن نشانی IP ندارد و تا زمانی که مفید باشد نگه داشته می‌شود. پیشنهادهای اصلاح تا زمان تصمیم‌گیری و به اندازهٔ لازم برای مستند کردن تصمیم تحریریه نگه داشته می‌شوند.</p>
+
+  <h2>۷. اختیارهای شما</h2>
+  <p>می‌توانید از ما<% if legal_contact_email %> (<a href="mailto:<%= legal_contact_email %>"><%= legal_contact_email %></a>)<% end %> بخواهید بگوییم چه داده‌های شخصی‌ای از شما داریم، آن را اصلاح کنیم یا حذف کنیم. چون آمار خواندن اطلاعات هویتی ندارد، قابل ردیابی تا شما نیست.</p>
+
+  <h2>۸. تغییرات</h2>
+  <p>اگر سایت تغییر کند، ممکن است این سیاست را به‌روزرسانی کنیم. نسخهٔ فعلی همیشه در همین صفحه در دسترس است.</p>
+<% end %>
+</article>
