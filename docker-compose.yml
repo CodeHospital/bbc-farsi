@@ -35,7 +35,6 @@ x-app: &app
 
 x-app-environment: &app-environment
   RAILS_MASTER_KEY: ${RAILS_MASTER_KEY:?set RAILS_MASTER_KEY}
-  RAILS_LOG_LEVEL: ${RAILS_LOG_LEVEL:-info}
 
 services:
   # Boots first and runs db:prepare + db:seed (bin/docker-entrypoint); the
@@ -51,10 +50,10 @@ services:
     environment:
       <<: *app-environment
       APP_ROLE: public
-      # Keep answering /api/* on khabarestan.com until the worker (APP_URL),
-      # llmarkt callbacks and the Telegram webhook (bin/rails
-      # telegram_admin:set_webhook) point at api.khabarestan.com — then set 0.
-      LEGACY_API_ON_PUBLIC: ${LEGACY_API_ON_PUBLIC:-1}
+      # /api/* on khabarestan.com is kept answering by the `legacy_api_on_public`
+      # credential until the worker (APP_URL), llmarkt callbacks and the
+      # Telegram webhook (bin/rails telegram_admin:set_webhook) point at
+      # api.khabarestan.com.
     depends_on:
       admin:
         condition: service_healthy

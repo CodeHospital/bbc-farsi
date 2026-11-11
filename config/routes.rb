@@ -202,6 +202,10 @@ Rails.application.routes.draw do
           to: redirect(status: 301) { |path_params, request| AppHosts.admin_redirect_url(path_params[:admin_path], request.query_string) }
     end
 
+    # An article's lead image served from our own host — TikTok only pulls
+    # images from verified domains (see ArticleImagesController / TiktokPoster).
+    get "media/articles/:id/image", to: "article_images#show", as: :article_image, format: false
+
     # Public "magic link" for proposing an edit to one article without an
     # account (see EditLink / GuestEditsController).
     get  "edit/:token",        to: "guest_edits#show",   as: :guest_edit

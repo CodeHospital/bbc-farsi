@@ -1,9 +1,10 @@
 # Single place the app reads its configuration secrets from: Rails encrypted
 # credentials (`bin/rails credentials:edit`). ENV is NOT consulted — every
 # app-level setting lives in credentials (see config/credentials.example.yml
-# for the full list of keys). Only runtime/boot knobs (RAILS_MASTER_KEY,
-# RAILS_ENV, PORT, RAILS_MAX_THREADS, WEB_CONCURRENCY, RAILS_LOG_LEVEL, …)
-# stay in the environment.
+# for the full list of keys). Only process-level knobs that must exist before
+# credentials can be read, or that differ per container, stay in the
+# environment (RAILS_MASTER_KEY, RAILS_ENV, PORT, WEB_CONCURRENCY, PIDFILE,
+# APP_ROLE — and Puma's thread count, config/puma.rb loads before Rails).
 #
 # Boot-time config (config/database.yml, config/environments/production.rb,
 # config/initializers/*) runs before the autoloader and so reads

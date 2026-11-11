@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — More settings moved from env vars into credentials
+
+- User prompt: "either create a sample credentials file or fill in placeholders for missing values in credentials, all env variables should be in credentials".
+- New credentials: `legacy_api_on_public` (was env `LEGACY_API_ON_PUBLIC`), `rails_log_level` (was `RAILS_LOG_LEVEL`) and `rails_max_threads` (was `RAILS_MAX_THREADS` for the database pool). The env vars are no longer read, and were removed from `docker-compose.yml`.
+- **Deploy note:** `docker-compose.yml` used to default `LEGACY_API_ON_PUBLIC` to on. To keep `/api/*` answering on the public host, add `legacy_api_on_public: true` to the production credentials (`bin/rails credentials:edit`). Without it, that is now off.
+- `config/credentials.example.yml` now lists every key with a placeholder, and explains the few things that must stay in the environment (`RAILS_MASTER_KEY`, `RAILS_ENV`, `APP_ROLE`, `PORT`, `WEB_CONCURRENCY`, `PIDFILE`, Puma's thread count, and the separate worker program). `bin/rails bbc:credentials` also reports the three new keys.
+- The real `credentials.yml.enc` was not changed.
+
+### Added — Posting to WhatsApp, Instagram and TikTok
+
+- User prompt: "we want to also be able to post to whatsapp and instragram and tiktok".
+- Three new channel providers on `TelegramChannel`: `whatsapp`, `instagram` and `tiktok`. They use the same queue, pacing, delivery log, per-feed autopost targets and admin screens as Telegram and Bale. `TelegramChannel#poster` picks the poster for each provider.
+- `WhatsappPoster`: WhatsApp Business Cloud API. Sends the image with the text as caption, or the image followed by the text when the text is too long, or text only. The recipient can be a phone number or a group ID. Free-form messages only reach people who messaged the business number in the last 24 hours.
+- `InstagramPoster`: Instagram Graph API image post (create a media container, wait until it is ready, publish it). Articles without an image fail on Instagram.
+- `TiktokPoster`: TikTok Content Posting API photo post (direct post). It refreshes the access token from the stored refresh token on every post and saves a rotated refresh token. It picks the most public privacy level the account allows. Articles without an image fail on TikTok.
+- New public endpoint `GET /media/articles/:id/image` (`ArticleImagesController`) serves an article's stored lead image from our own host. TikTok needs this because it only pulls images from verified domains. It refuses hosts that resolve to internal addresses, non-image responses, and images over 10 MB.
+- Shared helpers: `SocialPostText` (plain-text post body) and `MetaGraphApi` (Graph API client; the token is sent in the `Authorization` header and never appears in error messages).
+- New columns `telegram_channels.account_id`, `client_key` and `client_secret` in migration `20261111000001_add_social_provider_fields_to_telegram_channels`. `schema.rb` was updated by hand. **The migration has not been run: run `bin/rails db:migrate`.** `client_secret` is excluded from version history and is never shown on the edit form; leaving it blank keeps the saved secret.
+- Admin channel form: help text for each provider, plus fields for the WhatsApp phone-number ID and the TikTok client key and secret. The channel list shows WhatsApp, Instagram and TikTok icons.
+- Tests for the three posters, the image endpoint, the model validations and the admin form. README updated.
+
 ### Fixed — `bbc:backfill_feed_tags` failed with "unknown attribute `tag_id`"
 
 - The user reported that `bin/rails bbc:backfill_feed_tags` raised `ActiveModel::MissingAttributeError: can't write unknown attribute 'tag_id'`.

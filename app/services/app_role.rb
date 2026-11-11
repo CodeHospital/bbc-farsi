@@ -29,8 +29,9 @@ module AppRole
 
   # Lets the public container keep answering /api/* on the public host while
   # the worker, llmarkt callbacks and the Telegram webhook are moved over to
-  # api.khabarestan.com. Turn off once nothing calls the old URLs any more.
-  def legacy_api_on_public_host? = ActiveModel::Type::Boolean.new.cast(ENV["LEGACY_API_ON_PUBLIC"]) || false
+  # api.khabarestan.com. Credential `legacy_api_on_public`; turn off once
+  # nothing calls the old URLs any more.
+  def legacy_api_on_public_host? = ActiveModel::Type::Boolean.new.cast(AppCredentials.fetch(:legacy_api_on_public)) || false
 
   # In-process pollers (BackgroundPollers) run inside `bin/rails server` for
   # the all-in-one role and the dedicated worker service; the public, admin

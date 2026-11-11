@@ -59,4 +59,33 @@ class Admin::TelegramChannelsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_response :unprocessable_entity
   end
+
+  test "creates WhatsApp, Instagram and TikTok channels" do
+    assert_difference(-> { TelegramChannel.count }, 3) do
+      post admin_telegram_channels_path, params: { telegram_channel: {
+        name: "WA", provider: "whatsapp", token: "wa", channel_id: "+491701234567", account_id: "1065", enabled: "1"
+      } }
+      post admin_telegram_channels_path, params: { telegram_channel: {
+        name: "IG", provider: "instagram", token: "ig", channel_id: "17841400000000000", enabled: "1"
+      } }
+      post admin_telegram_channels_path, params: { telegram_channel: {
+        name: "TT", provider: "tiktok", token: "refresh", channel_id: "", client_key: "key", client_secret: "secret", enabled: "1"
+      } }
+    end
+    assert_equal "1065", TelegramChannel.find_by!(name: "WA").account_id
+    assert_equal "secret", TelegramChannel.find_by!(name: "TT").client_secret
+  end
+
+  test "editing a TikTok channel never shows the client secret and keeps it when left blank" do
+    channel = create_channel(name: "TT", provider: "tiktok", channel_id: nil, client_key: "key", client_secret: "top-secret")
+
+    get edit_admin_telegram_channel_path(channel)
+    assert_response :success
+    assert_no_match "top-secret", response.body
+
+    patch admin_telegram_channel_path(channel), params: { telegram_channel: { name: "TikTok News", client_secret: "" } }
+    assert_redirected_to admin_telegram_channels_path
+    assert_equal "TikTok News", channel.reload.name
+    assert_equal "top-secret", channel.client_secret
+  end
 end

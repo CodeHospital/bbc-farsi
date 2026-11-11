@@ -11,18 +11,32 @@
     <%= f.select :provider, TelegramChannel::PROVIDERS.map { |provider, settings| [ settings[:label], provider ] },
           {}, class: "form-select" %>
     <div class="form-text">
-      Any messenger whose bot API is Telegram-compatible
-      (<code>&lt;API base URL&gt;/bot&lt;token&gt;/sendMessage</code>). Create the
-      bot on that messenger and add it as an admin of the channel.
+      <strong>Telegram, Bale, other Telegram-compatible API:</strong> create the
+      bot on that messenger and add it as an admin of the channel
+      (<code>&lt;API base URL&gt;/bot&lt;token&gt;/sendMessage</code>).
       Telegram posts use HTML formatting; Bale posts go out as plain text.
     </div>
+    <ul class="form-text ps-3 mb-0">
+      <li><strong>WhatsApp</strong> (Cloud API): Token = permanent access token
+        (Meta system user); Account ID = the sender's phone-number ID; Channel ID =
+        recipient phone number (e.g. <code>+4917…</code>) or a WhatsApp group ID.
+        WhatsApp only delivers to people who messaged you in the last 24 hours.</li>
+      <li><strong>Instagram</strong> (Graph API): Token = access token with
+        <code>instagram_content_publish</code>; Channel ID = the Instagram
+        professional account ID. Articles without an image can't be posted.</li>
+      <li><strong>TikTok</strong> (Content Posting API, photo posts): Token = the
+        <em>refresh</em> token; Client key/secret = your TikTok app's; Channel ID =
+        your @handle (optional). Verify <code><%= AppHosts.public_base_url %>/media/</code>
+        as a URL prefix in the TikTok developer portal. Articles without an image can't be posted.</li>
+    </ul>
   </div>
   <fieldset class="border rounded p-3 mb-3">
     <legend class="fs-6 w-auto px-1 mb-0">Provider details</legend>
     <div class="form-text mb-2">
-      Required for <strong>Other Telegram-compatible API</strong>. For Telegram
-      or Bale, leave blank to use the official endpoint, or set the API base URL
-      to point at e.g. a self-hosted Telegram Bot API server.
+      Required for <strong>Other Telegram-compatible API</strong>. For every
+      other provider, leave blank to use the official endpoint, or set the API
+      base URL to point at e.g. a self-hosted Telegram Bot API server or a
+      different Graph API version (<code>https://graph.facebook.com/v23.0</code>).
     </div>
     <div class="mb-2">
       <%= f.label :custom_provider_name, "Provider name", class: "form-label" %>
@@ -43,13 +57,31 @@
     </div>
   </fieldset>
   <div class="mb-3">
-    <%= f.label :token, "Bot Token", class: "form-label" %>
+    <%= f.label :token, "Bot Token / Access Token", class: "form-label" %>
     <%= f.text_field :token, class: "form-control font-monospace", placeholder: "123456:ABC-..." %>
+    <div class="form-text">TikTok: the refresh token (it is replaced automatically when TikTok rotates it).</div>
   </div>
   <div class="mb-3">
     <%= f.label :channel_id, "Channel ID", class: "form-label" %>
     <%= f.text_field :channel_id, class: "form-control", placeholder: "@mychannel or -100..." %>
+    <div class="form-text">WhatsApp: recipient phone number or group ID. Instagram: account ID. TikTok: @handle (optional).</div>
   </div>
+  <fieldset class="border rounded p-3 mb-3">
+    <legend class="fs-6 w-auto px-1 mb-0">WhatsApp / TikTok details</legend>
+    <div class="mb-2">
+      <%= f.label :account_id, "WhatsApp phone-number ID", class: "form-label" %>
+      <%= f.text_field :account_id, class: "form-control font-monospace", placeholder: "e.g. 106540352242922" %>
+    </div>
+    <div class="mb-2">
+      <%= f.label :client_key, "TikTok client key", class: "form-label" %>
+      <%= f.text_field :client_key, class: "form-control font-monospace" %>
+    </div>
+    <div>
+      <%= f.label :client_secret, "TikTok client secret", class: "form-label" %>
+      <%= f.password_field :client_secret, class: "form-control font-monospace", autocomplete: "new-password",
+            placeholder: channel.client_secret.present? ? "•••••••• (saved — leave blank to keep)" : "" %>
+    </div>
+  </fieldset>
   <div class="form-check mb-2">
     <%= f.check_box :enabled, class: "form-check-input" %>
     <%= f.label :enabled, class: "form-check-label" %>

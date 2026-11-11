@@ -104,6 +104,44 @@ class TelegramChannelTest < ActiveSupport::TestCase
     assert_equal [ channel ], feed.reload.autopost_target_channels
   end
 
+
+  test "WhatsApp requires the sender's phone-number ID and uses the WhatsApp poster" do
+    channel = build_channel(provider: "whatsapp", channel_id: "+491701234567")
+    assert_not channel.valid?
+    assert channel.errors[:account_id].any?
+
+    channel.account_id = "106540352242922"
+    assert channel.valid?
+    assert_instance_of WhatsappPoster, channel.poster
+    assert_equal "https://graph.facebook.com/v23.0", channel.effective_api_base_url
+    assert_equal "#{channel.name} (WhatsApp)", channel.display_name
+  end
+
+  test "Instagram uses the Instagram poster and requires images" do
+    channel = build_channel(provider: "instagram", channel_id: "17841400000000000")
+    assert channel.valid?
+    assert_instance_of InstagramPoster, channel.poster
+    assert channel.requires_image?
+  end
+
+  test "TikTok requires app credentials but no channel id" do
+    channel = build_channel(provider: "tiktok", channel_id: nil)
+    assert_not channel.valid?
+    assert channel.errors[:client_key].any?
+    assert channel.errors[:client_secret].any?
+
+    channel.assign_attributes(client_key: "key", client_secret: "secret")
+    assert channel.valid?
+    assert_instance_of TiktokPoster, channel.poster
+    assert_equal "https://open.tiktokapis.com", channel.effective_api_base_url
+  end
+
+  test "the TikTok client secret is kept out of version history" do
+    channel = create_channel(provider: "tiktok", channel_id: nil, client_key: "key", client_secret: "secret-1")
+    channel.update!(client_secret: "secret-2")
+    assert channel.versions.none? { |version| version.object.to_s.include?("secret-1") || version.object_changes.to_s.include?("secret") }
+  end
+
   private
 
   def build_channel(attrs = {})

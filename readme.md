@@ -1,6 +1,6 @@
 # Khabarestan Rails App
 
-A Rails 8 admin web app that fetches international news RSS feeds (BBC, NYT and others), rewrites articles using a local LLM (Ollama), translates them to Persian, and autoposts to Telegram, Bale (bale.ai) and other Telegram-compatible channels.
+A Rails 8 admin web app that fetches international news RSS feeds (BBC, NYT and others), rewrites articles using a local LLM (Ollama), translates them to Persian, and autoposts to Telegram, Bale (bale.ai), other Telegram-compatible channels, WhatsApp, Instagram and TikTok.
 
 LLM work is **not** done inside the web app. The app enqueues **tasks** in a
 database-backed queue; a separate [worker client](worker/README.md) — which has
@@ -66,11 +66,17 @@ template with every key. Copy the ones you need into `credentials:edit`.
 | `telegram_admin_bot_token` / `telegram_admin_chat_id` / `telegram_admin_webhook_secret` | optional | Telegram admin notification bot (see below) |
 | `ollama_url` | optional | Only used for the admin "debug curl" panels (default `http://localhost:11434`). The app itself never calls Ollama. |
 
-Only runtime/boot knobs are still read from the environment: `RAILS_MASTER_KEY`,
-`RAILS_ENV`, `PORT`, `RAILS_MAX_THREADS`, `WEB_CONCURRENCY`, `PIDFILE`,
-`RAILS_LOG_LEVEL`, and `CI` (tests). The standalone worker (`worker/`) is a
-separate program and keeps its own env config (see
-[worker/README.md](worker/README.md)).
+Also in credentials: `legacy_api_on_public`, `rails_log_level` and
+`rails_max_threads` (database pool size) — see
+[config/credentials.example.yml](config/credentials.example.yml), which lists
+every key with a placeholder.
+
+Only process-level knobs that must exist before credentials can be read, or
+that differ per container, stay in the environment: `RAILS_MASTER_KEY`,
+`RAILS_ENV`, `APP_ROLE`, `PORT`, `WEB_CONCURRENCY`, `PIDFILE` (Puma's thread
+count too), `RETRY_MISSING` (a one-off rake flag) and `CI` (tests). The
+standalone worker (`worker/`) is a separate program that cannot read Rails
+credentials and keeps its own env config (see [worker/README.md](worker/README.md)).
 
 > **Migrating from `.env`:** each old env var maps to the lower-case credential
 > of the same name (`WORKER_API_TOKEN` → `worker_api_token`, `DATABASE_URL` →
@@ -359,6 +365,35 @@ with a `provider`). Telegram is sent through telegram-bot-ruby
 (`TelegramPoster`); every other provider through plain HTTP (`BotApiPoster`),
 whose posts end with "follow @<that channel> for more" when the channel id is
 an `@username`. No env vars are needed: tokens live on the channel row.
+
+**WhatsApp, Instagram and TikTok** are providers on the same channel table,
+so they share the same queue, pacing, posts log, per-feed autopost targets and
+toggles. Each uses the platform's official API:
+
+| Provider | Poster | Token | Channel ID | Also needs |
+|---|---|---|---|---|
+| WhatsApp | `WhatsappPoster` — Cloud API `POST /<phone-number-id>/messages` (image + caption, or text) | Permanent access token (Meta system user) with `whatsapp_business_messaging` | Recipient phone number (`+4917…`) or a WhatsApp group ID | **Account ID** = the sender's phone-number ID |
+| Instagram | `InstagramPoster` — Graph API media container → `media_publish` (image post, caption ≤ 2200 chars) | Access token with `instagram_content_publish` (system-user tokens don't expire) | Instagram professional account ID | — |
+| TikTok | `TiktokPoster` — Content Posting API, photo post, `DIRECT_POST` | The **refresh** token (it is refreshed on every post; a rotated one is saved back) | Your @handle (optional, display only) | **Client key / secret** of your TikTok app (`video.publish` scope) |
+
+Things to know:
+
+- **WhatsApp** only delivers free-form messages to a recipient inside the
+  24-hour customer-service window (they messaged your business number
+  recently). Outside it, Meta rejects the message and the error is shown on
+  the post. WhatsApp Channels (broadcast newsletters) have no official API.
+- **Instagram and TikTok need an image**: an article with no lead image is
+  marked as an errored post on those channels (it is not retried).
+- **TikTok** only pulls images from URL prefixes verified in the TikTok
+  developer portal, so it is given `<app_base_url>/media/articles/<id>/image`
+  (`ArticleImagesController`, which proxies the article's stored image and
+  refuses internal addresses and non-images). Verify `<app_base_url>/media/`
+  there. Until TikTok audits your app, posts can only be private (`SELF_ONLY`);
+  the most public privacy level the account allows is used.
+- Graph API calls default to `https://graph.facebook.com/v23.0`; set the
+  channel's **API base URL** to use another version.
+- Migration `20261111000001` adds `account_id`, `client_key` and
+  `client_secret` to `telegram_channels` — run `bin/rails db:migrate`.
 
 **Autoposting is per-feed**: each feed has an **Autopost to** set of channels
 (`/admin/feeds` → Edit, or the inline checkboxes on the index row), from any
@@ -748,8 +783,8 @@ Setup:
    - Telegram admin bot: `docker compose exec admin bin/rails telegram_admin:set_webhook`
    - llmarkt callbacks pick up `api_base_url` automatically for new tasks
      (already-submitted tasks still call back to the old URL).
-   - Then `LEGACY_API_ON_PUBLIC=0 docker compose up -d public`, which stops
-     `www.khabarestan.com/api/*` from answering.
+   - Then remove (or set false) the `legacy_api_on_public` credential and
+     restart `public`, which stops `www.khabarestan.com/api/*` from answering.
 
 Admin sessions are host-only cookies on the admin domain, so everyone signs
 in again once after the switch. Domains in Caddy can be overridden with

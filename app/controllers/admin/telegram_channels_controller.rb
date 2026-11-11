@@ -51,6 +51,15 @@ class Admin::TelegramChannelsController < Admin::BaseController
   private
 
   def set_channel = @channel = TelegramChannel.find(params[:id])
-  def channel_params = params.require(:telegram_channel).permit(:name, :provider, :custom_provider_name, :api_base_url, :message_format,
-                                                                        :token, :channel_id, :enabled, :autopost)
+  # The TikTok client secret is never rendered back into the form, so a blank
+  # one on update means "keep the saved secret".
+  def channel_params
+    permitted_params = raw_channel_params
+    permitted_params.delete(:client_secret) if @channel&.persisted? && permitted_params[:client_secret].blank?
+    permitted_params
+  end
+
+  def raw_channel_params = params.require(:telegram_channel).permit(:name, :provider, :custom_provider_name, :api_base_url, :message_format,
+                                                                        :token, :channel_id, :account_id, :client_key, :client_secret,
+                                                                        :enabled, :autopost)
 end

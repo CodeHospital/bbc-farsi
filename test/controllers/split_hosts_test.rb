@@ -19,7 +19,6 @@ class SplitHostsTest < ActionDispatch::IntegrationTest
 
   teardown do
     ENV.delete("APP_ROLE")
-    ENV.delete("LEGACY_API_ON_PUBLIC")
     restore_llmarkt_config
   end
 
@@ -66,7 +65,7 @@ class SplitHostsTest < ActionDispatch::IntegrationTest
 
     # The public portal's root must not be shadowed, even while /api/* is
     # still answered on the public host.
-    ENV["LEGACY_API_ON_PUBLIC"] = "1"
+    stub_credentials(legacy_api_on_public: true)
     host! PUBLIC_HOST
     get "/"
     assert_select "h1", text: "Khabarestan API", count: 0
@@ -137,8 +136,8 @@ class SplitHostsTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "LEGACY_API_ON_PUBLIC keeps the worker API on the public host during the move" do
-    ENV["LEGACY_API_ON_PUBLIC"] = "1"
+  test "the legacy_api_on_public credential keeps the worker API on the public host during the move" do
+    stub_credentials(legacy_api_on_public: true)
     host! PUBLIC_HOST
     get api_tasks_next_path
     assert_response :unauthorized
