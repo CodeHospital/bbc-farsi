@@ -77,7 +77,7 @@ class BotApiPoster
 
   def plain_message(translation, channel)
     header = "📢 #{translation.translated_title}\n\n"
-    footer = "\n\n\n#{article_link(translation)}#{follow_line(channel)}"
+    footer = "\n\n\n#{article_link(translation)}#{channel.footer_block}"
     body_budget = MAX_MESSAGE_LENGTH - header.length - footer.length
 
     "#{header}#{translation.translated_body.to_s.truncate([ body_budget, 0 ].max)}#{footer}"
@@ -85,7 +85,7 @@ class BotApiPoster
 
   def html_message(translation, channel)
     header = "📢 <b>#{escape(translation.translated_title)}</b>\n\n"
-    footer = "\n\n\n#{escape(article_link(translation))}#{escape(follow_line(channel))}"
+    footer = "\n\n\n#{escape(article_link(translation))}#{escape(channel.footer_block)}"
     body_budget = [ MAX_MESSAGE_LENGTH - header.length - footer.length, 0 ].max
 
     "#{header}#{escaped_body_within(translation.translated_body.to_s, body_budget)}#{footer}"
@@ -107,13 +107,6 @@ class BotApiPoster
   end
 
   def article_link(translation) = translation.article.url.to_s.split("?").first
-
-  # TelegramPoster's "follow @khabarestan" points at the Telegram channel, so
-  # other providers advertise their own channel instead — but only when the
-  # channel id is a public @username (a numeric id isn't something to follow).
-  def follow_line(channel)
-    channel.channel_id.to_s.start_with?("@") ? "\n\nfollow #{channel.channel_id} for more" : ""
-  end
 
   def escape(text) = CGI.escapeHTML(text.to_s)
 end

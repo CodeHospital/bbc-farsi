@@ -24,7 +24,7 @@ class InstagramPoster
     raise Error, "Instagram needs an image, and this article has none." unless image_url
 
     graph_api = MetaGraphApi.new(channel)
-    caption   = SocialPostText.build(translation, max_length: MAX_CAPTION_LENGTH)
+    caption   = SocialPostText.build(translation, max_length: MAX_CAPTION_LENGTH, channel_footer: channel.footer_block)
     container = graph_api.post("#{channel.channel_id}/media", { image_url:, caption: })
 
     wait_until_container_ready(graph_api, container.fetch("id"))

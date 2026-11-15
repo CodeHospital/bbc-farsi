@@ -6,14 +6,16 @@
 #
 #   <source link without tracking params>
 #
+#   <channel footer, when set>
+#
 # None of them render HTML, and their own markup (WhatsApp's *bold*) would
 # misfire on LLM-written Persian text, so it stays plain.
 module SocialPostText
   module_function
 
-  def build(translation, max_length:)
+  def build(translation, max_length:, channel_footer: "")
     header = "📢 #{translation.translated_title.to_s.strip}\n\n"
-    footer = "\n\n#{article_link(translation)}"
+    footer = "\n\n#{article_link(translation)}#{channel_footer}"
     body_budget = [ max_length - header.length - footer.length, 0 ].max
 
     "#{header}#{translation.translated_body.to_s.strip.truncate(body_budget)}#{footer}"

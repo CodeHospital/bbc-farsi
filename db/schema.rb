@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_11_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_15_000001) do
   create_table "article_tags", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "tag_id", null: false
@@ -309,6 +309,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_11_000001) do
     t.string "account_id"
     t.string "client_key"
     t.string "client_secret"
+    t.text "footer"
   end
 
   create_table "telegram_posts", force: :cascade do |t|

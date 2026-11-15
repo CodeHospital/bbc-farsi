@@ -61,5 +61,5 @@ class Admin::TelegramChannelsController < Admin::BaseController
 
   def raw_channel_params = params.require(:telegram_channel).permit(:name, :provider, :custom_provider_name, :api_base_url, :message_format,
                                                                         :token, :channel_id, :account_id, :client_key, :client_secret,
-                                                                        :enabled, :autopost)
+                                                                        :footer, :enabled, :autopost)
 end

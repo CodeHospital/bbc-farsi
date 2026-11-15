@@ -50,8 +50,8 @@ class TelegramPoster
     article = translation.article
     "📢 <b>#{escape(translation.translated_title)}</b>\n\n" \
       "#{escape(translation.translated_body)}\n\n\n" \
-      "#{escape(article.url.to_s.split('?').first)}\n\n" \
-      "follow #{channel.channel_id} for more"
+      "#{escape(article.url.to_s.split('?').first)}" \
+      "#{escape(channel.footer_block)}"
   end
 
   def escape(text) = CGI.escapeHTML(text.to_s)

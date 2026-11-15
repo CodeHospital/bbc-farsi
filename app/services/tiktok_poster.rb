@@ -35,7 +35,7 @@ class TiktokPoster
     api_call(channel, "/v2/post/publish/content/init/", access_token, {
       post_info: {
         title:           translation.translated_title.to_s.strip.truncate(MAX_TITLE_LENGTH),
-        description:     description_for(translation),
+        description:     description_for(translation, channel),
         privacy_level:,
         disable_comment: false,
         auto_add_music:  true
@@ -58,14 +58,13 @@ class TiktokPoster
 
   def public_image_url(article) = self.class.public_image_url(article)
 
-  def description_for(translation)
-    "#{translation.translated_body.to_s.strip}\n\n#{SocialPostText.article_link(translation)}".then do |full_description|
-      next full_description if full_description.length <= MAX_DESCRIPTION_LENGTH
+  def description_for(translation, channel)
+    link_suffix = "\n\n#{SocialPostText.article_link(translation)}#{channel.footer_block}"
+    full_description = "#{translation.translated_body.to_s.strip}#{link_suffix}"
+    return full_description if full_description.length <= MAX_DESCRIPTION_LENGTH
 
-      link_suffix = "\n\n#{SocialPostText.article_link(translation)}"
-      body_budget = [ MAX_DESCRIPTION_LENGTH - link_suffix.length, 0 ].max
-      "#{translation.translated_body.to_s.strip.truncate(body_budget)}#{link_suffix}"
-    end
+    body_budget = [ MAX_DESCRIPTION_LENGTH - link_suffix.length, 0 ].max
+    "#{translation.translated_body.to_s.strip.truncate(body_budget)}#{link_suffix}"
   end
 
   def refresh_access_token!(channel)

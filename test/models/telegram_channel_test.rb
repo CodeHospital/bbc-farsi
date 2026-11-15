@@ -17,6 +17,16 @@ class TelegramChannelTest < ActiveSupport::TestCase
     assert_not build_channel(channel_id: nil).valid?
   end
 
+  test "footer is stripped, blank means none, and footer_block prefixes a blank line" do
+    channel = build_channel(footer: "  follow us  ")
+    assert_equal "follow us", channel.footer
+    assert_equal "\n\nfollow us", channel.footer_block
+
+    channel.footer = "   "
+    assert_nil channel.footer
+    assert_equal "", channel.footer_block
+  end
+
   test "enabled scope excludes disabled channels" do
     enabled  = create_channel(enabled: true)
     disabled = create_channel(enabled: false)

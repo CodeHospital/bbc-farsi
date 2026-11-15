@@ -45,6 +45,7 @@ class TelegramChannel < ApplicationRecord
   has_many :feed_autopost_channels, dependent: :delete_all
   has_many :autoposting_feeds, through: :feed_autopost_channels, source: :feed
 
+  normalizes :footer, with: ->(text) { text.strip.presence }
   normalizes :api_base_url, with: ->(url) { url.strip.chomp("/").presence }
   normalizes :custom_provider_name, :message_format, :account_id, :client_key, :client_secret, with: ->(value) { value.strip.presence }
 
@@ -84,6 +85,13 @@ class TelegramChannel < ApplicationRecord
   # long-standing default); every other provider gets a suffix.
   def display_name = telegram? ? name : "#{name} (#{provider_label})"
   def persian_display_name = telegram? ? name : "#{name} (#{provider_persian_label})"
+
+  # Text appended after the article link of every post to this channel
+  # (e.g. "follow @khabarestan for more"). Blank means no footer.
+  def default_footer = channel_id.present? ? "follow #{channel_id} for more" : ""
+
+  # The footer as a block to append after the link: "\n\n<footer>", or "".
+  def footer_block = footer.present? ? "\n\n#{footer}" : ""
 
   # Whether this channel currently accepts autoposted content — enabled AND its
   # own Autopost toggle on. See Feed#autopost_channels.

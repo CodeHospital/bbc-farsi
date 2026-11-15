@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Per-channel footer
+
+- User prompt: "every channel should have it's own footer that is appended to the channels, prefill with current footer".
+- New `telegram_channels.footer` column, editable on the channel form (new channels are prefilled with `follow @mychannel for more`; blank means no footer). It is appended after the article link in every post to that channel: Telegram, Bale/custom (HTML-escaped where the format is HTML), WhatsApp, Instagram captions and TikTok descriptions. The footer is counted in the length budget, so the body is truncated rather than the footer.
+- The migration backfills each existing channel with what was hard-coded before, so posts look the same: Telegram `follow <channel_id> for more`; Bale/custom the same only for `@username` channel ids; WhatsApp/Instagram/TikTok none.
+- Behaviour change: the hard-coded "follow … for more" line is gone from `TelegramPoster` and `BotApiPoster`; a channel created without a footer now posts none.
+- **Deploy note:** migration `20261115000001_add_footer_to_telegram_channels.rb` must be run (not run by me; `db/schema.rb` was updated by hand).
+- Tests: model, controller and poster tests for the footer.
+
 ### Added — Terms of Use and Privacy Policy pages
 
 - User prompt: "add terms and privacy pages".

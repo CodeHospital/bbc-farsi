@@ -82,6 +82,13 @@
             placeholder: channel.client_secret.present? ? "•••••••• (saved — leave blank to keep)" : "" %>
     </div>
   </fieldset>
+  <div class="mb-3">
+    <%= f.label :footer, class: "form-label" %>
+    <%= f.text_area :footer, rows: 2, class: "form-control",
+          value: channel.new_record? && channel.footer.nil? ? "follow @mychannel for more" : channel.footer,
+          placeholder: "follow @mychannel for more" %>
+    <div class="form-text">Appended after the article link in every post to this channel. Leave blank for no footer.</div>
+  </div>
   <div class="form-check mb-2">
     <%= f.check_box :enabled, class: "form-check-input" %>
     <%= f.label :enabled, class: "form-check-label" %>

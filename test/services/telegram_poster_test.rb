@@ -6,7 +6,8 @@ class TelegramPosterTest < ActiveSupport::TestCase
   teardown { restore_article_image_lookup }
 
   setup do
-    @channel     = TelegramChannel.new(name: "Khabarestan", token: "123:abc", channel_id: "@khabarestan")
+    @channel     = TelegramChannel.new(name: "Khabarestan", token: "123:abc", channel_id: "@khabarestan",
+                                       footer: "follow @khabarestan for more")
     @article     = Article.new(title: "Original English title", url: "https://bbc.co.uk/news/1")
     @translation = Translation.new(
       article:          @article,
@@ -32,6 +33,24 @@ class TelegramPosterTest < ActiveSupport::TestCase
     assert_equal "@khabarestan",  sent[:chat_id]
     assert_equal "HTML",       sent[:parse_mode]
     assert_includes sent[:text], "<b>عنوان فارسی</b>"
+  end
+
+  test "ends with the channel's own footer, escaped, and none when blank" do
+    @channel.footer = "follow @khabarestan for more & <b>"
+    sent = nil
+    fake_api = Object.new
+    fake_api.define_singleton_method(:send_message) { |opts| sent = opts }
+    fake_bot = Object.new
+    fake_bot.define_singleton_method(:api) { fake_api }
+
+    ::Telegram::Bot::Client.stub(:new, fake_bot) do
+      TelegramPoster.new.post(translation: @translation, channel: @channel)
+      assert sent[:text].end_with?("https://bbc.co.uk/news/1\n\nfollow @khabarestan for more &amp; &lt;b&gt;")
+
+      @channel.footer = nil
+      TelegramPoster.new.post(translation: @translation, channel: @channel)
+      assert sent[:text].end_with?("https://bbc.co.uk/news/1")
+    end
   end
 
   test "escapes HTML-significant characters in LLM-generated text" do

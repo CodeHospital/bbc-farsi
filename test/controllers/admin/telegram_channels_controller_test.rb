@@ -12,6 +12,20 @@ class Admin::TelegramChannelsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to admin_telegram_channels_path
   end
 
+  test "new channel form prefills the footer, and a channel's footer can be saved and cleared" do
+    get new_admin_telegram_channel_path
+    assert_select "textarea[name=?]", "telegram_channel[footer]", text: "follow @mychannel for more"
+
+    post admin_telegram_channels_path, params: { telegram_channel: {
+      name: "Footer News", token: "1:x", channel_id: "@footernews", footer: "  Join @footernews  ", enabled: "1"
+    } }
+    channel = TelegramChannel.find_by!(name: "Footer News")
+    assert_equal "Join @footernews", channel.footer
+
+    patch admin_telegram_channel_path(channel), params: { telegram_channel: { footer: "" } }
+    assert_nil channel.reload.footer
+  end
+
   test "index shows each channel's provider" do
     create_channel(name: "Telegram News")
     create_channel(name: "Bale News", provider: "bale", channel_id: "@balenews")

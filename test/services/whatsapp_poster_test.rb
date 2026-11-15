@@ -29,6 +29,12 @@ class WhatsappPosterTest < ActiveSupport::TestCase
     assert_requested(:post, MESSAGES_URL, headers: { "Authorization" => "Bearer wa-access-token" })
   end
 
+  test "appends the channel footer after the article link" do
+    @channel.footer = "Follow us: example.com"
+    body = capture_payloads.first["text"]["body"]
+    assert body.end_with?("https://bbc.co.uk/news/1\n\nFollow us: example.com")
+  end
+
   test "a non-phone channel id is sent as a group recipient" do
     @channel.channel_id = "Ab12CdGroupId"
     sent_payload = capture_payloads.first

@@ -48,7 +48,7 @@ Driven by an external scheduler (system cron) or the admin UI:
 - `/admin/articles` — list (filter by feed/status), show, trigger rewrite
 - `/admin/rewrites` — list, show, edit content, rerun, edit history
 - `/admin/translations` — list, show, edit title/body, post to channel, enable autopost, edit history
-- `/admin/telegram_channels` — CRUD, enable/disable, autopost toggle *(admin-only)*
+- `/admin/telegram_channels` — CRUD, enable/disable, autopost toggle, per-channel footer appended to every post *(admin-only)*
 - `/admin/pending_edits` — review queue for edits by editors flagged `requires_edit_approval` (diff, approve, reject; restricted editors see/withdraw their own)
 - `/edit/:token` — public magic link to propose an edit to one article (name/email/phone required) → guest pending edit; links managed on the article page
 - `/admin/skip_phrases` — edit the phrases that make ingestion skip an entry *(admin-only)*

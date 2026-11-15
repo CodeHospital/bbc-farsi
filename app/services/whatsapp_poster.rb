@@ -16,7 +16,7 @@ class WhatsappPoster
 
   def post(translation:, channel:)
     graph_api    = MetaGraphApi.new(channel)
-    message_text = SocialPostText.build(translation, max_length: MAX_TEXT_LENGTH)
+    message_text = SocialPostText.build(translation, max_length: MAX_TEXT_LENGTH, channel_footer: channel.footer_block)
     image_url    = ArticleImageFetcher.call(translation.article, resolve: true)
 
     return send_text(graph_api, channel, message_text) unless image_url

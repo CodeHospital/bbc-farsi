@@ -9,10 +9,11 @@ class BotApiPosterTest < ActiveSupport::TestCase
   JSON_HEADERS    = { "Content-Type" => "application/json" }.freeze
 
   setup do
-    @bale_channel   = TelegramChannel.new(name: "Khabarestan Bale", provider: "bale", token: "999:bale-token", channel_id: "@khabarestan_bale")
+    @bale_channel   = TelegramChannel.new(name: "Khabarestan Bale", provider: "bale", token: "999:bale-token", channel_id: "@khabarestan_bale",
+                                       footer: "follow @khabarestan_bale for more")
     @custom_channel = TelegramChannel.new(name: "Other News", provider: "custom", custom_provider_name: "Other Messenger",
                                           api_base_url: "https://bots.other.example/api", message_format: "html",
-                                          token: "5:custom-token", channel_id: "@othernews")
+                                          token: "5:custom-token", channel_id: "@othernews", footer: "follow @othernews for more")
     @article     = Article.new(title: "Original English title", url: "https://bbc.co.uk/news/1?at_medium=rss")
     @translation = Translation.new(article: @article, translated_title: "عنوان فارسی", translated_body: "متن فارسی خبر")
   end
@@ -36,14 +37,14 @@ class BotApiPosterTest < ActiveSupport::TestCase
     assert_equal({ "message_id" => 7 }, BotApiPoster.new.post(translation: @translation, channel: @bale_channel))
   end
 
-  test "advertises the channel's own @username, not the Telegram one" do
+  test "appends the channel's own footer, not the Telegram one" do
     sent_text = capture_payload(BALE_SEND_URL, @bale_channel)["text"]
     assert_includes sent_text, "follow @khabarestan_bale for more"
     assert_not_includes sent_text, "follow @khabarestan for more"
   end
 
-  test "omits the follow line for a numeric channel id" do
-    @bale_channel.channel_id = "5012345678"
+  test "omits the footer when the channel's footer is blank" do
+    @bale_channel.footer = nil
     assert_not_includes capture_payload(BALE_SEND_URL, @bale_channel)["text"], "follow"
   end
 
