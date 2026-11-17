@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Latin share link for Persian stories; fix X (Twitter) cards
+
+- User prompt: "every farsi news page should have also a latin share link; also when sharing the links in twitter, it doesnt create the usual overview".
+- Every Persian story page now shows an ASCII-only share link (`/news/a-<english-article-slug>`) under the share buttons. In the Persian edition `/news/a-<slug>` now serves the translated story (same page, canonical still the Persian URL) instead of the untranslated English article; the English edition is unchanged.
+- All share buttons (X, Telegram, WhatsApp, Facebook, LinkedIn, copy/native share) now share the Latin URL — percent-encoded Persian URLs are what broke X's card crawler.
+- `og:image`/`twitter:image` are forced to absolute `https://` URLs (feeds sometimes give `http://` or protocol-relative images, which drops the card).
+- No migration needed; uses the existing `articles.slug`.
+
 ### Added — Per-channel footer
 
 - User prompt: "every channel should have it's own footer that is appended to the channels, prefill with current footer".

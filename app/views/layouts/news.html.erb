@@ -17,6 +17,10 @@
       still carries a thumbnail (small "summary" card rather than a large one). %>
   <% has_lead_image   = og_image.present? %>
   <% og_image       ||= "#{request.base_url}/icon.png" %>
+  <%# X/Facebook crawlers need an absolute https image URL (feeds sometimes give
+      protocol-relative or http links, which silently kills the card). %>
+  <% og_image = og_image.to_s.strip.sub(%r{\A//}, "https://").sub(%r{\Ahttp://}, "https://") %>
+  <% og_image = "#{request.base_url}#{og_image.start_with?("/") ? "" : "/"}#{og_image}" unless og_image.start_with?("http") %>
 
   <title><%= page_title %></title>
   <meta name="description" content="<%= page_description %>">

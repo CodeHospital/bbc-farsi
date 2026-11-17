@@ -58,7 +58,17 @@ class NewsController < ApplicationController
     @translation =
       case params[:id]
       when /\Aa-/
-        ArticleStory.new(Article.not_archived.find_by!(slug: params[:id].delete_prefix("a-")))
+        latin_article = Article.not_archived.find_by!(slug: params[:id].delete_prefix("a-"))
+        # In the Persian edition the Latin (ASCII-only) URL is a share alias of
+        # the translated story: it serves the same page, so links stay clean in
+        # chats/X where percent-encoded Persian slugs break and cards fail.
+        latin_translation = (published_translations.where(article_id: latin_article.id).order(created_at: :desc).first unless @news_lang == "en")
+        if latin_translation
+          @latin_alias = true
+          latin_translation
+        else
+          ArticleStory.new(latin_article)
+        end
       when /\Aa(\d+)/
         ArticleStory.new(Article.not_archived.find($1.to_i))
       when /\A(\d+)/
@@ -69,7 +79,7 @@ class NewsController < ApplicationController
 
     # Canonical-URL guard: redirect stale/partial/old slugs to the canonical
     # URL so search engines see a single permanent URL per story.
-    if params[:id] != @translation.seo_param
+    if !@latin_alias && params[:id] != @translation.seo_param
       return redirect_to(news_path(id: @translation.seo_param, format: params[:format]),
                          status: :moved_permanently)
     end

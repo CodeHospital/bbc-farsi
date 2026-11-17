@@ -6,6 +6,8 @@
 <% content_for :title,       "#{title} — #{news_ui(:site_name)}" %>
 <% content_for :description, summary %>
 <% content_for :canonical,   news_story_url(@translation) %>
+<% latin_share_url = news_story_latin_url(@translation) %>
+<% share_url = latin_share_url || news_story_url(@translation) %>
 <% content_for :og_type,     "article" %>
 <% content_for :og_image,    @image_url if @image_url.present? %>
 
@@ -111,16 +113,21 @@
 
     <div class="share-bar mt-4 pt-3 border-top">
       <span class="tags-label"><%= news_ui(:share_label) %></span>
-      <% share_links(news_story_url(@translation), title).each do |share| %>
+      <% share_links(share_url, title).each do |share| %>
         <%= link_to share[:href], class: "share-btn", target: "_blank",
               rel: "noopener nofollow", "aria-label": share[:name] do %>
           <i class="bi <%= share[:icon] %>"></i><span><%= share[:name] %></span>
         <% end %>
       <% end %>
-      <button type="button" class="share-btn" data-copy-link="<%= news_story_url(@translation) %>"
+      <button type="button" class="share-btn" data-copy-link="<%= share_url %>"
               data-copied-label="<%= news_ui(:link_copied) %>">
         <i class="bi bi-link-45deg"></i><span><%= news_ui(:copy_link) %></span>
       </button>
+      <% if latin_share_url && !english_edition? %>
+        <span class="share-latin-link" dir="ltr" style="flex-basis:100%;font-size:.8rem;margin-top:.5rem">
+          <%= link_to latin_share_url, latin_share_url, class: "text-muted", style: "word-break:break-all" %>
+        </span>
+      <% end %>
     </div>
 
     <% if @tags.any? %>

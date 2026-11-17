@@ -365,6 +365,16 @@ module NewsHelper
   def news_story_path(translation) = news_path(id: translation.seo_param)
   def news_story_url(translation)  = news_url(id: translation.seo_param)
 
+  # ASCII-only alias of a story (built from the English article slug). Persian
+  # slugs are percent-encoded when shared, which chat apps truncate and X's card
+  # crawler often rejects; this URL serves the same page. nil when the article
+  # has no slug yet (pre-migration) or the story already has a Latin URL.
+  def news_story_latin_url(translation)
+    return nil if translation.is_a?(ArticleStory)
+    slug = translation.article.try(:slug)
+    slug.present? ? news_url(id: "a-#{slug}") : nil
+  end
+
   # Plain-markdown twin of a story page (LLM / reader-tool friendly).
   def news_story_markdown_url(translation) = news_url(id: translation.seo_param, format: :md)
 
