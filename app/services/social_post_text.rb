@@ -1,6 +1,6 @@
 # Plain-text body for the social platforms (WhatsApp, Instagram, TikTok):
 #
-#   📢 <title>
+#   📢 <title> #<publisher> #<country>
 #
 #   <body, truncated so the whole text fits max_length>
 #
@@ -14,7 +14,7 @@ module SocialPostText
   module_function
 
   def build(translation, max_length:, channel_footer: "")
-    header = "📢 #{translation.translated_title.to_s.strip}\n\n"
+    header = "📢 #{ShareHashtags.append_to(translation.translated_title.to_s.strip, translation.article)}\n\n"
     footer = "\n\n#{article_link(translation)}#{channel_footer}"
     body_budget = [ max_length - header.length - footer.length, 0 ].max
 

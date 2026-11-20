@@ -26,7 +26,7 @@ class TiktokPosterTest < ActiveSupport::TestCase
 
     assert_equal "refresh-new", @channel.reload.token
     assert_equal "PUBLIC_TO_EVERYONE", init_payload["post_info"]["privacy_level"]
-    assert_equal "عنوان فارسی", init_payload["post_info"]["title"]
+    assert_equal "عنوان فارسی #BBC_News #بریتانیا", init_payload["post_info"]["title"]
     assert_includes init_payload["post_info"]["description"], "https://bbc.co.uk/news/tiktok-1"
     assert_equal "PHOTO", init_payload["media_type"]
     assert_equal "DIRECT_POST", init_payload["post_mode"]

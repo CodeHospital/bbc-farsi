@@ -76,7 +76,7 @@ class BotApiPoster
   end
 
   def plain_message(translation, channel)
-    header = "📢 #{translation.translated_title}\n\n"
+    header = "📢 #{ShareHashtags.append_to(translation.translated_title, translation.article)}\n\n"
     footer = "\n\n\n#{article_link(translation)}#{channel.footer_block}"
     body_budget = MAX_MESSAGE_LENGTH - header.length - footer.length
 
@@ -84,7 +84,8 @@ class BotApiPoster
   end
 
   def html_message(translation, channel)
-    header = "📢 <b>#{escape(translation.translated_title)}</b>\n\n"
+    hashtags = ShareHashtags.for(translation.article)
+    header = "📢 <b>#{escape(translation.translated_title)}</b>#{hashtags.empty? ? '' : " #{escape(hashtags)}"}\n\n"
     footer = "\n\n\n#{escape(article_link(translation))}#{escape(channel.footer_block)}"
     body_budget = [ MAX_MESSAGE_LENGTH - header.length - footer.length, 0 ].max
 

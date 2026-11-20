@@ -34,7 +34,7 @@ class TiktokPoster
 
     api_call(channel, "/v2/post/publish/content/init/", access_token, {
       post_info: {
-        title:           translation.translated_title.to_s.strip.truncate(MAX_TITLE_LENGTH),
+        title:           title_for(translation),
         description:     description_for(translation, channel),
         privacy_level:,
         disable_comment: false,
@@ -57,6 +57,17 @@ class TiktokPoster
   private
 
   def public_image_url(article) = self.class.public_image_url(article)
+
+  # Title plus the source/country hashtags; the title text is shortened so the
+  # hashtags always fit within MAX_TITLE_LENGTH.
+  def title_for(translation)
+    title = translation.translated_title.to_s.strip
+    hashtags = ShareHashtags.for(translation.article)
+    return title.truncate(MAX_TITLE_LENGTH) if hashtags.empty?
+
+    title_budget = [ MAX_TITLE_LENGTH - hashtags.length - 1, 0 ].max
+    "#{title.truncate(title_budget)} #{hashtags}".strip
+  end
 
   def description_for(translation, channel)
     link_suffix = "\n\n#{SocialPostText.article_link(translation)}#{channel.footer_block}"

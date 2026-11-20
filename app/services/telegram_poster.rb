@@ -48,10 +48,16 @@ class TelegramPoster
 
   def build_message(channel, translation)
     article = translation.article
-    "📢 <b>#{escape(translation.translated_title)}</b>\n\n" \
+    "📢 <b>#{escape(translation.translated_title)}</b>#{escape(hashtag_suffix(article))}\n\n" \
       "#{escape(translation.translated_body)}\n\n\n" \
       "#{escape(article.url.to_s.split('?').first)}" \
       "#{escape(channel.footer_block)}"
+  end
+
+  # " #Publisher #Country" after the title, outside the <b> so they stay tappable.
+  def hashtag_suffix(article)
+    hashtags = ShareHashtags.for(article)
+    hashtags.empty? ? "" : " #{hashtags}"
   end
 
   def escape(text) = CGI.escapeHTML(text.to_s)

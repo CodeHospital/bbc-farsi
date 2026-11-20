@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — English site title in the top bar
+
+- User prompt: "in english version, site title is khabarestan".
+- The English edition's top-bar logo text said "World News"; it now shows the site name "Khabarestan" (`news_ui(:site_name)`). The Persian top bar is unchanged.
+
+### Added — Source and country hashtags on shared posts
+
+- User prompt: "when sharing posts add hashtags of the source feed and country at the end of first line".
+- The first line (the title) of every channel post now ends with `#<publisher> #<country>`, e.g. `📢 <b>عنوان</b> #BBC_News #بریتانیا`. Applies to Telegram, Bale/custom (plain and HTML), WhatsApp, Instagram and TikTok (TikTok's title is shortened so the hashtags always fit its 90-char limit). In HTML posts the hashtags sit outside the bold title.
+- The website share buttons (Telegram, WhatsApp, X) put the same hashtags after the title; the English edition uses the English country name (`#United_Kingdom`).
+- New `ShareHashtags` service. Country comes from the feed's source (`Feed::SOURCE_COUNTRY_CODES`: bbc→GB, nyt→US, adhocnews/heise/germannews→DE, australianews→AU, israelnews→IL, france24/lemonde/lefigaro→FR); Persian names in `Country::NAMES_FA` (IL follows the existing `Country::NAMES` naming, "فلسطین"). Articles without a feed get no hashtags.
+- No migration needed. Tests: `ShareHashtags` unit tests, Telegram first-line test, TikTok title updated.
+
 ### Added — Latin share link for Persian stories; fix X (Twitter) cards
 
 - User prompt: "every farsi news page should have also a latin share link; also when sharing the links in twitter, it doesnt create the usual overview".

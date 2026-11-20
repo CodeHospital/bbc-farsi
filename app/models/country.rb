@@ -26,10 +26,20 @@ module Country
     "VN" => "Vietnam",     "YE" => "Yemen"
   }.freeze
 
+  # Persian names for the countries our feeds publish from (Feed::SOURCE_COUNTRY_CODES),
+  # used for the Persian country hashtag on shared posts.
+  NAMES_FA = {
+    "GB" => "انگلیس", "US" => "آمریکا", "DE" => "آلمان", "AU" => "استرالیا",
+    "IL" => "فلسطین اشغالی",   "FR" => "فرانسه"
+  }.freeze
+
   CODES_BY_NAME = NAMES.each_with_object({}) { |(code, name), map| map[name.downcase] = code }.freeze
 
   # 2-letter ISO code -> human-readable name, or the code itself when unknown.
   def self.name_for(code) = NAMES[code.to_s.upcase] || code.to_s
+
+  # Persian name for a code; falls back to the English name when there's no Persian one.
+  def self.name_fa_for(code) = NAMES_FA[code.to_s.upcase] || name_for(code)
 
   # Full country name (case/whitespace-insensitive) -> 2-letter ISO code, or nil when unknown.
   def self.code_for_name(name) = CODES_BY_NAME[name.to_s.strip.downcase]

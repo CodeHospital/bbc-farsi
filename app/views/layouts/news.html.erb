@@ -399,7 +399,7 @@
       </span>
       <%= link_to home_path, class: "logo-box" do %>
         <%= image_tag "/logo.png", alt: "", class: "logo-mark", width: 36, height: 36 %>
-        <span class="logo-text"><%= english_edition? ? "World News" : "خبر فارسی" %><small>.</small></span>
+        <span class="logo-text"><%= english_edition? ? news_ui(:site_name) : "خبر فارسی" %><small>.</small></span>
       <% end %>
       <span class="social">
         <%= link_to news_ui(:switch_label), lang_switch_url, class: "fw-bold me-3", rel: "alternate" %>

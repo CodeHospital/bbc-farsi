@@ -113,7 +113,7 @@
 
     <div class="share-bar mt-4 pt-3 border-top">
       <span class="tags-label"><%= news_ui(:share_label) %></span>
-      <% share_links(share_url, title).each do |share| %>
+      <% share_links(share_url, ShareHashtags.append_to(title, @article, lang: news_lang)).each do |share| %>
         <%= link_to share[:href], class: "share-btn", target: "_blank",
               rel: "noopener nofollow", "aria-label": share[:name] do %>
           <i class="bi <%= share[:icon] %>"></i><span><%= share[:name] %></span>

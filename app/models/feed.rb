@@ -17,6 +17,14 @@ class Feed < ApplicationRecord
   # alone the way it can for bbc/nyt/adhocnews/heise. See #publisher_info.
   MULTI_PUBLISHER_SOURCES = %w[germannews australianews israelnews].freeze
 
+  # The country each source publishes from (ISO 3166-1 alpha-2, see Country).
+  # Used for the country hashtag on shared posts (see ShareHashtags).
+  SOURCE_COUNTRY_CODES = {
+    "bbc" => "GB", "nyt" => "US", "adhocnews" => "DE", "heise" => "DE",
+    "germannews" => "DE", "australianews" => "AU", "israelnews" => "IL",
+    "france24" => "FR", "lemonde" => "FR", "lefigaro" => "FR"
+  }.freeze
+
   # Hour-of-day slots a feed can be scheduled for. nil means "not scheduled",
   # which is the default — a feed is only auto-fetched once given an hour.
   FETCH_HOURS = (0..23).to_a.freeze
@@ -60,6 +68,9 @@ class Feed < ApplicationRecord
   end
 
   def multi_publisher_source? = MULTI_PUBLISHER_SOURCES.include?(source)
+
+  # 2-letter country code of the feed's publisher, or nil for an unknown source.
+  def country_code = SOURCE_COUNTRY_CODES[source]
 
   # Publisher name/domain/home page for THIS feed, for sources that mix many
   # publishers — nil for single-publisher sources (bbc/nyt/adhocnews/heise),

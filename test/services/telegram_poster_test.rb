@@ -35,6 +35,21 @@ class TelegramPosterTest < ActiveSupport::TestCase
     assert_includes sent[:text], "<b>عنوان فارسی</b>"
   end
 
+  test "first line ends with the source and country hashtags, outside the bold title" do
+    @article.feed = Feed.new(name: "World", source: "bbc")
+    sent = nil
+    fake_api = Object.new
+    fake_api.define_singleton_method(:send_message) { |opts| sent = opts }
+    fake_bot = Object.new
+    fake_bot.define_singleton_method(:api) { fake_api }
+
+    ::Telegram::Bot::Client.stub(:new, fake_bot) do
+      TelegramPoster.new.post(translation: @translation, channel: @channel)
+    end
+
+    assert_equal "📢 <b>عنوان فارسی</b> #BBC_News #بریتانیا", sent[:text].lines.first.chomp
+  end
+
   test "ends with the channel's own footer, escaped, and none when blank" do
     @channel.footer = "follow @khabarestan for more & <b>"
     sent = nil
