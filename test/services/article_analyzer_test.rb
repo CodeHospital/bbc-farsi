@@ -44,6 +44,22 @@ class ArticleAnalyzerTest < ActiveSupport::TestCase
     assert_equal [ 100, 0 ], result.values_at(:factual_percent, :speculative_percent)
   end
 
+  test "process repairs malformed JSON with json-repair (trailing comma, unquoted keys)" do
+    raw = "{left: 10, center: 60, right: 30, factual: 40, speculative: 60, reasoning: \"Forecast piece.\",}"
+    result = ArticleAnalyzer.process("analysis" => raw)
+
+    assert_equal [ 10, 60, 30 ], result.values_at(:bias_left_percent, :bias_center_percent, :bias_right_percent)
+    assert_equal [ 40, 60 ], result.values_at(:factual_percent, :speculative_percent)
+    assert_equal "Forecast piece.", result[:analysis_reasoning]
+  end
+
+  test "process treats non-numeric split values as missing after repair" do
+    result = ArticleAnalyzer.process("analysis" => "{\"left\": [}")
+
+    assert_equal [ 0, 100, 0 ], result.values_at(:bias_left_percent, :bias_center_percent, :bias_right_percent)
+    assert_equal [ 100, 0 ], result.values_at(:factual_percent, :speculative_percent)
+  end
+
   test "process raises on a response without JSON so the task fails" do
     assert_raises(ArgumentError) { ArticleAnalyzer.process("analysis" => "I cannot help with that.") }
   end

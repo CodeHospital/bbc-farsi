@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Analyzer uses json-repair when the model's JSON is malformed
+
+- User prompt: "use json-repair in parse_json when parsing fails".
+- `ArticleAnalyzer.parse_json` now tries strict `JSON.parse` first and falls back to `JSON.repair(..., return_objects: true)` (the `json-repair` gem, already in the Gemfile). Trailing commas, unquoted keys and similar LLM mistakes are recovered instead of failing the task. Only when repair also fails does it raise `ArgumentError`, as before.
+- Repaired output that is not a JSON object raises `ArgumentError`. Non-numeric split values (for example a repaired array) are treated as missing, so they fall back to the default split.
+- Fixed a pre-existing crash: the `Sentry::Breadcrumb.new(..., extra:)` call in `parse_json` raised `ArgumentError: unknown keyword: :extra` on every analysis, so no article could be analyzed. It now uses the same `Sentry.add_breadcrumb("message", extra:)` form as the rest of the service.
+- Tests: 2 new (repair of trailing comma and unquoted keys; non-numeric values treated as missing); the 4 existing `parse_json` tests pass again. No migration.
+
 ### Changed — English site title in the top bar
 
 - User prompt: "in english version, site title is khabarestan".

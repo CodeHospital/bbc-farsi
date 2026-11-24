@@ -95,3 +95,5 @@ group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
 end
+
+gem "json-repair", "~> 0.15.0"

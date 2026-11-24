@@ -3,7 +3,7 @@ require "test_helper"
 class ShareHashtagsTest < ActiveSupport::TestCase
   test "publisher and Persian country hashtags for a BBC feed" do
     article = Article.new(feed: Feed.new(name: "World", source: "bbc"))
-    assert_equal "#BBC_News #بریتانیا", ShareHashtags.for(article)
+    assert_equal "#BBC_News #انگلیس", ShareHashtags.for(article)
   end
 
   test "English country name for the English edition" do

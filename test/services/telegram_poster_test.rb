@@ -47,7 +47,7 @@ class TelegramPosterTest < ActiveSupport::TestCase
       TelegramPoster.new.post(translation: @translation, channel: @channel)
     end
 
-    assert_equal "📢 <b>عنوان فارسی</b> #BBC_News #بریتانیا", sent[:text].lines.first.chomp
+    assert_equal "📢 <b>عنوان فارسی</b> #BBC_News #انگلیس", sent[:text].lines.first.chomp
   end
 
   test "ends with the channel's own footer, escaped, and none when blank" do
