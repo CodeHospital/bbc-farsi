@@ -32,6 +32,12 @@ end
 end
 Rails.application.reload_routes!
 
+# Never read the real IP-location endpoint from credentials in tests. Point the
+# lookup at a fixed fake URL; tests stub it with WebMock (see
+# GuestEditsControllerTest#stub_location_lookup).
+IP_LOCATION_TEST_URL = "https://relay.test.invalid/api/v1/locations".freeze
+AppCredentials.define_singleton_method(:ip_location_api_url) { IP_LOCATION_TEST_URL }
+
 module ActiveSupport
   class TestCase
     parallelize(workers: :number_of_processors)

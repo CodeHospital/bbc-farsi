@@ -60,6 +60,22 @@ class ArticleAnalyzerTest < ActiveSupport::TestCase
     assert_equal [ 100, 0 ], result.values_at(:factual_percent, :speculative_percent)
   end
 
+  test "breadcrumbs are sent as Sentry::Breadcrumb objects, not extra: keywords" do
+    recorded_breadcrumbs = []
+    recording_add_breadcrumb = ->(breadcrumb, **options) do
+      assert_empty options
+      recorded_breadcrumbs << breadcrumb
+    end
+
+    Sentry.stub(:add_breadcrumb, recording_add_breadcrumb) do
+      ArticleAnalyzer.process("analysis" => '{"left": 10, "center": 60, "right": 30, "factual": 40, "speculative": 60}')
+    end
+
+    assert_equal 3, recorded_breadcrumbs.size
+    assert recorded_breadcrumbs.all? { |breadcrumb| breadcrumb.is_a?(Sentry::Breadcrumb) }
+    assert_equal "ArticleAnalyzer.process", recorded_breadcrumbs.first.message
+  end
+
   test "process raises on a response without JSON so the task fails" do
     assert_raises(ArgumentError) { ArticleAnalyzer.process("analysis" => "I cannot help with that.") }
   end

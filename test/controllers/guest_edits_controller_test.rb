@@ -98,13 +98,13 @@ class GuestEditsControllerTest < ActionDispatch::IntegrationTest
     assert_select "#edit_history strong", text: "Sara Test (guest)"
   end
 
-  def stub_ipwho(ip, country: "Germany", city: "Aachen")
-    stub_request(:get, %r{\Ahttps://ipwho\.is/#{Regexp.escape(ip)}\?})
-      .to_return(body: { success: true, country:, city: }.to_json)
+  def stub_location_lookup(ip, country: "Germany", city: "Aachen")
+    stub_request(:get, %r{\A#{Regexp.escape(IP_LOCATION_TEST_URL)}\?ip=#{Regexp.escape(ip)}\z})
+      .to_return(body: { success: true, data: { ip:, country:, city: } }.to_json)
   end
 
   test "records the submitter's IP and the location it resolves to" do
-    stub_ipwho("203.0.113.9")
+    stub_location_lookup("203.0.113.9")
     post guest_edit_path(@edit_link.token), params: guest_params, headers: { "REMOTE_ADDR" => "203.0.113.9" }
 
     pending_edit = PendingEdit.last
@@ -122,7 +122,7 @@ class GuestEditsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "a failed location lookup still saves the edit with the IP" do
-    stub_request(:get, %r{ipwho\.is}).to_return(status: 500, body: "boom")
+    stub_request(:get, %r{\A#{Regexp.escape(IP_LOCATION_TEST_URL)}}).to_return(status: 500, body: "boom")
     post guest_edit_path(@edit_link.token), params: guest_params, headers: { "REMOTE_ADDR" => "203.0.113.10" }
 
     pending_edit = PendingEdit.last

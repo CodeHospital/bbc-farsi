@@ -25,6 +25,11 @@ class Api::LlmCallbacksController < ActionController::API
     task    = Task.find(payload["task_id"])
     key     = payload["key"]
 
+    SentryBreadcrumb.record("llmarkt callback received", category: "llm_callback", data: {
+      task_id: task.id, key: key, job_id: params[:job_id], status: params[:status].to_s,
+      output_length: params[:output].to_s.length
+    })
+
     case params[:status].to_s
     when "failed"
       LlmarktSubmitter.handle_failure(task, params[:job_id], params[:error].to_s.presence || "llmarkt job failed")

@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Sentry breadcrumbs crashed LLM callbacks (`ArgumentError: unknown keyword: :extra`)
+
+- User prompt: "fix the sentry breadcrumbs — ArgumentError: unknown keyword: :extra (ArgumentError) ⋄ Api::LlmCallbacksController#create".
+- Root cause: sentry-ruby 7.3.0 `Sentry.add_breadcrumb` takes a `Sentry::Breadcrumb` object and forwards its options to `Hub#add_breadcrumb(breadcrumb, hint: {})`, which rejects `extra:`. `ArticleAnalyzer` called it with a string message plus `extra:`. The error was raised inside the analysis path (only when Sentry is initialized, i.e. in production), so `Api::LlmCallbacksController#create` rescued it and returned 422, and the LLM result was lost.
+- Fix: the three breadcrumb calls in `ArticleAnalyzer` (`process`, `parse_json`, `parse_json: extracted JSON`) now go through the new shared `SentryBreadcrumb.record` (see the refactor entry below), which builds a `Sentry::Breadcrumb` and passes it to `Sentry.add_breadcrumb`.
+- This supersedes the earlier "Fixed a pre-existing crash" note in the json-repair entry below, which described the `Sentry.add_breadcrumb("message", extra:)` form as correct. It is not.
+- Tests: 1 new regression test in `article_analyzer_test.rb` asserts the breadcrumbs are `Sentry::Breadcrumb` objects with no keyword options. Analyzer, LLM callback controller and `SentryBreadcrumb` tests: 18 runs, 0 failures. Rubocop clean on the changed files. Verified with Sentry initialized (no DSN, nothing sent) that `ArticleAnalyzer.process` returns results. No migration.
+
+### Changed — IP location now comes from our relay service (credentials key `ip_location_api_url`)
+
+- User prompt: "fetch location information from https://relay.codehospital.com/api/v1/locations?ip=90.7.152.142 instead of ipwho.is — put url in credentials".
+- `ArticleView.fetch_country_from_service` calls `AppCredentials.ip_location_api_url` with `?ip=<address>` (URL-encoded) instead of `ipwho.is`. It reads `country` and `city` from the `data` object of the response (`{ "success": true, "data": { ... } }`). Timeouts are unchanged (3 s).
+- New credentials key `ip_location_api_url` (`AppCredentials.ip_location_api_url`). It was added to the real encrypted credentials as `https://relay.codehospital.com/api/v1/locations`, and listed in `config/credentials.example.yml`, the readme credentials table and the `bbc:credentials` optional keys. When it is unset, `location_for_ip` makes no lookup and caches nothing.
+- The public privacy page (EN and FA) no longer names ipwho.is as the processor; it says "our own geolocation service".
+- Tests: `test/test_helper.rb` points the lookup at a fixed fake URL (`IP_LOCATION_TEST_URL`) so tests never read real credentials. `GuestEditsControllerTest` stubs that URL and expects the `data` shape. Full suite: 817 runs, 0 failures. Rubocop clean on the changed files.
+- Verified live: `ArticleView.location_for_ip("90.7.152.142")` returns `["France", "Antony"]`.
+
+### Added — Sentry breadcrumbs for inbound API, callback and IP-geolocation data
+
+- User prompt: "use it where we are processing data received from api, or callbacks, like ip locations".
+- `ArticleView.geolocate_ip` records a breadcrumb for each lookup: cache hit, service lookup, concurrent cache read, or failure (warning level, with the error class and a truncated message). The IP address itself is not recorded, since it is personal data.
+- `Api::LlmCallbacksController#create` records the verified callback's task id, key, job id, status and output length. The LLM output text is not recorded.
+- `Api::TasksController#complete` records the task id, kind, model and response keys (not the response content). `#mark_failed` records the task and the worker's error (warning level, truncated).
+- `Api::TelegramAdminController#webhook` records the update id and the callback button data. Telegram user details are not recorded.
+- Breadcrumbs go through `SentryBreadcrumb.record`. No behaviour change: they are no-ops until Sentry is initialized.
+- Tests: the existing API controller, article analyzer and breadcrumb tests pass (66 runs, 0 failures). There is no dedicated `ArticleView` geolocation test, so that path is covered only by the existing tests and rubocop. Rubocop clean on the four changed files. No migration.
+
+### Changed — Shared `SentryBreadcrumb` helper
+
+- User prompt: "can we refactor record_breadcrumb out and use it everywhere it makes sense?"
+- The private `ArticleAnalyzer.record_breadcrumb` moved to a new `SentryBreadcrumb` module (`app/services/sentry_breadcrumb.rb`). `SentryBreadcrumb.record(message, category:, data:, level:)` builds the `Sentry::Breadcrumb` object, with defaults `category: "app"` and `level: "info"`.
+- It is used by all three `ArticleAnalyzer` breadcrumb calls. No other app code records breadcrumbs. The worker (`worker/`) has none and is a separate Ruby app that does not load `app/services`, so it was left alone.
+- Tests: new `test/services/sentry_breadcrumb_test.rb` (2 tests) for the object form, the custom fields and the defaults. No behaviour change.
+
 ### Changed — Analyzer uses json-repair when the model's JSON is malformed
 
 - User prompt: "use json-repair in parse_json when parsing fails".

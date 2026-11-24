@@ -25,4 +25,9 @@ module AppCredentials
 
   # Only used for the admin "debug curl" panels — the app never calls Ollama.
   def ollama_url = fetch(:ollama_url) || DEFAULT_OLLAMA_URL
+
+  # IP → location lookup endpoint (our relay service), e.g.
+  # https://relay.codehospital.com/api/v1/locations — the client appends ?ip=.
+  # Nil when unset, in which case page views are recorded without a location.
+  def ip_location_api_url = fetch(:ip_location_api_url)
 end

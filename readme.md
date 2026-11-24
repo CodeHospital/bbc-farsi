@@ -65,6 +65,7 @@ template with every key. Copy the ones you need into `credentials:edit`.
 | `sentry_dsn` | optional | Error tracking (see below) |
 | `telegram_admin_bot_token` / `telegram_admin_chat_id` / `telegram_admin_webhook_secret` | optional | Telegram admin notification bot (see below) |
 | `contact_email` | optional | Contact address shown on the public `/terms` and `/privacy` pages (hidden when unset). |
+| `ip_location_api_url` | optional | IP → location endpoint, e.g. `https://relay.codehospital.com/api/v1/locations` (the app appends `?ip=`). Used for page-view and guest-edit location. When unset, no lookup is made and no location is recorded. |
 | `ollama_url` | optional | Only used for the admin "debug curl" panels (default `http://localhost:11434`). The app itself never calls Ollama. |
 
 Also in credentials: `legacy_api_on_public`, `rails_log_level` and
@@ -565,7 +566,7 @@ page; the page is `noindex`, disallowed in `robots.txt`, rate-limited and has a
 honeypot. Each link is **multiple use** (default — several people may each
 submit until it expires or is revoked) or **single use** (spent by the first
 saved submission; it then shows as "used"). The submitter's IP address and the
-country/city it resolves to (cached `ipwho.is` lookup, shared with page-view
+country/city it resolves to (cached lookup via `ip_location_api_url`, shared with page-view
 analytics) are recorded and shown to reviewers. Guest contact details and IPs
 are personal data — delete old rows when no longer needed.
 

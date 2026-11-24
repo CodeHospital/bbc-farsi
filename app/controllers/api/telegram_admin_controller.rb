@@ -14,7 +14,13 @@ class Api::TelegramAdminController < ActionController::API
   before_action :verify_secret_token!
 
   def webhook
-    handle_callback_query(params[:callback_query]) if params[:callback_query].present?
+    if params[:callback_query].present?
+      # Only the update id and button data: no Telegram user details.
+      SentryBreadcrumb.record("telegram callback query received", category: "telegram_webhook", data: {
+        update_id: params[:update_id], callback_data: params[:callback_query][:data].to_s.truncate(100)
+      })
+      handle_callback_query(params[:callback_query])
+    end
     head :ok
   end
 

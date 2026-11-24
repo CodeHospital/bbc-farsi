@@ -34,7 +34,7 @@ class ArticleAnalyzer
   # clamped and normalized to sum to exactly 100, so a sloppy model answer
   # (e.g. 40/40/40) still produces consistent percentages.
   def self.process(responses)
-    Sentry.add_breadcrumb("ArticleAnalyzer.process", extra: { responses: responses })
+    SentryBreadcrumb.record("ArticleAnalyzer.process", category: "article_analyzer", data: { responses: responses })
     parsed = parse_json(responses["analysis"])
 
     bias_left, bias_center, bias_right =
@@ -68,12 +68,12 @@ class ArticleAnalyzer
   end
 
   def self.parse_json(raw_response)
-    Sentry.add_breadcrumb("ArticleAnalyzer.parse_json", extra: { raw_response: raw_response })
+    SentryBreadcrumb.record("ArticleAnalyzer.parse_json", category: "article_analyzer", data: { raw_response: raw_response })
     text      = LlmText.clean(raw_response.to_s)
     json_text = text[/\{.*\}/m]
     raise ArgumentError, "analysis response contained no JSON object: #{text.truncate(200)}" unless json_text
 
-    Sentry.add_breadcrumb("ArticleAnalyzer.parse_json: extracted JSON", extra: { json_text: json_text })
+    SentryBreadcrumb.record("ArticleAnalyzer.parse_json: extracted JSON", category: "article_analyzer", data: { json_text: json_text })
 
     parse_json_object(json_text)
   end

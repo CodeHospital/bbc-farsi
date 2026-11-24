@@ -20,6 +20,9 @@ class Api::TasksController < Api::BaseController
   # POST /api/tasks/:id/complete
   def complete
     task = Task.find(params[:id])
+    SentryBreadcrumb.record("worker task complete received", category: "worker_api", data: {
+      task_id: task.id, kind: task.kind, model: task.model, response_keys: responses_param.keys
+    })
     task.complete!(responses_param)
     render json: { id: task.id, status: task.status }
   rescue StandardError => e
@@ -30,8 +33,11 @@ class Api::TasksController < Api::BaseController
 
   # POST /api/tasks/:id/fail
   def mark_failed
-    task = Task.find(params[:id])
-    task.fail!(params[:error].to_s.presence || "worker reported failure")
+    task  = Task.find(params[:id])
+    error = params[:error].to_s.presence || "worker reported failure"
+    SentryBreadcrumb.record("worker task failure received", category: "worker_api", level: "warning",
+      data: { task_id: task.id, kind: task.kind, model: task.model, error: error.truncate(300) })
+    task.fail!(error)
     render json: { id: task.id, status: task.status }
   end
 
