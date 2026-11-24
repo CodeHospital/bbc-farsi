@@ -79,13 +79,14 @@ class ArticleAnalyzer
   end
 
   # Strict parse first. When the model's JSON is malformed (trailing commas,
-  # unquoted keys, stray markdown, ...) fall back to json-repair before failing.
+  # unquoted keys, unescaped quotes inside a string, stray markdown, ...) escape
+  # the inner quotes and fall back to json-repair before failing.
   def self.parse_json_object(json_text)
     parsed_object =
       begin
         JSON.parse(json_text)
       rescue JSON::ParserError
-        JSON.repair(json_text, return_objects: true)
+        JSON.repair(escape_inner_quotes(json_text), return_objects: true)
       end
 
     raise ArgumentError, "analysis response was not a JSON object: #{json_text.truncate(200)}" unless parsed_object.is_a?(Hash)
@@ -93,6 +94,48 @@ class ArticleAnalyzer
     parsed_object
   rescue JSON::JSONRepairError => repair_error
     raise ArgumentError, "analysis response was not valid JSON: #{repair_error.message}"
+  end
+
+  # Escapes double quotes that sit inside a string value, e.g. the ("Selenskyj")
+  # in a reasoning sentence. A quote only closes a string when the next
+  # non-space character is , } ] or : (or the text ends); any other quote is
+  # content and gets a backslash.
+  def self.escape_inner_quotes(json_text)
+    characters        = json_text.chars
+    escaped_text      = +""
+    inside_string     = false
+    character_index   = 0
+
+    while character_index < characters.length
+      character = characters[character_index]
+
+      if inside_string && character == "\\"
+        escaped_text << character << characters[character_index + 1].to_s
+        character_index += 2
+        next
+      end
+
+      if character == '"'
+        if !inside_string
+          inside_string = true
+        elsif closes_json_string?(characters, character_index + 1)
+          inside_string = false
+        else
+          character = '\\"'
+        end
+      end
+
+      escaped_text << character
+      character_index += 1
+    end
+
+    escaped_text
+  end
+
+  def self.closes_json_string?(characters, following_index)
+    next_index = following_index
+    next_index += 1 while next_index < characters.length && characters[next_index].match?(/\s/)
+    next_index >= characters.length || [ ",", "}", "]", ":" ].include?(characters[next_index])
   end
 
   # Clamps each value to 0..100 and rescales so the parts sum to 100; the

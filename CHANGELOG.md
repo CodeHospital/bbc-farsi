@@ -12,6 +12,13 @@ All notable changes to this project will be documented in this file.
 - This supersedes the earlier "Fixed a pre-existing crash" note in the json-repair entry below, which described the `Sentry.add_breadcrumb("message", extra:)` form as correct. It is not.
 - Tests: 1 new regression test in `article_analyzer_test.rb` asserts the breadcrumbs are `Sentry::Breadcrumb` objects with no keyword options. Analyzer, LLM callback controller and `SentryBreadcrumb` tests: 18 runs, 0 failures. Rubocop clean on the changed files. Verified with Sentry initialized (no DSN, nothing sent) that `ArticleAnalyzer.process` returns results. No migration.
 
+### Fixed — Analyzer rejects LLM JSON with unescaped quotes inside a string
+
+- User prompt: "json.repair cannot parse @testfile" (the file held a reasoning value containing `("Selenskyj")` with bare double quotes).
+- Root cause: the model put unescaped `"` characters inside the `reasoning` string. Strict `JSON.parse` failed, and `JSON.repair` failed at the first inner quote ("Colon expected"), so the analysis raised `ArgumentError`.
+- Fix: `ArticleAnalyzer.parse_json_object` now runs `escape_inner_quotes` before `JSON.repair`. A quote only closes a string when the next non-space character is `,` `}` `]` or `:` (or the text ends). Any other quote inside a string is escaped. Valid JSON never reaches this step, since strict parsing runs first.
+- Tests: 2 new in `article_analyzer_test.rb` (the failing response now parses; valid JSON passes through `escape_inner_quotes` unchanged). Analyzer tests 12/12 green. Full suite result is in the session summary. Rubocop clean.
+
 ### Changed — IP location now comes from our relay service (credentials key `ip_location_api_url`)
 
 - User prompt: "fetch location information from https://relay.codehospital.com/api/v1/locations?ip=90.7.152.142 instead of ipwho.is — put url in credentials".

@@ -53,6 +53,21 @@ class ArticleAnalyzerTest < ActiveSupport::TestCase
     assert_equal "Forecast piece.", result[:analysis_reasoning]
   end
 
+  test "process repairs unescaped quotes inside a reasoning string" do
+    raw = '{"left": 20, "center": 65, "right": 15, "factual": 95, "speculative": 5, "reasoning": "While mentioning Ukraine\'s involvement ("Selenskyj"), the framing leans slightly left."}'
+    result = ArticleAnalyzer.process("analysis" => raw)
+
+    assert_equal [ 20, 65, 15 ], result.values_at(:bias_left_percent, :bias_center_percent, :bias_right_percent)
+    assert_equal [ 95, 5 ], result.values_at(:factual_percent, :speculative_percent)
+    assert_equal 'While mentioning Ukraine\'s involvement ("Selenskyj"), the framing leans slightly left.', result[:analysis_reasoning]
+  end
+
+  test "escape_inner_quotes leaves valid JSON unchanged" do
+    valid_json = '{"reasoning": "He said \"hi\" twice", "left": 10}'
+
+    assert_equal valid_json, ArticleAnalyzer.escape_inner_quotes(valid_json)
+  end
+
   test "process treats non-numeric split values as missing after repair" do
     result = ArticleAnalyzer.process("analysis" => "{\"left\": [}")
 
