@@ -68,7 +68,8 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select ".article-analysis .analysis-segment", 5
     assert_select ".analysis-left[style*=?]", "width: 30%"
-    assert_select ".analysis-factual .analysis-segment-label", "واقعیت ۸۵٪"
+    assert_select ".analysis-factual .analysis-segment-name", "واقعیت"
+    assert_select ".analysis-factual .analysis-segment-percent", "۸۵٪"
     assert_select ".analysis-right .analysis-segment-label", 0
     assert_select ".analysis-right[title=?]", "راست ۵٪"
     assert_select ".analysis-bar[dir=ltr]", 2
@@ -84,9 +85,12 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     get news_path(id: translation.seo_param, lang: "en")
 
     assert_response :success
-    assert_select ".analysis-factual .analysis-segment-label", "Factual 85%"
-    assert_select ".analysis-speculative .analysis-segment-label", 0
-    assert_select ".analysis-speculative[title=?]", "Speculative 15%"
+    assert_select ".analysis-factual .analysis-segment-name", "Factual"
+    assert_select ".analysis-factual .analysis-segment-percent", "85%"
+    # 15% is at or above ANALYSIS_LABEL_MIN_PERCENT (10): labelled; 5% is not.
+    assert_select ".analysis-speculative .analysis-segment-name", "Speculative"
+    assert_select ".analysis-right .analysis-segment-label", 0
+    assert_select ".analysis-right[title=?]", "Right 5%"
     assert_select ".analysis-reasoning[lang=en]", "The framing is relatively neutral."
   end
 

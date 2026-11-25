@@ -15,11 +15,13 @@
            aria-label="<%= segments.map { |_modifier, label, percent| "#{label} #{percent}%" }.join(", ") %>">
         <%# role=img: the aria-label above is what screen readers announce. %>
         <% segments.each do |modifier, label, percent| %>
-          <% segment_text = "#{label} #{english_edition? ? "#{percent}%" : "#{to_persian_digits(percent)}٪"}" %>
-          <span class="analysis-segment analysis-<%= modifier %>" style="width: <%= percent %>%" title="<%= segment_text %>">
-            <%# Too-narrow segments keep the label in the title only. %>
+          <% percent_text = english_edition? ? "#{percent}%" : "#{to_persian_digits(percent)}٪" %>
+          <span class="analysis-segment analysis-<%= modifier %>" style="width: <%= percent %>%" title="<%= label %> <%= percent_text %>">
+            <%# Too-narrow segments keep the label in the title only. Otherwise the
+                percent wraps onto a hidden second line when it doesn't fit beside
+                the label (see .analysis-segment-label in layouts/news). %>
             <% if percent >= NewsHelper::ANALYSIS_LABEL_MIN_PERCENT %>
-              <span class="analysis-segment-label" dir="<%= english_edition? ? "ltr" : "rtl" %>"><%= segment_text %></span>
+              <span class="analysis-segment-label" dir="<%= english_edition? ? "ltr" : "rtl" %>"><span class="analysis-segment-name"><%= label %></span><span class="analysis-segment-percent"><%= percent_text %></span></span>
             <% end %>
           </span>
         <% end %>

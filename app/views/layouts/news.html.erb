@@ -302,9 +302,15 @@
     .analysis-row { margin-bottom: .9rem; }
     .analysis-label { color: var(--muted); font-weight: 700; font-size: .85rem; margin-bottom: 4px; }
     .analysis-bar { display: flex; height: 24px; border-radius: 6px; overflow: hidden; background: #f0f0f0; }
-    .analysis-segment { display: flex; align-items: center; justify-content: center; height: 100%; min-width: 0; }
-    .analysis-segment-label { color: #fff; font-size: .75rem; font-weight: 700; padding: 0 6px;
-                              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .analysis-segment { display: flex; align-items: flex-start; justify-content: center; height: 100%; min-width: 0; overflow: hidden; }
+    /* One visible 24px line that may wrap: when label + percent don't fit, the
+       percent drops to the clipped second line; a label that alone doesn't fit
+       gets an ellipsis. */
+    .analysis-segment-label { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 4px;
+                              max-width: 100%; min-width: 0; height: 24px; line-height: 24px; overflow: hidden;
+                              padding: 0 6px; color: #fff; font-size: .75rem; font-weight: 700; }
+    .analysis-segment-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .analysis-segment-percent { white-space: nowrap; }
     .analysis-left { background: #3b6fd8; }
     .analysis-center { background: #9aa0a6; }
     .analysis-right { background: #d84a3b; }

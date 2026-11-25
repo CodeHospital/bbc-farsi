@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Analysis segment labels: 10% threshold, percent dropped when it doesn't fit
+
+- User prompt: "ANALYSIS_LABEL_MIN_PERCENT can be 10 / if the percentage is not long enough, skip the percentage and just write the label when there is just room for that".
+- `NewsHelper::ANALYSIS_LABEL_MIN_PERCENT` changed from 20 to 10. Segments below 10% show only the `title` tooltip.
+- Each segment's text is now two spans, `.analysis-segment-name` and `.analysis-segment-percent`, inside a one-line wrapping box (24px tall, overflow hidden). When the label and percent don't fit together, the percent wraps to the hidden second line and only the label shows. When the label alone doesn't fit, it ends in "…". CSS makes this call from the segment's real width, so it adapts to each screen.
+- Checked in a browser at 600px and 360px wide: the percent is dropped and long labels are shortened where needed. News controller tests updated (50/50 green). Rubocop clean.
+
 ### Added — Admins can reanalyze all articles
 
 - User prompt: "as admin i like to schedule all article for reanalysis".

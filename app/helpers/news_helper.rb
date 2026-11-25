@@ -210,8 +210,9 @@ module NewsHelper
   end
 
   # Analysis bar segments narrower than this (in percent) show their label
-  # only as a tooltip; the text would not fit inside them.
-  ANALYSIS_LABEL_MIN_PERCENT = 20
+  # only as a tooltip. Wider ones show the label, and the percent too when
+  # it fits (decided by CSS, see .analysis-segment-label).
+  ANALYSIS_LABEL_MIN_PERCENT = 10
 
   # The segments of one analysis bar: [[css modifier, label, percent], ...],
   # leaving out zero-percent parts.
