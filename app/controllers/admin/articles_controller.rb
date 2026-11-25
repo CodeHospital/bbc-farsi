@@ -256,7 +256,7 @@ class Admin::ArticlesController < Admin::BaseController
   def set_article = @article = Article.find(params[:id])
 
   def analysis_params
-    params.require(:article).permit(*Article::ANALYSIS_PERCENT_ATTRIBUTES, :analysis_reasoning)
+    params.require(:article).permit(*Article::ANALYSIS_PERCENT_ATTRIBUTES, :analysis_reasoning, :analysis_reasoning_fa)
   end
 
   def enqueue_analysis_for(articles, notice_label:)

@@ -3,7 +3,8 @@
 #   * political leaning — left / center / right split, summing to 100
 #   * nature — factual (things that already happened) / speculative
 #     (predictions or speculation about the future), summing to 100
-#   * a short reasoning sentence
+#   * a short reasoning sentence, in English ("reasoning") and Persian
+#     ("farsi_reasoning")
 #
 # Runs through the worker queue as an `analyze` Task whose target is the
 # Article itself (read-only for the task lifecycle — the article's pipeline
@@ -48,8 +49,9 @@ class ArticleAnalyzer
       bias_right_percent:  bias_right,
       factual_percent:     factual,
       speculative_percent: speculative,
-      analysis_reasoning:  parsed["reasoning"].to_s.strip.presence,
-      analysis_status:     "completed",
+      analysis_reasoning:    parsed["reasoning"].to_s.strip.presence,
+      analysis_reasoning_fa: parsed["farsi_reasoning"].to_s.strip.presence,
+      analysis_status:       "completed",
       analyzed_at:         Time.current
     }
   end
@@ -68,7 +70,7 @@ class ArticleAnalyzer
   end
 
   def self.parse_json(raw_response)
-    SentryBreadcrumb.record("ArticleAnalyzer.parse_json", category: "article_analyzer", data: { raw_response: raw_response })
+    SentryBreadcrumb.record("ArticleAnalyzer.parse_json raw_response=#{raw_response}", category: "article_analyzer", data: { raw_response: raw_response })
     text      = LlmText.clean(raw_response.to_s)
     json_text = text[/\{.*\}/m]
     raise ArgumentError, "analysis response contained no JSON object: #{text.truncate(200)}" unless json_text
@@ -78,22 +80,57 @@ class ArticleAnalyzer
     parse_json_object(json_text)
   end
 
+  NUMERIC_FIELDS = %w[left center right factual speculative].freeze
+  TEXT_FIELDS    = %w[reasoning farsi_reasoning].freeze
+
   # Strict parse first. When the model's JSON is malformed (trailing commas,
   # unquoted keys, unescaped quotes inside a string, stray markdown, ...) escape
-  # the inner quotes and fall back to json-repair before failing.
+  # the inner quotes and fall back to json-repair. If even that fails (e.g. the
+  # model appended a broken extra key with no value), pull the known fields
+  # out one by one before giving up.
   def self.parse_json_object(json_text)
     parsed_object =
       begin
         JSON.parse(json_text)
       rescue JSON::ParserError
-        JSON.repair(escape_inner_quotes(json_text), return_objects: true)
+        escaped_json_text = escape_inner_quotes(json_text)
+        begin
+          JSON.repair(escaped_json_text, return_objects: true)
+        rescue JSON::JSONRepairError => repair_error
+          extract_known_fields(escaped_json_text) ||
+            raise(ArgumentError, "analysis response was not valid JSON: #{repair_error.message}")
+        end
       end
 
     raise ArgumentError, "analysis response was not a JSON object: #{json_text.truncate(200)}" unless parsed_object.is_a?(Hash)
 
     parsed_object
-  rescue JSON::JSONRepairError => repair_error
-    raise ArgumentError, "analysis response was not valid JSON: #{repair_error.message}"
+  end
+
+  # Last-resort field-by-field extraction from text whose inner quotes are
+  # already escaped. Returns nil when none of the numeric fields is present.
+  def self.extract_known_fields(escaped_json_text)
+    extracted_fields = {}
+    NUMERIC_FIELDS.each do |field_name|
+      number_match = escaped_json_text.match(/"#{field_name}"\s*:\s*"?(-?\d+(?:\.\d+)?)/)
+      extracted_fields[field_name] = number_match[1].to_f if number_match
+    end
+    return nil if extracted_fields.empty?
+
+    TEXT_FIELDS.each do |field_name|
+      text_match = escaped_json_text.match(/"#{field_name}"\s*:\s*("(?:\\.|[^"\\])*")/m)
+      next unless text_match
+
+      extracted_fields[field_name] =
+        begin
+          JSON.parse(text_match[1])
+        rescue JSON::ParserError
+          text_match[1][1..-2]
+        end
+    end
+
+    SentryBreadcrumb.record("ArticleAnalyzer.extract_known_fields", category: "article_analyzer", data: { extracted_fields: extracted_fields })
+    extracted_fields
   end
 
   # Escapes double quotes that sit inside a string value, e.g. the ("Selenskyj")
@@ -150,5 +187,5 @@ class ArticleAnalyzer
     scaled
   end
 
-  private_class_method :parse_json, :parse_json_object, :normalize_split, :current_prompt_version
+  private_class_method :parse_json, :parse_json_object, :extract_known_fields, :normalize_split, :current_prompt_version
 end

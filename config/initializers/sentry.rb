@@ -23,7 +23,7 @@ Rails.application.config.to_prepare do
 
   Sentry.init do |config|
     config.dsn = SentryConfig.dsn
-    config.breadcrumbs_logger = [ :active_support_logger, :http_logger ]
+    # config.breadcrumbs_logger = [ :active_support_logger, :http_logger ]
     # Traces/profiles are billed volume in Sentry; keep this low rather than
     # off so a slow request is still occasionally sampled without flooding a
     # free/low-tier quota under normal traffic.

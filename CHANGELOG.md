@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Persian analysis reasoning (`farsi_reasoning`)
+
+- User prompt: "also now beside english reasoning we have another field in the json called farsi_reasoning which is reasoning in farsi".
+- New column `articles.analysis_reasoning_fa` (text). Migration `20261125000001_add_analysis_reasoning_fa_to_articles` was created but **not run**. Run `bin/rails db:migrate` before deploying this code. `schema.rb` was updated by hand.
+- `ArticleAnalyzer.process` stores `farsi_reasoning` in `analysis_reasoning_fa`, or nil if the model leaves it out. The fallback `extract_known_fields` also picks up `farsi_reasoning`.
+- The default "analyze" prompt now asks for `farsi_reasoning`. This only applies to new seeds. Prompts already in the database are not overwritten.
+- Admin article analysis form: new right-to-left "Reasoning (Persian)" field, which the controller permits.
+- Tests: 3 new analyzer tests. Analyzer, task, prompt and admin-articles tests: 95 runs, 0 failures. Verified with `raw` (30/65/5, 85/15, both reasonings stored). Rubocop clean.
+
+### Fixed — Analyzer rejects LLM JSON with a broken trailing key
+
+- User prompt: "@app/services/article_analyzer.rb cannot parse text from @raw2".
+- Root cause: after the valid fields, the model added a broken key (`"farsi_رعایت: \""Polen ...`) with no colon and no value. After `escape_inner_quotes`, this became one long key with no value, so `JSON.repair` failed with "Colon expected at index 600".
+- Fix: if `JSON.repair` also fails, `ArticleAnalyzer.extract_known_fields` now pulls `left`/`center`/`right`/`factual`/`speculative` and `reasoning` out of the quote-escaped text one by one. It still raises `ArgumentError` when none of the numeric fields is found.
+- Tests: 1 new regression test in `article_analyzer_test.rb`. Analyzer tests 13/13 green. `raw2` now parses to 5/85/10 and 95/5. Rubocop clean.
+
 ### Fixed — Sentry breadcrumbs crashed LLM callbacks (`ArgumentError: unknown keyword: :extra`)
 
 - User prompt: "fix the sentry breadcrumbs — ArgumentError: unknown keyword: :extra (ArgumentError) ⋄ Api::LlmCallbacksController#create".

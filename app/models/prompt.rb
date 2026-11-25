@@ -31,9 +31,10 @@ class Prompt < ApplicationRecord
            already happened in reality) and "speculative" (predictions, forecasts, opinions or
            speculation about what may happen in the future).
         3. "reasoning": one or two short English sentences explaining the scores.
+        4. "farsi_reasoning": the same explanation written in Persian (Farsi).
 
         Respond with ONLY a JSON object, no other text, exactly in this shape:
-        {"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "..."}
+        {"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "...", "farsi_reasoning": "..."}
       PROMPT
     },
     "rewrite_body" => {

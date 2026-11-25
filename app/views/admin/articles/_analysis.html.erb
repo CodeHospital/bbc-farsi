@@ -55,6 +55,10 @@
           <%= form.label :analysis_reasoning, "Reasoning", class: "form-label fw-semibold" %>
           <%= form.text_area :analysis_reasoning, rows: 2, class: "form-control form-control-sm" %>
         </div>
+        <div class="col-12">
+          <%= form.label :analysis_reasoning_fa, "Reasoning (Persian)", class: "form-label fw-semibold" %>
+          <%= form.text_area :analysis_reasoning_fa, rows: 2, dir: "rtl", lang: "fa", class: "form-control form-control-sm" %>
+        </div>
       </div>
       <%= form.submit "Save analysis", class: "btn btn-sm btn-primary mt-3" %>
     <% end %>

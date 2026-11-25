@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_11_15_000001) do
+ActiveRecord::Schema[8.0].define(version: 2026_11_25_000001) do
   create_table "article_tags", force: :cascade do |t|
     t.integer "article_id", null: false
     t.integer "tag_id", null: false
@@ -52,6 +52,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_15_000001) do
     t.integer "factual_percent"
     t.integer "speculative_percent"
     t.text "analysis_reasoning"
+    t.text "analysis_reasoning_fa"
     t.string "analysis_status"
     t.datetime "analyzed_at"
     t.string "image_url"

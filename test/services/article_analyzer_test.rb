@@ -91,6 +91,44 @@ class ArticleAnalyzerTest < ActiveSupport::TestCase
     assert_equal "ArticleAnalyzer.process", recorded_breadcrumbs.first.message
   end
 
+  test "process stores the Persian reasoning from farsi_reasoning" do
+    raw = '{"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "Wire-style.", "farsi_reasoning": "گزارش خبری بی‌طرف."}'
+
+    result = ArticleAnalyzer.process("analysis" => raw)
+
+    assert_equal "Wire-style.", result[:analysis_reasoning]
+    assert_equal "گزارش خبری بی‌طرف.", result[:analysis_reasoning_fa]
+  end
+
+  test "process extracts farsi_reasoning when json-repair fails" do
+    raw = '{"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "Wire-style.", "farsi_reasoning": "خبر \"پهپاد\" واقعی است.", "broken: \""tail"}'
+
+    result = ArticleAnalyzer.process("analysis" => raw)
+
+    assert_equal "Wire-style.", result[:analysis_reasoning]
+    assert_equal "خبر \"پهپاد\" واقعی است.", result[:analysis_reasoning_fa]
+  end
+
+  test "process leaves the Persian reasoning blank when the model omits it" do
+    result = ArticleAnalyzer.process("analysis" => '{"left": 10, "center": 80, "right": 10, "reasoning": "x"}')
+
+    assert_nil result[:analysis_reasoning_fa]
+  end
+
+  test "process extracts known fields when the model appends a broken extra key" do
+    raw_response = <<~'RAW'
+      ```json
+      {"left": 5, "center": 85, "right": 10, "factual": 95, "speculative": 5, "reasoning": "\"Polen verfolgt Drohne...\" describes a factual event.", "farsi_رعایت: \""Polen یک پهپاد...\" این خبر \"دنبال کردن\" است."}
+      ```
+    RAW
+
+    attributes = ArticleAnalyzer.process("analysis" => raw_response)
+
+    assert_equal [ 5, 85, 10 ], attributes.values_at(:bias_left_percent, :bias_center_percent, :bias_right_percent)
+    assert_equal [ 95, 5 ], attributes.values_at(:factual_percent, :speculative_percent)
+    assert_equal "\"Polen verfolgt Drohne...\" describes a factual event.", attributes[:analysis_reasoning]
+  end
+
   test "process raises on a response without JSON so the task fails" do
     assert_raises(ArgumentError) { ArticleAnalyzer.process("analysis" => "I cannot help with that.") }
   end
