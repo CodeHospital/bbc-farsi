@@ -32,9 +32,12 @@ class Prompt < ApplicationRecord
            speculation about what may happen in the future).
         3. "reasoning": one or two short English sentences explaining the scores.
         4. "farsi_reasoning": the same explanation written in Persian (Farsi).
+        5. "tags": up to 3 short topic tags (people, places, organizations, subjects), each with
+           an English ("name_en") and a Persian ("name_fa") name.
 
         Respond with ONLY a JSON object, no other text, exactly in this shape:
-        {"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "...", "farsi_reasoning": "..."}
+        {"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "...", "farsi_reasoning": "...",
+         "tags": [{"name_en": "...", "name_fa": "..."}]}
       PROMPT
     },
     "rewrite_body" => {

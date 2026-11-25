@@ -255,7 +255,7 @@ class Task < ApplicationRecord
       when "tag"
         TagGenerator.store(target.article_id, TagGenerator.process(responses))
       when "analyze"
-        target.update!(ArticleAnalyzer.process(responses))
+        ArticleAnalyzer.apply(target, responses)
       end
 
       update!(status: "completed", completed_at: Time.current)

@@ -57,14 +57,21 @@ class TagGenerator
   def self.store(article_id, tag_pairs)
     article = Article.find(article_id)
     Article.transaction do
-      Array(tag_pairs).each do |pair|
-        pair = pair.is_a?(String) ? parse_item(pair) : pair.to_h.symbolize_keys.slice(:name_fa, :name_en)
-        next unless pair
-
-        tag = Tag.resolve(**pair)
-        article.article_tags.find_or_create_by!(tag:) if tag
-      end
+      attach(article, tag_pairs)
       article.update!(tags_generated_at: Time.current)
+    end
+  end
+
+  # Links tags to the article without marking it as tagged, so the tag task
+  # still runs. Also used for the tags ArticleAnalyzer returns. Only adds:
+  # tags already on the article are kept.
+  def self.attach(article, tag_pairs)
+    Array(tag_pairs).each do |pair|
+      pair = pair.is_a?(String) ? parse_item(pair) : pair.to_h.symbolize_keys.slice(:name_fa, :name_en)
+      next unless pair
+
+      tag = Tag.resolve(**pair)
+      article.article_tags.find_or_create_by!(tag:) if tag
     end
   end
 

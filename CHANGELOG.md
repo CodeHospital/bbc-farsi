@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Analysis tags are added to the article's tags
+
+- User prompt: "analysis can also have tags like example below, add them to article tags" (example: `"tags": [{"name_en": "French Politics", "name_fa": "سیاست فرانسه"}, ...]`).
+- New `ArticleAnalyzer.apply(article, responses)` stores the analysis columns and attaches the returned tags in one transaction. The `analyze` task now calls it instead of `update!(process(...))`. `process` still returns only the column attributes.
+- `ArticleAnalyzer.tag_pairs` accepts `{name_en, name_fa}` objects and also "فارسی | English" strings. It drops blank items, invalid items and duplicates (English names are compared case-insensitively), and keeps at most `TagGenerator::MAX_TAGS`.
+- New `TagGenerator.attach(article, tag_pairs)` is the attach step split out of `store`. It resolves each pair through `Tag.resolve`, which reuses existing tags and fills in a missing name. It only adds tags and does **not** set `tags_generated_at`, so the separate `tag` task still runs. `store` now uses it.
+- The default "analyze" prompt asks for up to 3 bilingual tags. This only applies to new seeds; prompts already in the database are unchanged.
+- If the JSON is so broken that `extract_known_fields` has to be used, tags are not recovered.
+- Tests: 3 new analyzer tests and 1 new task test (tags added, existing tag not duplicated, `tags_generated_at` untouched). Full suite: 832 runs, 0 failures. Rubocop clean. No migration.
+
 ### Changed — Analysis bar labels sit inside the segments; left stays left
 
 - User prompts: "put the analysis-legend labels inside the segments, if segment is too small, don't put the label, just put it in the title" and "left is always left, even in RTL".

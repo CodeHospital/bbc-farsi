@@ -91,6 +91,46 @@ class ArticleAnalyzerTest < ActiveSupport::TestCase
     assert_equal "ArticleAnalyzer.process", recorded_breadcrumbs.first.message
   end
 
+  test "tag_pairs reads bilingual tag objects and drops blanks and duplicates" do
+    raw = <<~'RAW'
+      ```json
+      {"left": 15, "center": 65, "right": 20, "factual": 85, "speculative": 15, "reasoning": "x", "farsi_reasoning": "y",
+       "tags": [
+         {"name_en": "Political Investigation", "name_fa": "تحقیقات سیاسی"},
+         {"name_en": "Nicolas Sarkozy", "name_fa": "نیکلاس سارکوزی"},
+         {"name_en": "nicolas sarkozy", "name_fa": "نیکلاس سارکوزی"},
+         {"name_en": " ", "name_fa": ""},
+         "فرانسه | France",
+         42
+       ]}
+      ```
+    RAW
+
+    assert_equal [
+      { name_fa: "تحقیقات سیاسی", name_en: "Political Investigation" },
+      { name_fa: "نیکلاس سارکوزی", name_en: "Nicolas Sarkozy" },
+      { name_fa: "فرانسه", name_en: "France" }
+    ], ArticleAnalyzer.tag_pairs("analysis" => raw)
+  end
+
+  test "tag_pairs is empty when the model returns no tags" do
+    assert_equal [], ArticleAnalyzer.tag_pairs("analysis" => '{"left": 10, "center": 80, "right": 10}')
+    assert_equal [], ArticleAnalyzer.tag_pairs("analysis" => '{"left": 10, "tags": "none"}')
+  end
+
+  test "apply stores the analysis and adds the tags to the article" do
+    article = create_article
+    raw = '{"left": 15, "center": 65, "right": 20, "factual": 85, "speculative": 15, "reasoning": "x", ' \
+          '"tags": [{"name_en": "French Politics", "name_fa": "سیاست فرانسه"}]}'
+
+    ArticleAnalyzer.apply(article, "analysis" => raw)
+
+    article.reload
+    assert_equal "completed", article.analysis_status
+    assert_equal [ 15, 65, 20 ], [ article.bias_left_percent, article.bias_center_percent, article.bias_right_percent ]
+    assert_includes article.ordered_tags.map(&:name_en), "French Politics"
+  end
+
   test "process stores the Persian reasoning from farsi_reasoning" do
     raw = '{"left": 10, "center": 80, "right": 10, "factual": 90, "speculative": 10, "reasoning": "Wire-style.", "farsi_reasoning": "گزارش خبری بی‌طرف."}'
 

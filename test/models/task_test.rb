@@ -463,6 +463,23 @@ class TaskTest < ActiveSupport::TestCase
     assert_equal "pending", @article.status
   end
 
+  test "analyze task complete! adds the analysis tags without marking the article tagged" do
+    existing_tag = Tag.create!(name_fa: "فرانسه", name_en: "France")
+    @article.article_tags.create!(tag: existing_tag)
+    analysis_json = '{"left": 15, "center": 65, "right": 20, "factual": 85, "speculative": 15, "reasoning": "x", ' \
+                    '"tags": [{"name_en": "French Politics", "name_fa": "سیاست فرانسه"}, {"name_en": "france", "name_fa": "فرانسه"}]}'
+    task = Task.enqueue_analyze(@article, server: @server, model: "qwen3:14b")
+    Task.claim_next!
+    task.complete!("analysis" => analysis_json)
+
+    @article.reload
+    assert_equal "completed", @article.analysis_status
+    assert_includes TagGenerator.tags_for(@article, language: "en"), "French Politics"
+    assert_includes TagGenerator.tags_for(@article, language: "fa"), "سیاست فرانسه"
+    assert_equal 1, @article.article_tags.where(tag: existing_tag).count
+    assert_nil @article.tags_generated_at
+  end
+
   test "analyze task fail! marks the analysis failed without touching the article status" do
     task = Task.enqueue_analyze(@article, server: @server, model: "qwen3:14b")
     Task.claim_next!

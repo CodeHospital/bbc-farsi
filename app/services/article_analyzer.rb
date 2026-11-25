@@ -5,6 +5,7 @@
 #     (predictions or speculation about the future), summing to 100
 #   * a short reasoning sentence, in English ("reasoning") and Persian
 #     ("farsi_reasoning")
+#   * optional bilingual topic "tags", added to the article's tags
 #
 # Runs through the worker queue as an `analyze` Task whose target is the
 # Article itself (read-only for the task lifecycle — the article's pipeline
@@ -31,13 +32,56 @@ class ArticleAnalyzer
     ]
   end
 
-  # Turns the worker's JSON response into article attributes. Each split is
-  # clamped and normalized to sum to exactly 100, so a sloppy model answer
-  # (e.g. 40/40/40) still produces consistent percentages.
-  def self.process(responses)
-    SentryBreadcrumb.record("ArticleAnalyzer.process", category: "article_analyzer", data: { responses: responses })
-    parsed = parse_json(responses["analysis"])
+  # Stores a finished analysis: the analysis columns, plus any "tags" the
+  # model returned, which are added to the article's tags (see
+  # TagGenerator.attach). Runs in one transaction.
+  def self.apply(article, responses)
+    parsed = parse_response(responses)
+    Article.transaction do
+      article.update!(attributes_from(parsed))
+      TagGenerator.attach(article, tag_pairs_from(parsed))
+    end
+  end
 
+  # The worker's JSON response as article attributes (without the tags).
+  def self.process(responses) = attributes_from(parse_response(responses))
+
+  # The model's "tags" as `{ name_fa:, name_en: }` pairs. Each item is either
+  # an object with name_fa/name_en or a "فارسی | English" string. Duplicates
+  # and empty items are dropped; at most TagGenerator::MAX_TAGS are kept.
+  def self.tag_pairs(responses) = tag_pairs_from(parse_response(responses))
+
+  def self.parse_response(responses)
+    SentryBreadcrumb.record("ArticleAnalyzer.process", category: "article_analyzer", data: { responses: responses })
+    parse_json(responses["analysis"])
+  end
+
+  def self.tag_pairs_from(parsed)
+    raw_tags = parsed["tags"]
+    raw_tags = [ raw_tags ] if raw_tags.is_a?(Hash)
+    return [] unless raw_tags.is_a?(Array)
+
+    raw_tags.filter_map { |raw_tag| tag_pair_from(raw_tag) }
+      .uniq { |pair| [ pair[:name_fa], pair[:name_en]&.downcase ] }
+      .first(TagGenerator::MAX_TAGS)
+  end
+
+  def self.tag_pair_from(raw_tag)
+    case raw_tag
+    when Hash
+      tag_pair = {
+        name_fa: TagGenerator.clean_name(raw_tag["name_fa"]),
+        name_en: TagGenerator.clean_name(raw_tag["name_en"])
+      }
+      tag_pair unless tag_pair.values.all?(&:nil?)
+    when String
+      TagGenerator.parse_item(raw_tag)
+    end
+  end
+
+  # Each split is clamped and normalized to sum to exactly 100, so a sloppy
+  # model answer (e.g. 40/40/40) still produces consistent percentages.
+  def self.attributes_from(parsed)
     bias_left, bias_center, bias_right =
       normalize_split([ parsed["left"], parsed["center"], parsed["right"] ], fallback: [ 0, 100, 0 ])
     factual, speculative =
@@ -187,5 +231,6 @@ class ArticleAnalyzer
     scaled
   end
 
-  private_class_method :parse_json, :parse_json_object, :extract_known_fields, :normalize_split, :current_prompt_version
+  private_class_method :parse_response, :attributes_from, :tag_pairs_from, :tag_pair_from,
+                       :parse_json, :parse_json_object, :extract_known_fields, :normalize_split, :current_prompt_version
 end
