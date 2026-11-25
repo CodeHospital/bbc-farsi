@@ -10,17 +10,18 @@
     <% segments = analysis_bar_segments(article, bar_kind) %>
     <div class="analysis-row">
       <div class="analysis-label"><%= bar_label %></div>
-      <div class="analysis-bar" role="img"
+      <%# dir=ltr: "left" is always on the physical left, even in the RTL edition. %>
+      <div class="analysis-bar" dir="ltr" role="img"
            aria-label="<%= segments.map { |_modifier, label, percent| "#{label} #{percent}%" }.join(", ") %>">
+        <%# role=img: the aria-label above is what screen readers announce. %>
         <% segments.each do |modifier, label, percent| %>
-          <span class="analysis-segment analysis-<%= modifier %>" style="width: <%= percent %>%"
-                title="<%= label %> <%= percent %>%"></span>
-        <% end %>
-      </div>
-      <div class="analysis-legend">
-        <% segments.each do |modifier, label, percent| %>
-          <span><i class="analysis-dot analysis-<%= modifier %>"></i><%= label %>
-            <%= english_edition? ? "#{percent}%" : "#{to_persian_digits(percent)}٪" %></span>
+          <% segment_text = "#{label} #{english_edition? ? "#{percent}%" : "#{to_persian_digits(percent)}٪"}" %>
+          <span class="analysis-segment analysis-<%= modifier %>" style="width: <%= percent %>%" title="<%= segment_text %>">
+            <%# Too-narrow segments keep the label in the title only. %>
+            <% if percent >= NewsHelper::ANALYSIS_LABEL_MIN_PERCENT %>
+              <span class="analysis-segment-label" dir="<%= english_edition? ? "ltr" : "rtl" %>"><%= segment_text %></span>
+            <% end %>
+          </span>
         <% end %>
       </div>
     </div>

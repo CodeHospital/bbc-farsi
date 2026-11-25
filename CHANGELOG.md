@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Analysis bar labels sit inside the segments; left stays left
+
+- User prompts: "put the analysis-legend labels inside the segments, if segment is too small, don't put the label, just put it in the title" and "left is always left, even in RTL".
+- The legend under each bar is gone. Each segment now shows its own label and percent in white text (the bar is now 24px tall). Segments under `NewsHelper::ANALYSIS_LABEL_MIN_PERCENT` (20%) show no text, only the `title` tooltip. All segments keep the tooltip, and the bar keeps its `aria-label`.
+- The bars are set to `dir="ltr"`, so "left" is always on the physical left, even in the Persian (RTL) edition. The label text inside a segment keeps its edition's direction.
+- Tests updated (labels inside segments, small segment has only a tooltip, bars are LTR). News controller tests: 50/50 green. Rubocop clean.
+
 ### Added — Public story page shows the AI analysis
 
 - User prompt: "publish the analysis and reasoning in the web too".

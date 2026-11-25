@@ -209,6 +209,10 @@ module NewsHelper
     english_reasoning ? [ english_reasoning, "en" ] : [ persian_reasoning, "fa" ]
   end
 
+  # Analysis bar segments narrower than this (in percent) show their label
+  # only as a tooltip; the text would not fit inside them.
+  ANALYSIS_LABEL_MIN_PERCENT = 20
+
   # The segments of one analysis bar: [[css modifier, label, percent], ...],
   # leaving out zero-percent parts.
   def analysis_bar_segments(article, kind)
