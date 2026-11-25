@@ -111,6 +111,8 @@
       <%= simple_format(body) %>
     </div>
 
+    <%= render "news/analysis", article: @article if @article.analyzed? %>
+
     <div class="share-bar mt-4 pt-3 border-top">
       <span class="tags-label"><%= news_ui(:share_label) %></span>
       <% share_links(share_url, ShareHashtags.append_to(title, @article, lang: news_lang)).each do |share| %>

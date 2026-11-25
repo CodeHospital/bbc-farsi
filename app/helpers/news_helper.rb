@@ -105,6 +105,15 @@ module NewsHelper
       privacy_title: "حریم خصوصی",
       more:         "بیشتر ›",
       tags_label:   "برچسب‌ها:",
+      analysis_title:       "تحلیل خبر اصلی",
+      analysis_note:        "برآورد خودکار هوش مصنوعی از متن اصلی خبر؛ ممکن است دقیق نباشد.",
+      analysis_leaning:     "گرایش سیاسی",
+      analysis_left:        "چپ",
+      analysis_center:      "میانه",
+      analysis_right:       "راست",
+      analysis_nature:      "نوع محتوا",
+      analysis_factual:     "واقعیت",
+      analysis_speculative: "گمانه‌زنی",
       read_source:  "مشاهدهٔ خبر اصلی در %{domain} ↗",
       empty_title:  "هنوز خبری برای نمایش وجود ندارد.",
       empty_body:   "به محض آماده‌شدن ترجمه‌ها، اینجا نمایش داده می‌شوند.",
@@ -145,6 +154,15 @@ module NewsHelper
       privacy_title: "Privacy Policy",
       more:         "More ›",
       tags_label:   "Tags:",
+      analysis_title:       "Analysis of the original story",
+      analysis_note:        "An automatic AI estimate based on the original text; it may be inaccurate.",
+      analysis_leaning:     "Political leaning",
+      analysis_left:        "Left",
+      analysis_center:      "Center",
+      analysis_right:       "Right",
+      analysis_nature:      "Content",
+      analysis_factual:     "Factual",
+      analysis_speculative: "Speculative",
       read_source:  "Read the original on %{domain} ↗",
       empty_title:  "There is no news to show yet.",
       empty_body:   "Stories will appear here as soon as translations are ready.",
@@ -179,6 +197,32 @@ module NewsHelper
 
   # A UI chrome string for the active edition.
   def news_ui(key) = UI_STRINGS.fetch(news_lang, UI_STRINGS["fa"]).fetch(key)
+
+  # The analyzer's reasoning in the edition's language as [text, language].
+  # The Persian edition falls back to the English reasoning when the Persian
+  # one is missing (articles analyzed before farsi_reasoning existed).
+  def analysis_reasoning_for(article)
+    persian_reasoning = article.analysis_reasoning_fa.presence
+    return [ persian_reasoning, "fa" ] if !english_edition? && persian_reasoning
+
+    english_reasoning = article.analysis_reasoning.presence
+    english_reasoning ? [ english_reasoning, "en" ] : [ persian_reasoning, "fa" ]
+  end
+
+  # The segments of one analysis bar: [[css modifier, label, percent], ...],
+  # leaving out zero-percent parts.
+  def analysis_bar_segments(article, kind)
+    segments =
+      if kind == :leaning
+        [ [ "left",   news_ui(:analysis_left),   article.bias_left_percent ],
+          [ "center", news_ui(:analysis_center), article.bias_center_percent ],
+          [ "right",  news_ui(:analysis_right),  article.bias_right_percent ] ]
+      else
+        [ [ "factual",     news_ui(:analysis_factual),     article.factual_percent ],
+          [ "speculative", news_ui(:analysis_speculative), article.speculative_percent ] ]
+      end
+    segments.select { |_modifier, _label, percent| percent.to_i.positive? }
+  end
 
   # Edition-aware link to the homepage (/ for Farsi, /en for English).
   def home_path = english_edition? ? en_root_path : root_path

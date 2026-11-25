@@ -52,6 +52,69 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_select "figure.article-figure img[src=?]", "https://ichef.bbci.co.uk/x.jpg"
   end
 
+  ANALYSIS_ATTRIBUTES = {
+    bias_left_percent: 30, bias_center_percent: 65, bias_right_percent: 5,
+    factual_percent: 85, speculative_percent: 15, analysis_status: "completed",
+    analysis_reasoning: "The framing is relatively neutral.",
+    analysis_reasoning_fa: "لحن خبر نسبتاً خنثی است."
+  }.freeze
+
+  test "show renders the analysis with the Persian reasoning in the Persian edition" do
+    translation = create_translation
+    translation.article.update_columns(ANALYSIS_ATTRIBUTES)
+
+    get news_path(id: translation.seo_param)
+
+    assert_response :success
+    assert_select ".article-analysis .analysis-segment", 5
+    assert_select ".analysis-left[style*=?]", "width: 30%"
+    assert_select ".analysis-legend", /۸۵٪/
+    assert_select ".analysis-reasoning[lang=fa]", "لحن خبر نسبتاً خنثی است."
+    assert_no_match "The framing is relatively neutral.", @response.body
+  end
+
+  test "show renders the English reasoning in the English edition" do
+    translation = create_translation
+    translation.article.update_columns(ANALYSIS_ATTRIBUTES)
+    stub_request(:get, translation.article.url).to_return(body: "<html></html>")
+
+    get news_path(id: translation.seo_param, lang: "en")
+
+    assert_response :success
+    assert_select ".analysis-legend", /85%/
+    assert_select ".analysis-reasoning[lang=en]", "The framing is relatively neutral."
+  end
+
+  test "show falls back to the English reasoning when the Persian one is missing" do
+    translation = create_translation
+    translation.article.update_columns(ANALYSIS_ATTRIBUTES.merge(analysis_reasoning_fa: nil))
+
+    get news_path(id: translation.seo_param)
+
+    assert_select ".analysis-reasoning[lang=en][dir=ltr]", "The framing is relatively neutral."
+  end
+
+  test "show has no analysis section for an article that was not analyzed" do
+    translation = create_translation
+
+    get news_path(id: translation.seo_param)
+
+    assert_response :success
+    assert_select ".article-analysis", 0
+  end
+
+  test "markdown story includes the analysis" do
+    translation = create_translation
+    translation.article.update_columns(ANALYSIS_ATTRIBUTES)
+
+    get news_path(id: translation.seo_param, format: :md)
+
+    assert_response :success
+    assert_match "left 30%, center 65%, right 5%", @response.body
+    assert_match "factual 85%, speculative 15%", @response.body
+    assert_match "- Analysis: لحن خبر نسبتاً خنثی است.", @response.body
+  end
+
   test "show renders without an image when the article has none" do
     translation = create_translation
 

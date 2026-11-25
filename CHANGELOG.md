@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Public story page shows the AI analysis
+
+- User prompt: "publish the analysis and reasoning in the web too".
+- New partial `news/_analysis.html.erb`, rendered below the body of analyzed articles on the public story page. It shows two stacked bars with legends, one for political leaning (left, center, right) and one for content (factual, speculative). Under them is the reasoning in the edition's language, followed by an "automatic AI estimate, may be inaccurate" note. The Persian edition uses Persian digits and `٪`. If the Persian reasoning is missing, it falls back to the English one, marked `lang="en" dir="ltr"`.
+- `NewsHelper#analysis_reasoning_for` and `#analysis_bar_segments` (zero-percent parts are left out), plus new `analysis_*` UI strings for both editions. The CSS lives in `layouts/news.html.erb`.
+- The Markdown version of each story now includes the leaning and content percentages and the reasoning.
+- Admin edits show up straight away, because `@article` is already part of the fragment-cache key.
+- Needs `analysis_reasoning_fa`, so run migration `20261125000001` first.
+- Tests: 5 new in `news_controller_test.rb`. Full suite: 828 runs, 0 failures. Rubocop clean.
+
 ### Added — Persian analysis reasoning (`farsi_reasoning`)
 
 - User prompt: "also now beside english reasoning we have another field in the json called farsi_reasoning which is reasoning in farsi".

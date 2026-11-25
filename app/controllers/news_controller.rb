@@ -292,6 +292,20 @@ class NewsController < ApplicationController
   end
 
   # Clean Markdown rendering of one story: title, key facts, body, source link.
+  # AI analysis of the original article for the Markdown twin; none when the
+  # article was not analyzed.
+  def story_analysis_markdown_lines(view)
+    return [] unless @article.analyzed?
+
+    reasoning_text, _reasoning_lang = view.analysis_reasoning_for(@article)
+    [
+      "- Political leaning (AI estimate): left #{@article.bias_left_percent}%, " \
+        "center #{@article.bias_center_percent}%, right #{@article.bias_right_percent}%",
+      "- Content (AI estimate): factual #{@article.factual_percent}%, speculative #{@article.speculative_percent}%",
+      ("- Analysis: #{reasoning_text}" if reasoning_text.present?)
+    ].compact
+  end
+
   def render_story_markdown
     view         = view_context
     title        = view.story_title(@translation)
@@ -307,6 +321,7 @@ class NewsController < ApplicationController
       "- Language: #{@news_lang == 'en' ? 'English (en)' : 'Persian (fa)'}",
       "- Source: #{view.source_name(feed)} — #{@article.url}",
       ("- Tags: #{@tags.join(', ')}" if @tags.present?),
+      *story_analysis_markdown_lines(view),
       "- Canonical: #{view.news_story_url(@translation)}",
       "",
       body,
