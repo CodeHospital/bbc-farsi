@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Admin dashboard redesign
+
+- User prompt: "redesign admin dashboard".
+- Header with a greeting and the time, a **Task queue** link, and **Fetch feeds now** (same `trigger_fetch` action as before).
+- **Needs attention** strip lists only the problems that are present, each linking to a filtered list. It covers articles with errors, tasks that failed in the last 24 h, Telegram/social post errors, stale task claims, translations needing a manual edit, and edits awaiting review (or "My pending edits" for restricted editors). When there is nothing to show, it says "All clear".
+- **Four KPI tiles** for the last 24 hours, each with the change from the previous 24 hours (arrow + number, not color alone): articles ingested, posts sent, story views and tasks completed. Each tile links to its list.
+- **Activity · last 7 days**: grouped bars of articles ingested and posts sent per day. It has a legend, a hover/focus tooltip per day, a "Show as table" view, and no bar for days with zero.
+- **Task queue** card shows pending and running counts, open tasks by kind (linked to the filtered task list) and the age of the oldest pending task.
+- **Article pipeline** card shows each non-archived article status as a bar with its count, linked to the filtered article list. Errors are marked with an icon.
+- The **recent articles** and **recent posts** lists now show the feed or channel and the age. Post titles use the Persian title (`dir="auto"`).
+- The old big count cards are now a compact **All time** row at the bottom. Feeds and Channels are still hidden from editors.
+- Works at phone width: KPI tiles stack and every card goes full width.
+- `Admin::DashboardController` is rewritten (`ACTIVITY_DAYS`, `RECENT_LIMIT`, `PIPELINE_STAGES`). The daily buckets are computed in Ruby so they behave the same on SQLite and Postgres and follow the app time zone.
+- Tests: 4 new in `admin/dashboard_controller_test.rb` (all clear, error articles listed under attention, 24 h KPI + recent list, editors don't see admin-only totals), and the render test is extended. Full suite: 844 runs, 0 failures. Rubocop clean. No migration.
+
 ### Added — Public tag pages
 
 - User prompt: "clicking on the tags in the web, should list all the articles with that tag".

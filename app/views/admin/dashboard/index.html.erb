@@ -1,23 +1,116 @@
-<h2 class="mb-4">Dashboard</h2>
+<style>
+  .dash-card { border: 0; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .dash-card > .card-header { background: transparent; border-bottom: 1px solid #eef0f2; font-weight: 600;
+                              display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+  .dash-card > .card-header .card-header-link { font-weight: 400; font-size: .8rem; text-decoration: none; }
+  .dash-icon { flex: 0 0 38px; width: 38px; height: 38px; border-radius: 10px; display: inline-flex;
+               align-items: center; justify-content: center; font-size: 1.1rem; }
+  .dash-kpi { color: inherit; text-decoration: none; transition: box-shadow .15s; }
+  .dash-kpi:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .dash-kpi .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .dash-kpi .kpi-delta { font-size: .75rem; }
+  .dash-attention { display: inline-flex; align-items: center; gap: .45rem; padding: .4rem .75rem;
+                    border-radius: 999px; text-decoration: none; font-size: .85rem; border: 1px solid; }
+  .dash-attention .attention-count { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .dash-attention.tone-danger  { background: #fff5f5; border-color: #f5c2c7; color: #842029; }
+  .dash-attention.tone-warning { background: #fffaf0; border-color: #ffe08a; color: #664d03; }
+  .dash-attention:hover { filter: brightness(.97); }
+  .min-w-0 { min-width: 0; }
 
-<div class="row g-3 mb-4">
-  <% cards = [
-    ["Feeds",        @counts[:feeds],            admin_feeds_path,            "rss",           "primary",  :admin_only],
-    ["Articles",     @counts[:articles],          admin_articles_path,         "newspaper",     "secondary"],
-    ["Rewrites",     @counts[:rewrites],          admin_rewrites_path,         "pencil-square", "info"],
-    ["Translations", @counts[:translations],      admin_translations_path,     "translate",     "success"],
-    ["Channels",     @counts[:telegram_channels], admin_telegram_channels_path,"telegram",      "warning", :admin_only],
-    ["Posts sent",   @counts[:telegram_posts],    admin_telegram_posts_path(view: "history"),  "send-check",    "dark"]
-  ]
-  cards = cards.reject { |_, _, _, _, _, admin_only| admin_only } unless current_user&.admin?
-  cards.each do |label, count, path, icon, color| %>
-    <div class="col-md-2">
-      <%= link_to path, class: "text-decoration-none" do %>
-        <div class="card text-center border-<%= color %>">
-          <div class="card-body">
-            <i class="bi bi-<%= icon %> fs-3 text-<%= color %>"></i>
-            <div class="fs-1 fw-bold"><%= count %></div>
-            <div class="text-muted small"><%= label %></div>
+  /* 7-day activity: grouped bars, hover tooltip per day */
+  .viz-legend { display: flex; gap: 1rem; font-size: .8rem; color: #6c757d; }
+  .viz-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; }
+  .viz-chart { position: relative; height: 190px; display: grid; grid-template-columns: repeat(<%= @daily_activity.size %>, 1fr);
+               gap: 6px; align-items: end; border-bottom: 1px solid #c3c2b7; padding-top: 18px;
+               background-image: linear-gradient(#e1e0d9 1px, transparent 1px); background-size: 100% 50%;
+               background-position: 0 18px; background-repeat: repeat-y; }
+  .viz-day { position: relative; height: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; cursor: default; }
+  .viz-day:hover { background: rgba(42,120,214,.06); border-radius: 6px 6px 0 0; }
+  .viz-bar { width: min(18px, 40%); border-radius: 4px 4px 0 0; }
+  .viz-bar.series-ingested { background: #2a78d6; }
+  .viz-bar.series-posted   { background: #eb6834; }
+  .viz-tip { position: absolute; bottom: calc(100% - 10px); left: 50%; transform: translateX(-50%); z-index: 5;
+             background: #212529; color: #fff; font-size: .75rem; padding: .4rem .55rem; border-radius: 6px;
+             white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .1s; }
+  .viz-day:hover .viz-tip, .viz-day:focus .viz-tip { opacity: 1; }
+  .viz-axis { display: grid; grid-template-columns: repeat(<%= @daily_activity.size %>, 1fr); gap: 6px;
+              font-size: .72rem; color: #6c757d; text-align: center; padding-top: .35rem; }
+  .viz-max { position: absolute; top: 0; left: 0; font-size: .7rem; color: #6c757d; }
+
+  /* Pipeline stages: one-hue bars, errors flagged with an icon */
+  .stage-row { display: grid; grid-template-columns: 96px 1fr 52px; align-items: center; gap: .6rem; font-size: .85rem; }
+  .stage-track { height: 8px; background: #eef0f2; border-radius: 4px; overflow: hidden; }
+  .stage-fill { height: 100%; background: #2a78d6; border-radius: 4px; }
+  .stage-row.stage-error .stage-fill { background: #dc3545; }
+  .stage-count { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .dash-list .list-group-item { padding: .55rem 1rem; }
+  .dash-list .item-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+  .dash-list .item-title:hover { text-decoration: underline; }
+  .dash-total { color: inherit; text-decoration: none; padding: .6rem .8rem; border-radius: 8px; display: flex;
+                align-items: center; gap: .6rem; }
+  .dash-total:hover { background: #f1f3f5; }
+  .dash-total .total-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+</style>
+
+<%# ── Header ─────────────────────────────────────────────────────────────── %>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h2 class="mb-0">Dashboard</h2>
+    <p class="text-muted small mb-0">
+      <% if current_user %>Welcome back, <strong><%= current_user.username %></strong> · <% end %>
+      Last 24 hours as of <%= l(Time.current, format: "%-d %b %H:%M") %>
+    </p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <%= link_to admin_tasks_path, class: "btn btn-outline-secondary" do %>
+      <i class="bi bi-list-task me-1"></i>Task queue
+    <% end %>
+    <%= button_to admin_articles_path, method: :get, params: { trigger_fetch: 1 }, class: "btn btn-primary" do %>
+      <i class="bi bi-arrow-repeat me-1"></i>Fetch feeds now
+    <% end %>
+  </div>
+</div>
+
+<%# ── Needs attention ────────────────────────────────────────────────────── %>
+<div class="card dash-card mb-3">
+  <div class="card-body py-2 d-flex flex-wrap align-items-center gap-2">
+    <span class="text-muted small fw-semibold me-1 text-uppercase" style="letter-spacing:.04em">Needs attention</span>
+    <% if @attention_items.any? %>
+      <% @attention_items.each do |attention_item| %>
+        <%= link_to attention_item[:path], class: "dash-attention tone-#{attention_item[:tone]}" do %>
+          <i class="bi <%= attention_item[:icon] %>"></i>
+          <span class="attention-count"><%= number_with_delimiter(attention_item[:count]) %></span>
+          <span><%= attention_item[:label] %></span>
+        <% end %>
+      <% end %>
+    <% else %>
+      <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>All clear — nothing is waiting on you.</span>
+    <% end %>
+  </div>
+</div>
+
+<%# ── KPI tiles (last 24h vs previous 24h) ───────────────────────────────── %>
+<div class="row g-3 mb-3">
+  <% @kpi_tiles.each do |kpi_tile| %>
+    <% delta_value = kpi_tile[:current_value] - kpi_tile[:previous_value] %>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <%= link_to kpi_tile[:path], class: "card dash-card dash-kpi h-100" do %>
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <span class="dash-icon bg-<%= kpi_tile[:color] %>-subtle text-<%= kpi_tile[:color] %>-emphasis"><i class="bi <%= kpi_tile[:icon] %>"></i></span>
+          <div class="min-w-0">
+            <div class="text-muted small text-truncate"><%= kpi_tile[:label] %></div>
+            <div class="kpi-value"><%= number_with_delimiter(kpi_tile[:current_value]) %></div>
+            <div class="kpi-delta text-muted text-truncate">
+              <% if delta_value.positive? %>
+                <span class="text-success"><i class="bi bi-arrow-up-short"></i><%= number_with_delimiter(delta_value) %></span>
+              <% elsif delta_value.negative? %>
+                <span class="text-danger"><i class="bi bi-arrow-down-short"></i><%= number_with_delimiter(delta_value.abs) %></span>
+              <% else %>
+                <span><i class="bi bi-dash"></i>no change</span>
+              <% end %>
+              vs previous 24h
+            </div>
           </div>
         </div>
       <% end %>
@@ -25,59 +118,211 @@
   <% end %>
 </div>
 
-<div class="row g-3 mb-4">
-  <div class="col-md-3">
-    <div class="card border-warning">
-      <div class="card-body text-center">
-        <div class="fs-2 fw-bold text-warning"><%= @pending_articles %></div>
-        <div class="text-muted small">In pipeline</div>
+<div class="row g-3 mb-3">
+  <%# ── 7-day activity ──────────────────────────────────────────────────── %>
+  <div class="col-lg-8">
+    <div class="card dash-card h-100">
+      <div class="card-header">
+        <span>Activity · last <%= @daily_activity.size %> days</span>
+        <div class="viz-legend">
+          <span><span class="viz-swatch" style="background:#2a78d6"></span>Ingested</span>
+          <span><span class="viz-swatch" style="background:#eb6834"></span>Posted</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <% chart_max_value = [ @daily_activity.map { |day_row| [ day_row[:ingested], day_row[:posted] ].max }.max.to_i, 1 ].max %>
+        <div class="viz-chart" role="img"
+             aria-label="Articles ingested and posts sent per day over the last <%= @daily_activity.size %> days">
+          <span class="viz-max"><%= number_with_delimiter(chart_max_value) %></span>
+          <% @daily_activity.each do |day_row| %>
+            <div class="viz-day" tabindex="0">
+              <div class="viz-bar series-ingested" style="height: <%= day_row[:ingested].positive? ? "max(2px, #{(day_row[:ingested] * 100.0 / chart_max_value).round(1)}%)" : 0 %>"></div>
+              <div class="viz-bar series-posted" style="height: <%= day_row[:posted].positive? ? "max(2px, #{(day_row[:posted] * 100.0 / chart_max_value).round(1)}%)" : 0 %>"></div>
+              <div class="viz-tip">
+                <strong><%= l(day_row[:date], format: "%a %-d %b") %></strong><br>
+                <span class="viz-swatch" style="background:#2a78d6"></span>Ingested <%= number_with_delimiter(day_row[:ingested]) %><br>
+                <span class="viz-swatch" style="background:#eb6834"></span>Posted <%= number_with_delimiter(day_row[:posted]) %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <div class="viz-axis">
+          <% @daily_activity.each do |day_row| %>
+            <span><%= day_row[:date] == Date.current ? "Today" : l(day_row[:date], format: "%a") %></span>
+          <% end %>
+        </div>
+        <details class="mt-2 small">
+          <summary class="text-muted">Show as table</summary>
+          <table class="table table-sm mt-2 mb-0">
+            <thead><tr><th>Day</th><th class="text-end">Ingested</th><th class="text-end">Posted</th></tr></thead>
+            <tbody>
+              <% @daily_activity.reverse_each do |day_row| %>
+                <tr>
+                  <td><%= l(day_row[:date], format: "%a %-d %b") %></td>
+                  <td class="text-end"><%= number_with_delimiter(day_row[:ingested]) %></td>
+                  <td class="text-end"><%= number_with_delimiter(day_row[:posted]) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </details>
       </div>
     </div>
   </div>
-  <div class="col-md-3">
-    <div class="card border-danger">
-      <div class="card-body text-center">
-        <div class="fs-2 fw-bold text-danger"><%= @error_articles %></div>
-        <div class="text-muted small">Errors</div>
+
+  <%# ── Task queue ──────────────────────────────────────────────────────── %>
+  <div class="col-lg-4">
+    <div class="card dash-card h-100">
+      <div class="card-header">
+        <span>Task queue</span>
+        <%= link_to "All tasks →", admin_tasks_path, class: "card-header-link" %>
+      </div>
+      <div class="card-body">
+        <div class="row text-center g-2 mb-3">
+          <div class="col-6">
+            <%= link_to admin_tasks_path(status: "pending"), class: "text-decoration-none text-reset" do %>
+              <div class="fs-3 fw-bold"><%= number_with_delimiter(@task_queue[:pending]) %></div>
+              <div class="text-muted small">Pending</div>
+            <% end %>
+          </div>
+          <div class="col-6">
+            <%= link_to admin_tasks_path(status: "claimed"), class: "text-decoration-none text-reset" do %>
+              <div class="fs-3 fw-bold"><%= number_with_delimiter(@task_queue[:claimed]) %></div>
+              <div class="text-muted small">Running</div>
+            <% end %>
+          </div>
+        </div>
+        <% if @task_queue[:by_kind].any? %>
+          <table class="table table-sm small mb-2">
+            <thead><tr><th class="text-muted fw-normal">Kind</th><th class="text-muted fw-normal text-end">Pending</th><th class="text-muted fw-normal text-end">Running</th></tr></thead>
+            <tbody>
+              <% @task_queue[:by_kind].each do |kind_row| %>
+                <tr>
+                  <td><%= link_to kind_row[:kind], admin_tasks_path(kind: kind_row[:kind]), class: "text-decoration-none" %></td>
+                  <td class="text-end"><%= number_with_delimiter(kind_row[:pending]) %></td>
+                  <td class="text-end"><%= number_with_delimiter(kind_row[:claimed]) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        <% else %>
+          <p class="text-muted small mb-2"><i class="bi bi-inbox me-1"></i>The queue is empty.</p>
+        <% end %>
+        <div class="text-muted small">
+          <i class="bi bi-clock me-1"></i>Oldest pending:
+          <%= @task_queue[:oldest_pending_age] ? "#{distance_of_time_in_words(@task_queue[:oldest_pending_age])} ago" : "—" %>
+        </div>
       </div>
     </div>
-  </div>
-  <div class="col-md-6">
-    <%= button_to "▶ Fetch Feeds Now", admin_articles_path, method: :get,
-          params: { trigger_fetch: 1 }, class: "btn btn-outline-primary w-100 h-100" %>
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">Recent Articles</div>
-      <div class="list-group list-group-flush">
-        <% @recent_articles.each do |article| %>
-          <div class="list-group-item d-flex justify-content-between align-items-center py-2">
-            <span class="text-truncate me-2" style="max-width:320px">
-              <%= link_to article.title, admin_article_path(article) %>
+<div class="row g-3 mb-3">
+  <%# ── Pipeline stages ─────────────────────────────────────────────────── %>
+  <div class="col-lg-4">
+    <div class="card dash-card h-100">
+      <div class="card-header">
+        <span>Article pipeline</span>
+        <span class="text-muted small fw-normal"><%= number_with_delimiter(@pipeline_total) %> active</span>
+      </div>
+      <div class="card-body d-flex flex-column gap-2">
+        <% Admin::DashboardController::PIPELINE_STAGES.each do |stage| %>
+          <% stage_count = @pipeline_counts[stage].to_i %>
+          <%= link_to admin_articles_path(status: stage), class: "stage-row text-decoration-none text-reset #{'stage-error' if stage == 'error'}" do %>
+            <span class="text-truncate">
+              <% if stage == "error" %><i class="bi bi-exclamation-octagon text-danger me-1"></i><% end %><%= stage.humanize %>
             </span>
-            <%= render "admin/shared/status_badge", status: article.status %>
-          </div>
+            <span class="stage-track"><span class="stage-fill d-block" style="width: <%= @pipeline_total.positive? ? (stage_count * 100.0 / @pipeline_total).round(1) : 0 %>%"></span></span>
+            <span class="stage-count"><%= number_with_delimiter(stage_count) %></span>
+          <% end %>
         <% end %>
       </div>
     </div>
   </div>
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">Recent Posts</div>
-      <div class="list-group list-group-flush">
-        <% @recent_posts.each do |post| %>
-          <div class="list-group-item d-flex justify-content-between align-items-center py-2">
-            <span class="text-truncate me-2" style="max-width:260px">
-              <%= post.translation&.article&.title %>
-            </span>
-            <span class="badge bg-secondary"><%= post.telegram_channel&.display_name %></span>
-            <%= render "admin/shared/status_badge", status: post.status %>
+
+  <%# ── Recent articles ─────────────────────────────────────────────────── %>
+  <div class="col-lg-4">
+    <div class="card dash-card h-100">
+      <div class="card-header">
+        <span>Recent articles</span>
+        <%= link_to "View all →", admin_articles_path, class: "card-header-link" %>
+      </div>
+      <div class="list-group list-group-flush dash-list">
+        <% @recent_articles.each do |article| %>
+          <div class="list-group-item d-flex align-items-center gap-2">
+            <div class="min-w-0 flex-grow-1">
+              <%= link_to article.title.presence || "(untitled)", admin_article_path(article), class: "item-title", title: article.title %>
+              <div class="text-muted small text-truncate">
+                <%= article.feed&.name %> · <%= time_ago_in_words(article.created_at) %> ago
+              </div>
+            </div>
+            <%= render "admin/shared/status_badge", status: article.status %>
           </div>
         <% end %>
+        <% if @recent_articles.empty? %>
+          <div class="list-group-item text-muted small">No articles yet.</div>
+        <% end %>
       </div>
+    </div>
+  </div>
+
+  <%# ── Recent posts ────────────────────────────────────────────────────── %>
+  <div class="col-lg-4">
+    <div class="card dash-card h-100">
+      <div class="card-header">
+        <span>Recent posts</span>
+        <%= link_to "View all →", admin_telegram_posts_path(view: "history"), class: "card-header-link" %>
+      </div>
+      <div class="list-group list-group-flush dash-list">
+        <% @recent_posts.each do |telegram_post| %>
+          <% post_article = telegram_post.translation&.article %>
+          <div class="list-group-item d-flex align-items-center gap-2">
+            <div class="min-w-0 flex-grow-1">
+              <% post_title = telegram_post.translation&.translated_title.presence || post_article&.title || "(untitled)" %>
+              <% if post_article %>
+                <%= link_to post_title, admin_article_path(post_article), class: "item-title", title: post_title, dir: "auto" %>
+              <% else %>
+                <span class="item-title" dir="auto"><%= post_title %></span>
+              <% end %>
+              <div class="text-muted small text-truncate">
+                <i class="bi bi-broadcast me-1"></i><%= telegram_post.telegram_channel&.display_name %> ·
+                <%= time_ago_in_words(telegram_post.posted_at || telegram_post.created_at) %> ago
+              </div>
+            </div>
+            <%= render "admin/shared/status_badge", status: telegram_post.status %>
+          </div>
+        <% end %>
+        <% if @recent_posts.empty? %>
+          <div class="list-group-item text-muted small">No posts yet.</div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# ── All-time totals ────────────────────────────────────────────────────── %>
+<% total_links = [
+     [ "Feeds",        @totals[:feeds],             admin_feeds_path,                            "bi-rss",           :admin_only ],
+     [ "Articles",     @totals[:articles],          admin_articles_path,                         "bi-newspaper" ],
+     [ "Rewrites",     @totals[:rewrites],          admin_rewrites_path,                         "bi-pencil-square" ],
+     [ "Translations", @totals[:translations],      admin_translations_path,                     "bi-translate" ],
+     [ "Channels",     @totals[:telegram_channels], admin_telegram_channels_path,                "bi-telegram",      :admin_only ],
+     [ "Posts",        @totals[:telegram_posts],    admin_telegram_posts_path(view: "history"),  "bi-send-check" ]
+   ]
+   total_links = total_links.reject { |*, admin_only| admin_only == :admin_only } unless current_user&.admin? %>
+<div class="card dash-card">
+  <div class="card-header"><span>All time</span></div>
+  <div class="card-body py-2">
+    <div class="row g-1">
+      <% total_links.each do |total_label, total_value, total_path, total_icon| %>
+        <div class="col-6 col-md-4 col-xl-2">
+          <%= link_to total_path, class: "dash-total" do %>
+            <i class="bi <%= total_icon %> text-muted"></i>
+            <span class="text-muted small"><%= total_label %></span>
+            <span class="total-value ms-auto"><%= number_with_delimiter(total_value) %></span>
+          <% end %>
+        </div>
+      <% end %>
     </div>
   </div>
 </div>
