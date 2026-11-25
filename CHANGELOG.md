@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Public tag pages
+
+- User prompt: "clicking on the tags in the web, should list all the articles with that tag".
+- New route `GET /tag/:id` (and `/en/tag/:id`) handled by `NewsController#tag` and rendered by `news/tag.html.erb`. It lists every published, non-archived story carrying the tag, from the same story pool and in the same order as the other lists. The page shows the tag's name in the edition's language, a count with Persian digits in the fa edition, a canonical URL, and `noindex` when there are no stories.
+- `Tag#seo_param` builds the URL segment `"<id>-<english-slug>"` (ASCII-only for clean sharing), or just the id. A bare id or a stale slug redirects with 301 to the canonical one. Unknown tags render the site's 404 page.
+- The tag chips on the story page are now links (`rel="tag"`). New `TagGenerator.tag_records_for` returns the Tag records behind `tags_for`.
+- New UI strings `tag_title`, `tag_results`, `tag_empty` and `tag_description` for both editions.
+- Tests: 5 new in `news_controller_test.rb` (chip links, only tagged published stories listed, English name, redirect/404, noindex when empty). Full suite: 840 runs, 0 failures. Rubocop clean. No migration.
+
 ### Changed — Analysis segment labels: 10% threshold, percent dropped when it doesn't fit
 
 - User prompt: "ANALYSIS_LABEL_MIN_PERCENT can be 10 / if the percentage is not long enough, skip the percentage and just write the label when there is just room for that".

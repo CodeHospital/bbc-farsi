@@ -19,7 +19,7 @@ class NewsController < ApplicationController
   STORY_WINDOW = 24.hours
 
   before_action :set_news_lang
-  before_action :load_chrome, only: %i[index show search terms privacy]
+  before_action :load_chrome, only: %i[index show search tag terms privacy]
 
   # A bad/old slug and an archived (unpublished) translation both raise this —
   # `published_translations`/`Article.not_archived` already exclude archived
@@ -89,7 +89,8 @@ class NewsController < ApplicationController
 
     # The article's tags (its feed's tag first, then topic tags), named in the
     # edition's language.
-    @tags = TagGenerator.tags_for(@article, language: @news_lang)
+    @tag_records = TagGenerator.tag_records_for(@article, language: @news_lang)
+    @tags = @tag_records.map { |tag| tag.name_for(@news_lang) }
 
     # Markdown twin for LLMs / reader tools: no view tracking or task bumping.
     return render_story_markdown if request.format.symbol == :md
@@ -114,6 +115,20 @@ class NewsController < ApplicationController
       @results   = []
       @image_urls = {}
     end
+  end
+
+  # GET /tag/:id (and /en/tag/:id) — every published story carrying the tag,
+  # newest/posted first like the other lists. The :id is Tag#seo_param
+  # ("12-french-politics"); only the leading number is used, and other forms
+  # redirect to it. Unknown tags render the not-found page.
+  def tag
+    @tag = Tag.find(params[:id].to_i)
+    return redirect_to(news_tag_path(id: @tag.seo_param), status: :moved_permanently) if params[:id] != @tag.seo_param
+
+    @tag_name = @tag.name_for(@news_lang) || @tag.display_name
+    tagged_article_ids = @tag.article_tags.pluck(:article_id).to_set
+    @results = @all_stories.select { |story| tagged_article_ids.include?(story.article.id) }
+    @image_urls = ArticleImageFetcher.call_many(@results.map(&:article))
   end
 
   # GET /terms and /privacy (and /en/…) — static legal pages; the copy lives in

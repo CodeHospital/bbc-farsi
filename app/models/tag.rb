@@ -53,6 +53,11 @@ class Tag < ApplicationRecord
   # The name for a portal edition ("fa"/"en"); nil when not translated yet.
   def name_for(language) = language.to_s == "en" ? name_en : name_fa
 
+  # URL segment of the public tag page: id plus an ASCII slug of the English
+  # name ("12-french-politics"), or just the id. ASCII-only so links stay clean
+  # when shared (percent-encoded Persian breaks in some chat apps).
+  def seo_param = [ id, name_en.to_s.parameterize.presence ].compact.join("-")
+
   # Both names for admin screens, e.g. "ایران / Iran".
   def display_name = [ name_fa, name_en ].compact.join(" / ")
 

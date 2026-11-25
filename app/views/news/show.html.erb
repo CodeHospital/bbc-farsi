@@ -135,8 +135,8 @@
     <% if @tags.any? %>
       <div class="article-tags mt-4 pt-3 border-top">
         <span class="tags-label"><%= news_ui(:tags_label) %></span>
-        <% @tags.each do |tag| %>
-          <span class="tag-chip"><%= tag %></span>
+        <% @tag_records.each do |tag| %>
+          <%= link_to tag.name_for(news_lang), news_tag_path(id: tag.seo_param), class: "tag-chip", rel: "tag" %>
         <% end %>
       </div>
     <% end %>

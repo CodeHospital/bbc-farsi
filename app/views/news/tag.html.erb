@@ -1,0 +1,20 @@
+<%# Every published story carrying one tag (NewsController#tag). %>
+<% content_for :title,       "#{format(news_ui(:tag_title), tag: @tag_name)} — #{news_ui(:site_name)}" %>
+<% content_for :description, format(news_ui(:tag_description), tag: @tag_name) %>
+<% content_for :canonical,   news_tag_url(id: @tag.seo_param) %>
+<% content_for :robots, "noindex, follow" if @results.empty? %>
+
+<h1 class="block-title mb-3" style="--cat: #555"><span><%= format(news_ui(:tag_title), tag: @tag_name) %></span></h1>
+
+<p class="text-muted mb-4">
+  <strong><%= english_edition? ? @results.size : to_persian_digits(@results.size) %></strong>
+  <%= news_ui(:tag_results) %>
+</p>
+
+<% if @results.empty? %>
+  <p class="text-muted"><%= news_ui(:tag_empty) %></p>
+<% else %>
+  <% @results.each do |story| %>
+    <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id] %>
+  <% end %>
+<% end %>

@@ -163,6 +163,72 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_match(/- Tags: .*جهان, ایران, اقتصاد/, @response.body)
   end
 
+  test "tag chips on the story page link to the tag page" do
+    translation = create_translation
+    TagGenerator.store(translation.article_id, [ { name_fa: "سیاست فرانسه", name_en: "French Politics" } ])
+    tag = Tag.find_by!(name_en: "French Politics")
+
+    get news_path(id: translation.seo_param)
+
+    assert_equal "#{tag.id}-french-politics", tag.seo_param
+    assert_select ".article-tags a.tag-chip[href=?]", news_tag_path(id: tag.seo_param), "سیاست فرانسه"
+  end
+
+  test "tag page lists only the published stories carrying that tag" do
+    tagged_translation = create_translation(attrs: { translated_title: "خبر برچسب‌دار" })
+    other_tagged_translation = create_translation(attrs: { translated_title: "خبر دوم برچسب‌دار" })
+    create_translation(attrs: { translated_title: "خبر بی‌برچسب" })
+    archived_translation = create_translation(attrs: { translated_title: "خبر بایگانی", archived: true })
+    tag_pair = [ { name_fa: "سیاست فرانسه", name_en: "French Politics" } ]
+    [ tagged_translation, other_tagged_translation, archived_translation ].each do |translation|
+      TagGenerator.store(translation.article_id, tag_pair)
+    end
+    tag = Tag.find_by!(name_en: "French Politics")
+
+    get news_tag_path(id: tag.seo_param)
+
+    assert_response :success
+    assert_select "h1", /سیاست فرانسه/
+    assert_select "link[rel=canonical][href=?]", news_tag_url(id: tag.seo_param)
+    # Only the main column: the sidebar lists the latest stories regardless of tag.
+    listed_titles = css_select("main .post-item .post-title").map { |title| title.text.strip }
+    assert_equal [ "خبر برچسب‌دار", "خبر دوم برچسب‌دار" ].sort, listed_titles.sort
+  end
+
+  test "tag page in the English edition uses the English name" do
+    translation = create_translation
+    TagGenerator.store(translation.article_id, [ { name_fa: "سیاست فرانسه", name_en: "French Politics" } ])
+    tag = Tag.find_by!(name_en: "French Politics")
+    stub_request(:get, translation.article.url).to_return(body: "<html></html>")
+
+    get news_tag_path(id: tag.seo_param, lang: "en")
+
+    assert_response :success
+    assert_select "h1", /Tag: French Politics/
+  end
+
+  test "tag page redirects a bare or stale id to the canonical slug and 404s unknown tags" do
+    tag = Tag.create!(name_fa: "سیاست فرانسه", name_en: "French Politics")
+
+    get news_tag_path(id: tag.id)
+    assert_redirected_to news_tag_path(id: tag.seo_param)
+
+    get news_tag_path(id: "#{tag.id}-old-name")
+    assert_response :moved_permanently
+
+    get news_tag_path(id: "999999-nothing")
+    assert_response :not_found
+  end
+
+  test "a tag page with no published stories is not indexed" do
+    tag = Tag.create!(name_fa: "تنها", name_en: "Lonely")
+
+    get news_tag_path(id: tag.seo_param)
+
+    assert_response :success
+    assert_select "meta[name=robots][content=?]", "noindex, follow"
+  end
+
   test "a removed or renamed feed tag behaves like any other tag" do
     feed = create_feed(name: "World", name_fa: "جهان", category: "world")
     translation = create_translation(rewrite: create_rewrite(article: create_article(feed:)))

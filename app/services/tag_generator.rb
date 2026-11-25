@@ -78,7 +78,12 @@ class TagGenerator
   # The article's tags in a portal edition's language ("fa"/"en"), skipping
   # tags not yet translated into it.
   def self.tags_for(article, language: "fa")
-    article.ordered_tags.filter_map { |tag| tag.name_for(language) }
+    tag_records_for(article, language:).map { |tag| tag.name_for(language) }
+  end
+
+  # The Tag records behind `tags_for` (same order and filter), for linking.
+  def self.tag_records_for(article, language: "fa")
+    article.ordered_tags.select { |tag| tag.name_for(language) }
   end
 
   # Whether AI tagging ran (an article's feed tag alone doesn't count).
