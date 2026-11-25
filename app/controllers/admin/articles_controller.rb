@@ -2,6 +2,7 @@ class Admin::ArticlesController < Admin::BaseController
   include Pagy::Method
 
   before_action :set_article, only: %i[show rewrite multi_rewrite translate translate_original multi_translate archive unarchive bump_priority analyze update_analysis]
+  before_action :require_admin!, only: :reanalyze_all
 
   SORT_COLUMNS = {
     "title"     => "articles.title",
@@ -226,6 +227,14 @@ class Admin::ArticlesController < Admin::BaseController
     enqueue_analysis_for(ArticleAnalyzer.unanalyzed_candidates, notice_label: "unanalyzed")
   end
 
+  # Re-analyze every non-archived article (e.g. after the analyze prompt
+  # changed). Same work as `bin/rails bbc:reanalyze`. Queued at low priority
+  # and skipping articles whose analysis is already queued.
+  def reanalyze_all
+    enqueue_analysis_for(ArticleAnalyzer.reanalysis_candidates, notice_label: "non-archived",
+                         priority: ArticleAnalyzer::REANALYSIS_PRIORITY)
+  end
+
   def bump_priority
     rewrite_tasks     = Task.pending.where(target_type: "Rewrite",
                                            target_id: @article.rewrites.select(:id))
@@ -259,13 +268,13 @@ class Admin::ArticlesController < Admin::BaseController
     params.require(:article).permit(*Article::ANALYSIS_PERCENT_ATTRIBUTES, :analysis_reasoning, :analysis_reasoning_fa)
   end
 
-  def enqueue_analysis_for(articles, notice_label:)
+  def enqueue_analysis_for(articles, notice_label:, priority: 0)
     server, model = OllamaServer.pick_for_analysis
     return redirect_back(fallback_location: admin_articles_path, alert: "No Ollama servers with analysis or rewrite models configured.") unless server
 
     enqueued_count = 0
     articles.find_each do |article|
-      Task.enqueue_analyze(article, server:, model:)
+      Task.enqueue_analyze(article, server:, model:, priority:)
       enqueued_count += 1
     end
     redirect_back fallback_location: admin_articles_path,

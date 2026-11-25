@@ -122,6 +122,19 @@ namespace :bbc do
     puts "Enqueued #{enqueued_count} analyze task(s) (#{server.name} / #{model})."
   end
 
+  desc "Enqueue a fresh AI bias/fact analysis for every non-archived article (low priority, skips already-queued ones)"
+  task reanalyze: :environment do
+    server, model = OllamaServer.pick_for_analysis
+    abort "No Ollama servers with analysis or rewrite models configured." unless server
+
+    enqueued_count = 0
+    ArticleAnalyzer.reanalysis_candidates.find_each do |article|
+      Task.enqueue_analyze(article, server:, model:, priority: ArticleAnalyzer::REANALYSIS_PRIORITY)
+      enqueued_count += 1
+    end
+    puts "Enqueued #{enqueued_count} reanalyze task(s) (#{server.name} / #{model}, priority #{ArticleAnalyzer::REANALYSIS_PRIORITY})."
+  end
+
   desc "Enqueue AI tag-generation tasks for translated articles that have no tags yet"
   task tag: :environment do
     candidates = TagGenerator.untagged_candidates

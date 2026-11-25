@@ -52,6 +52,7 @@ Rails.application.routes.draw do
           post :bulk_translate
           post :bulk_analyze
           post :analyze_missing
+          post :reanalyze_all
         end
       end
 

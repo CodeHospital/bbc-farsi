@@ -629,6 +629,10 @@ the scores never change the pipeline or autoposting.
 - To backfill existing articles, use **⚖ Analyze unanalyzed** on the articles
   page, the bulk **Analyze** action, or `bin/rails bbc:analyze`. This needs
   migration `20261015000001`.
+- To re-analyze every non-archived article (for example after editing the
+  prompt), admins can use **↻ Reanalyze all** on the articles page or
+  `bin/rails bbc:reanalyze`. The tasks get priority -1, so new articles'
+  work runs first. Articles whose analysis is already queued are skipped.
 
 ### Multi-server comparison
 

@@ -5,6 +5,12 @@
           class: "btn btn-outline-secondary",
           title: "Queue an AI bias/fact analysis for every non-archived article that has none yet",
           data: { turbo_confirm: "Queue an AI analysis for every non-archived article without one?" } %>
+    <% if current_user&.admin? %>
+      <%= button_to "↻ Reanalyze all", reanalyze_all_admin_articles_path, method: :post,
+            class: "btn btn-outline-secondary",
+            title: "Queue a fresh AI bias/fact analysis for every non-archived article (low priority; already-queued ones are skipped)",
+            data: { turbo_confirm: "Re-analyze ALL non-archived articles? Existing analyses are replaced as the tasks finish. The tasks run after new articles' work." } %>
+    <% end %>
     <%= button_to "▶ Fetch Feeds Now", admin_articles_path, method: :get,
           params: { trigger_fetch: 1 }, class: "btn btn-outline-primary" %>
   </div>

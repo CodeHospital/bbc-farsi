@@ -338,6 +338,47 @@ class Admin::ArticlesControllerTest < ActionDispatch::IntegrationTest
     assert_equal "pending", two.reload.analysis_status
   end
 
+  test "reanalyze_all queues low-priority analyze tasks for every non-archived article once" do
+    create_rewrite_server
+    unanalyzed_article = create_article
+    analyzed_article   = create_article(attrs: analyzed_attributes)
+    create_article(attrs: { archived: true })
+
+    assert_difference -> { Task.where(kind: "analyze").count }, 2 do
+      post reanalyze_all_admin_articles_path
+    end
+    assert_redirected_to admin_articles_path
+    queued_tasks = Task.where(kind: "analyze")
+    assert_equal [ analyzed_article.id, unanalyzed_article.id ].sort, queued_tasks.pluck(:target_id).sort
+    assert queued_tasks.all? { |task| task.priority == ArticleAnalyzer::REANALYSIS_PRIORITY }
+    assert_equal "pending", analyzed_article.reload.analysis_status
+
+    # A second click while those tasks are still queued adds nothing.
+    assert_no_difference -> { Task.where(kind: "analyze").count } do
+      post reanalyze_all_admin_articles_path
+    end
+  end
+
+  test "articles index shows the reanalyze all button to admins only" do
+    get admin_articles_path
+    assert_select "form[action=?]", reanalyze_all_admin_articles_path
+
+    log_in_as(create_editor_user)
+    get admin_articles_path
+    assert_select "form[action=?]", reanalyze_all_admin_articles_path, 0
+  end
+
+  test "editors cannot reanalyze all articles" do
+    create_rewrite_server
+    create_article
+    log_in_as(create_editor_user)
+
+    assert_no_difference -> { Task.where(kind: "analyze").count } do
+      post reanalyze_all_admin_articles_path
+    end
+    assert_redirected_to admin_root_path
+  end
+
   test "show renders the edit history timeline with manual edits" do
     translation = create_translation(attrs: { translated_title: "قدیم" })
     editor      = create_editor_user

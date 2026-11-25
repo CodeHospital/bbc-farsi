@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Admins can reanalyze all articles
+
+- User prompt: "as admin i like to schedule all article for reanalysis".
+- New admin-only **↻ Reanalyze all** button on the admin articles page (`POST /admin/articles/reanalyze_all`, guarded by `require_admin!`; editors don't see the button). New rake task `bin/rails bbc:reanalyze` does the same work.
+- Queues an analyze task for every non-archived article, whether or not it was analyzed before (`ArticleAnalyzer.reanalysis_candidates`). Articles that already have a pending or claimed analyze task are skipped, so clicking twice adds no duplicates.
+- The tasks run at `ArticleAnalyzer::REANALYSIS_PRIORITY` (-1). The worker claims higher priority first, so new articles' rewrite, translate and analyze tasks (priority 0) are not held up by the backlog. `Task.enqueue_analyze` takes a new `priority:` argument (default 0).
+- Old analyses stay visible until the new result replaces them. Analysis tags are only added, never removed.
+- README updated. Tests: 4 new in `admin/articles_controller_test.rb` (queues all non-archived articles at low priority, a second click adds nothing, editors are refused, the button is shown only to admins). Full suite: 835 runs, 0 failures. Rubocop clean. No migration.
+
 ### Added — Analysis tags are added to the article's tags
 
 - User prompt: "analysis can also have tags like example below, add them to article tags" (example: `"tags": [{"name_en": "French Politics", "name_fa": "سیاست فرانسه"}, ...]`).

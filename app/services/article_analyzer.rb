@@ -106,6 +106,18 @@ class ArticleAnalyzer
     Article.not_archived.where(analysis_status: [ nil, "failed" ])
   end
 
+  # Bulk reanalysis runs below the default priority (0), so new articles'
+  # rewrite/translate/analyze tasks are still claimed first.
+  REANALYSIS_PRIORITY = -1
+
+  # Every not-archived article, analyzed or not, except those with an analyze
+  # task already pending or claimed (so a second click adds no duplicates) —
+  # the work the admin "Reanalyze all" button and `bbc:reanalyze` enqueue.
+  def self.reanalysis_candidates
+    queued_article_ids = Task.where(kind: "analyze", target_type: "Article", status: %w[pending claimed]).select(:target_id)
+    Article.not_archived.where.not(id: queued_article_ids)
+  end
+
   # Existing databases predate the "analyze" prompt; seed it on first use
   # (seed_defaults! is idempotent and never overwrites edited prompts).
   def self.current_prompt_version

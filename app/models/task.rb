@@ -127,9 +127,10 @@ class Task < ApplicationRecord
   # Enqueue an AI bias/fact analysis of the ORIGINAL article. Runs in
   # parallel with the rewrite (nothing waits for it); the result is written
   # onto the article's analysis columns when the worker completes.
-  def self.enqueue_analyze(article, server:, model:)
+  # `priority:` lets bulk reanalysis queue behind the live pipeline.
+  def self.enqueue_analyze(article, server:, model:, priority: 0)
     task = create!(
-      priority: 0,
+      priority:,
       kind: "analyze", target: article, ollama_server: server, model:,
       requests: ArticleAnalyzer.requests(article)
     )
