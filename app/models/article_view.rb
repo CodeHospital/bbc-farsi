@@ -79,12 +79,14 @@ class ArticleView < ApplicationRecord
   # Raises on any transport/parse error so the caller can avoid caching a
   # spurious "no country" result for a failed call.
   private_class_method def self.fetch_country_from_service(ip)
+    SentryBreadcrumb.record("fetch_country_from_service #{ip}", category: "geolocation")
     uri = URI.parse(AppCredentials.ip_location_api_url)
     uri.query = URI.encode_www_form(ip: ip)
     # Short timeouts: this can run inside a visitor's request (page view, guest edit).
     response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 3, read_timeout: 3) do |http|
       http.get(uri.request_uri).body
     end
+    SentryBreadcrumb.record("fetch_country_from_service #{response}", category: "geolocation")
     location_response = JSON.parse(response)
     return [ nil, nil ] unless location_response["success"]
 
