@@ -508,7 +508,7 @@ class NewsController < ApplicationController
   # data longer than the short TTL backstop). The pool is language-agnostic —
   # the edition only affects which fields the views read off each story.
   def latest_translation_per_article
-    Rails.cache.fetch(story_pool_cache_key, expires_in: 10.minutes) do
+    Rails.cache.fetch(story_pool_cache_key, expires_in: 10.days) do
       published_translations
         .order(created_at: :desc)
         .group_by(&:article_id)

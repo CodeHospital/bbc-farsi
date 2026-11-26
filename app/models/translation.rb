@@ -41,13 +41,19 @@ class Translation < ApplicationRecord
   # Derive a URL-safe slug from the Persian title (word chars kept, everything
   # else collapsed to hyphens). Used internally to populate the slug column.
   def computed_slug
-    translated_title.to_s.strip
+    full_slug = translated_title.to_s.strip
       .gsub(/[[:space:]]+/, "-")
       .gsub(/[^[[:word:]]\-]/, "")
       .gsub(/-+/, "-")
       .gsub(/\A-+|-+\z/, "")
-      .presence
+    truncate_slug(full_slug).presence
   end
+
+  # Max characters kept in a slug. Persian letters are 2 bytes in UTF-8, so
+  # this keeps the indexed value far below PostgreSQL's btree row limit
+  # (~2704 bytes) even when the LLM returns an overlong "title", and keeps
+  # URLs shareable. The collision suffix adds at most ~17 more characters.
+  SLUG_MAX_LENGTH = 120
 
   def activate!
     article.translations.where.not(id: id).update_all(active: false)
@@ -61,6 +67,17 @@ class Translation < ApplicationRecord
   def generating_task = tasks.where(kind: %w[translate refine]).order(:created_at).last
 
   private
+
+  # Cut a slug to SLUG_MAX_LENGTH, preferring the last hyphen (word boundary)
+  # so a word is not split in half.
+  def truncate_slug(full_slug)
+    return full_slug if full_slug.length <= SLUG_MAX_LENGTH
+
+    truncated_slug = full_slug[0, SLUG_MAX_LENGTH]
+    last_hyphen_index = truncated_slug.rindex("-")
+    truncated_slug = truncated_slug[0, last_hyphen_index] if last_hyphen_index && last_hyphen_index > SLUG_MAX_LENGTH / 2
+    truncated_slug.gsub(/-+\z/, "")
+  end
 
   # Populate the slug column once (on first save with a non-blank title).
   # Appends "-2", "-3", … to resolve uniqueness collisions. Skips gracefully

@@ -71,4 +71,18 @@ class TranslationTest < ActiveSupport::TestCase
     assert_includes Translation.needs_manual_edit, flagged
     assert_not_includes Translation.needs_manual_edit, unflagged
   end
+
+  test "slug is capped for overlong titles so the unique index never overflows" do
+    overlong_title = ([ "خبر" ] * 1200).join(" ")
+    translation = create_translation(attrs: { translated_title: overlong_title })
+
+    assert translation.slug.length <= Translation::SLUG_MAX_LENGTH
+    assert_not translation.slug.end_with?("-")
+    assert translation.slug.start_with?("خبر-خبر")
+  end
+
+  test "short titles keep their full slug" do
+    translation = create_translation(attrs: { translated_title: "سلام دنیا" })
+    assert_equal "سلام-دنیا", translation.slug
+  end
 end

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed — Translation slug overflowing the unique index
+
+- User prompt: "PG::ProgramLimitExceeded: index row size 3448 exceeds btree version 4 maximum 2704 for index index_translations_on_slug (Api::LlmCallbacksController#create)".
+- Cause: the slug was built from the whole `translated_title`. When the LLM returned a very long "title" (about 3.4 KB), the value was too big for Postgres's btree index, and saving the translation in the LLM callback failed.
+- `Translation#computed_slug` now caps slugs at `Translation::SLUG_MAX_LENGTH` (120 characters), cutting at the last hyphen so words stay whole. Short titles produce the same slug as before. Existing slugs are unchanged.
+- Tests: 2 new in `translation_test.rb`. Full suite: 846 runs, 0 failures. Rubocop clean. No migration.
+
 ### Changed — Admin dashboard redesign
 
 - User prompt: "redesign admin dashboard".
