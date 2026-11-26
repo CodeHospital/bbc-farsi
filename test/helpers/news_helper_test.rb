@@ -86,4 +86,27 @@ class NewsHelperTest < ActionView::TestCase
     assert_equal "Haaretz", source_name(il)
     assert_equal "haaretz.com", source_domain(il)
   end
+
+  # ── tag page fragment cache key ─────────────────────────────────────────────
+
+  FakeVersioned = Struct.new(:id, :cache_key_with_version)
+  FakeStory     = Struct.new(:cache_key_with_version, :article)
+
+  def fake_story(article_id, story_version: "translations/#{article_id}-1", article_version: "articles/#{article_id}-1")
+    FakeStory.new(story_version, FakeVersioned.new(article_id, article_version))
+  end
+
+  test "the tag list cache key changes when a listed story, its article, its image or the list changes" do
+    tag = FakeVersioned.new(7, "tags/7-1")
+    stories = [ fake_story(1), fake_story(2) ]
+    image_urls = { 1 => "https://img/1.jpg", 2 => nil }
+    base_key = news_tag_list_cache_key(tag, stories, image_urls, "fa")
+
+    assert_equal base_key, news_tag_list_cache_key(tag, [ fake_story(1), fake_story(2) ], image_urls.dup, "fa")
+    assert_not_equal base_key, news_tag_list_cache_key(tag, stories, image_urls, "en")
+    assert_not_equal base_key, news_tag_list_cache_key(tag, [ fake_story(1) ], image_urls, "fa")
+    assert_not_equal base_key, news_tag_list_cache_key(tag, [ fake_story(1, story_version: "translations/1-2"), fake_story(2) ], image_urls, "fa")
+    assert_not_equal base_key, news_tag_list_cache_key(tag, [ fake_story(1, article_version: "articles/1-2"), fake_story(2) ], image_urls, "fa")
+    assert_not_equal base_key, news_tag_list_cache_key(tag, stories, image_urls.merge(2 => "https://img/2.jpg"), "fa")
+  end
 end

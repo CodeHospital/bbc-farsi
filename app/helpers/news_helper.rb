@@ -459,6 +459,17 @@ module NewsHelper
     [ "news/sidebar", version_sum, all_stories_count, lang ]
   end
 
+  # Fragment-cache key for a tag page's story list. The digest covers every
+  # listed story's version, its article's version (tagging an article touches
+  # it) and its image URL, so the fragment busts when a story is added, removed,
+  # edited, re-imaged or (un)tagged. The tag's own version covers renames.
+  def news_tag_list_cache_key(tag, stories, image_urls, lang)
+    story_versions = stories.map do |story|
+      [ story.cache_key_with_version, story.article.cache_key_with_version, image_urls[story.article.id] ].join("|")
+    end
+    [ "news/tag-list", tag, lang, stories.size, Digest::SHA256.hexdigest(story_versions.join("\n")) ]
+  end
+
   # Publication time of a story — always the original article's date.
   # Falls back to article.created_at (ingest time) rather than the translation's
   # created_at so the displayed date is never the pipeline timestamp.

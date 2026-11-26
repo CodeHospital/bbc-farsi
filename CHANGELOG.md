@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Tag pages fragment-cached
+
+- User prompt: "can we also cache tag listing pages".
+- The story list on `news/tag.html.erb` (count + story cards) is now one cached fragment, stored in Solid Cache in production. The story cards inside it are still cached one by one.
+- New helper `NewsHelper#news_tag_list_cache_key` builds the key from the tag, the edition, the story count and a SHA-256 digest of each listed story's version, its article's version and its image URL. The fragment refreshes when a story is added, removed, edited or re-imaged, or when an article is tagged or untagged (`ArticleTag` touches the article). It also refreshes when the tag is renamed.
+- Tests: 1 new in `news_helper_test.rb`. Full suite: 847 runs, 0 failures. Rubocop clean. No migration.
+
 ### Fixed — Translation slug overflowing the unique index
 
 - User prompt: "PG::ProgramLimitExceeded: index row size 3448 exceeds btree version 4 maximum 2704 for index index_translations_on_slug (Api::LlmCallbacksController#create)".
