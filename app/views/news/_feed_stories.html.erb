@@ -1,4 +1,7 @@
-<%# Story bar: one bubble per feed with news from the last 24 hours. Tapping a
+<%# Story bar: one bubble per feed with news from the last 24 hours. A circle
+    shows the picture of its newest story that has one; the initials (or the
+    Telegram icon) underneath show when there is none or it fails to load.
+    Tapping a
     bubble opens the full-screen story viewer (below), paging through that
     feed's stories. A bubble turns grey once its latest story has been viewed
     (remembered in localStorage).
@@ -17,7 +20,12 @@
                   data-latest="<%= @posted_story_pages.first.article_id %>"
                   style="--cat: <%= NewsHelper::POSTED_STORY_COLOR %>"
                   title="<%= news_ui(:posted_stories) %>">
-            <span class="ring"><span class="avatar"><i class="bi bi-telegram"></i></span></span>
+            <span class="ring"><span class="avatar">
+              <i class="bi bi-telegram"></i>
+              <% if (circle_image_url = story_circle_image_url(@posted_story_pages, @story_image_urls)) %>
+                <img src="<%= circle_image_url %>" alt="" loading="lazy" decoding="async" onerror="this.remove()">
+              <% end %>
+            </span></span>
             <span class="label"><%= news_ui(:posted_stories) %></span>
           </button>
         </li>
@@ -30,7 +38,12 @@
                   data-latest="<%= profile.stories.first.article_id %>"
                   style="<%= category_style(feed.category) %>"
                   title="<%= source_name(feed) %> · <%= feed_display_name(feed) %>">
-            <span class="ring"><span class="avatar"><%= feed_initials(feed) %></span></span>
+            <span class="ring"><span class="avatar">
+              <%= feed_initials(feed) %>
+              <% if (circle_image_url = story_circle_image_url(profile.stories, @story_image_urls)) %>
+                <img src="<%= circle_image_url %>" alt="" loading="lazy" decoding="async" onerror="this.remove()">
+              <% end %>
+            </span></span>
             <span class="label"><%= feed_display_name(feed) %></span>
           </button>
         </li>

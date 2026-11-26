@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed — Story circles show a news picture
+
+- User prompt: "in the stories, use the picture from the last store in the story with a picture inside the story circle".
+- Each circle in the story bar now shows the picture of its newest story that has one, including the posted-on-Telegram circle.
+- A circle with no picture, or whose picture fails to load, shows the feed initials (or the Telegram icon) as before.
+- New helper `NewsHelper#story_circle_image_url`. It uses the already loaded story image URLs, so there are no extra queries.
+- Tests: 3 new in `news_controller_test.rb`. No migration.
+
 ### Added — Tags under each item on tag pages
 
 - User prompt: "in the tag listings, show the tags for each item under it, so tag listings link to eachother".

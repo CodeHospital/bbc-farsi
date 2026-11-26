@@ -358,6 +358,12 @@ module NewsHelper
     words.first(2).map { |word| word[0] }.join.upcase
   end
 
+  # Picture shown inside a story-bar circle: that of the newest story in the
+  # bubble that has one (`stories` is newest-first), or nil when none does.
+  def story_circle_image_url(stories, image_urls)
+    stories.lazy.filter_map { |story| image_urls[story.article.id].presence }.first
+  end
+
   # Story-viewer key (and localStorage "seen" key) of the posted-news bubble.
   # Feed bubbles use their bare feed id, so the two never collide.
   POSTED_STORY_KEY = "posted".freeze

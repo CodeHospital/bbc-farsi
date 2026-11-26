@@ -429,6 +429,39 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, story_data.first["pages"].size
   end
 
+  test "story circle shows the picture of the newest story that has one" do
+    feed = create_feed(name: "World", category: "world")
+    { 1 => nil, 2 => "https://ichef.bbci.co.uk/newer.jpg", 3 => "https://ichef.bbci.co.uk/older.jpg" }.each do |hours, image_url|
+      create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: hours.hours.ago, image_url: })))
+    end
+
+    get root_path
+
+    assert_select "button.feed-story[data-feed-id=?] .avatar img", feed.id.to_s, 1
+    assert_select "button.feed-story[data-feed-id=?] .avatar img[src=?]", feed.id.to_s, "https://ichef.bbci.co.uk/newer.jpg"
+  end
+
+  test "posted story circle shows a picture from the posted stories" do
+    post_to_telegram(create_translation(rewrite: create_rewrite(article: create_article(
+      attrs: { published_at: 2.hours.ago, image_url: "https://ichef.bbci.co.uk/posted.jpg" }))))
+
+    get root_path
+
+    assert_select "button.feed-story.posted .avatar img[src=?]", "https://ichef.bbci.co.uk/posted.jpg"
+  end
+
+  test "story circle without any picture keeps its initials or icon" do
+    feed = create_feed(name: "World", category: "world")
+    create_translation(rewrite: create_rewrite(article: create_article(feed:, attrs: { published_at: 1.hour.ago })))
+    post_to_telegram(create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 2.hours.ago }))))
+
+    get root_path
+
+    assert_select "nav.feed-stories .avatar img", 0
+    assert_select "button.feed-story.posted .avatar i.bi-telegram"
+    assert_select "button.feed-story[data-feed-id=?] .avatar", feed.id.to_s, text: /\S/
+  end
+
   test "story bar is absent when nothing was published in the last 24 hours" do
     create_translation(rewrite: create_rewrite(article: create_article(attrs: { published_at: 3.days.ago })))
 
