@@ -52,12 +52,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_11_25_000001) do
     t.integer "factual_percent"
     t.integer "speculative_percent"
     t.text "analysis_reasoning"
-    t.text "analysis_reasoning_fa"
     t.string "analysis_status"
     t.datetime "analyzed_at"
     t.string "image_url"
     t.datetime "image_resolved_at"
     t.datetime "tags_generated_at"
+    t.text "analysis_reasoning_fa"
     t.index ["feed_id"], name: "index_articles_on_feed_id"
     t.index ["image_resolved_at"], name: "index_articles_on_image_resolved_at"
     t.index ["slug"], name: "index_articles_on_slug", unique: true

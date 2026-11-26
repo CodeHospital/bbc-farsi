@@ -86,6 +86,15 @@ class TagGenerator
     article.ordered_tags.select { |tag| tag.name_for(language) }
   end
 
+  # `tag_records_for` for many articles in one query, for lists:
+  # { article_id => [Tag, …] } in attachment order, only tags named in
+  # `language`. Articles without such tags are absent from the hash.
+  def self.tag_records_by_article(article_ids, language: "fa")
+    ArticleTag.where(article_id: article_ids).includes(:tag).order(:id)
+      .group_by(&:article_id)
+      .transform_values { |article_tags| article_tags.map(&:tag).select { |tag| tag.name_for(language) } }
+  end
+
   # Whether AI tagging ran (an article's feed tag alone doesn't count).
   def self.tagged?(article) = article.tags_generated_at.present?
 

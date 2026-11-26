@@ -8,7 +8,7 @@
 
 <%# Fragment-cached as a whole (each post_item is cached too); the key busts
     whenever a listed story, its article, its image or the tag changes. %>
-<% cache news_tag_list_cache_key(@tag, @results, @image_urls, news_lang) do %>
+<% cache news_tag_list_cache_key(@tag, @results, @image_urls, news_lang, @tags_by_article) do %>
   <p class="text-muted mb-4">
     <strong><%= english_edition? ? @results.size : to_persian_digits(@results.size) %></strong>
     <%= news_ui(:tag_results) %>
@@ -18,7 +18,8 @@
     <p class="text-muted"><%= news_ui(:tag_empty) %></p>
   <% else %>
     <% @results.each do |story| %>
-      <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id] %>
+      <%= render "news/post_item", story: story, image_url: @image_urls[story.article.id],
+                 tags: @tags_by_article[story.article.id], current_tag: @tag %>
     <% end %>
   <% end %>
 <% end %>

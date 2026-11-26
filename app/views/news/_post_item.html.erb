@@ -1,7 +1,11 @@
 <%# Thumbnail-left list row (Newspaper post list).
-    locals: story, image_url, excerpt: true %>
+    locals: story, image_url, excerpt: true,
+            tags: nil (Tag records to list under the item, linked to their tag pages),
+            current_tag: nil (rendered as the active, unlinked chip) %>
 <% show_excerpt = local_assigns.fetch(:excerpt, true) %>
-<% cache [story, story.article, news_lang, image_url, show_excerpt] do %>
+<% item_tags    = local_assigns.fetch(:tags, nil) || [] %>
+<% current_tag  = local_assigns[:current_tag] %>
+<% cache [story, story.article, news_lang, image_url, show_excerpt, *item_tags, current_tag] do %>
   <% category = story.article.feed&.category %>
   <% body = story_body(story) %>
   <article class="post-item" style="<%= category_style(category) %>">
@@ -19,6 +23,17 @@
       </div>
       <% if show_excerpt && body.present? %>
         <p class="excerpt d-none d-sm-block"><%= truncate(body, length: 120, separator: " ") %></p>
+      <% end %>
+      <% if item_tags.any? %>
+        <div class="post-tags">
+          <% item_tags.each do |item_tag| %>
+            <% if item_tag == current_tag %>
+              <span class="tag-chip active" aria-current="page"><%= item_tag.name_for(news_lang) %></span>
+            <% else %>
+              <%= link_to item_tag.name_for(news_lang), news_tag_path(id: item_tag.seo_param), class: "tag-chip", rel: "tag" %>
+            <% end %>
+          <% end %>
+        </div>
       <% end %>
     </div>
   </article>

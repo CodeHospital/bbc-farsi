@@ -108,5 +108,11 @@ class NewsHelperTest < ActionView::TestCase
     assert_not_equal base_key, news_tag_list_cache_key(tag, [ fake_story(1, story_version: "translations/1-2"), fake_story(2) ], image_urls, "fa")
     assert_not_equal base_key, news_tag_list_cache_key(tag, [ fake_story(1, article_version: "articles/1-2"), fake_story(2) ], image_urls, "fa")
     assert_not_equal base_key, news_tag_list_cache_key(tag, stories, image_urls.merge(2 => "https://img/2.jpg"), "fa")
+
+    # A renamed tag shown under an item busts the list too.
+    item_tags = { 1 => [ FakeVersioned.new(9, "tags/9-1") ] }
+    renamed_item_tags = { 1 => [ FakeVersioned.new(9, "tags/9-2") ] }
+    assert_not_equal news_tag_list_cache_key(tag, stories, image_urls, "fa", item_tags),
+                     news_tag_list_cache_key(tag, stories, image_urls, "fa", renamed_item_tags)
   end
 end

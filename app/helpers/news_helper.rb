@@ -461,11 +461,14 @@ module NewsHelper
 
   # Fragment-cache key for a tag page's story list. The digest covers every
   # listed story's version, its article's version (tagging an article touches
-  # it) and its image URL, so the fragment busts when a story is added, removed,
-  # edited, re-imaged or (un)tagged. The tag's own version covers renames.
-  def news_tag_list_cache_key(tag, stories, image_urls, lang)
+  # it), its image URL and the versions of the tags shown under it, so the
+  # fragment busts when a story is added, removed, edited, re-imaged,
+  # (un)tagged, or one of its tags is renamed. The tag's own version covers
+  # renames of the page's tag.
+  def news_tag_list_cache_key(tag, stories, image_urls, lang, tags_by_article = {})
     story_versions = stories.map do |story|
-      [ story.cache_key_with_version, story.article.cache_key_with_version, image_urls[story.article.id] ].join("|")
+      item_tag_versions = Array(tags_by_article[story.article.id]).map(&:cache_key_with_version)
+      [ story.cache_key_with_version, story.article.cache_key_with_version, image_urls[story.article.id], *item_tag_versions ].join("|")
     end
     [ "news/tag-list", tag, lang, stories.size, Digest::SHA256.hexdigest(story_versions.join("\n")) ]
   end

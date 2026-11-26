@@ -195,6 +195,24 @@ class NewsControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ "خبر برچسب‌دار", "خبر دوم برچسب‌دار" ].sort, listed_titles.sort
   end
 
+  test "tag page items list their tags, linking to the other tag pages" do
+    translation = create_translation(attrs: { translated_title: "خبر دو برچسبی" })
+    TagGenerator.store(translation.article_id, [
+      { name_fa: "سیاست فرانسه", name_en: "French Politics" },
+      { name_fa: "انتخابات", name_en: "Elections" }
+    ])
+    page_tag = Tag.find_by!(name_en: "French Politics")
+    other_tag = Tag.find_by!(name_en: "Elections")
+
+    get news_tag_path(id: page_tag.seo_param)
+
+    assert_response :success
+    assert_select "main .post-item .post-tags a.tag-chip[rel=tag][href=?]", news_tag_path(id: other_tag.seo_param), "انتخابات"
+    # The page's own tag is shown as the active chip, not as a link to itself.
+    assert_select "main .post-item .post-tags span.tag-chip.active[aria-current=page]", "سیاست فرانسه"
+    assert_select "main .post-item .post-tags a[href=?]", news_tag_path(id: page_tag.seo_param), count: 0
+  end
+
   test "tag page in the English edition uses the English name" do
     translation = create_translation
     TagGenerator.store(translation.article_id, [ { name_fa: "سیاست فرانسه", name_en: "French Politics" } ])

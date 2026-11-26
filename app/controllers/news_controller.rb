@@ -129,6 +129,8 @@ class NewsController < ApplicationController
     tagged_article_ids = @tag.article_tags.pluck(:article_id).to_set
     @results = @all_stories.select { |story| tagged_article_ids.include?(story.article.id) }
     @image_urls = ArticleImageFetcher.call_many(@results.map(&:article))
+    # Each item lists its own tags, linking tag pages to one another.
+    @tags_by_article = TagGenerator.tag_records_by_article(@results.map { |story| story.article.id }, language: @news_lang)
   end
 
   # GET /terms and /privacy (and /en/…) — static legal pages; the copy lives in

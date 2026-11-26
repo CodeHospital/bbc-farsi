@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added — Tags under each item on tag pages
+
+- User prompt: "in the tag listings, show the tags for each item under it, so tag listings link to eachother".
+- Each story on a tag page now shows its tags under it, in the edition's language and in attachment order. Each tag links to its own tag page (`rel="tag"`). The page's own tag is shown as an active chip (`aria-current="page"`) and is not a link.
+- New `TagGenerator.tag_records_by_article` loads the tags for every listed article in one query, so there is no per-item lookup.
+- `news/_post_item.html.erb` takes optional `tags:` and `current_tag:` locals. The other lists (home, search, sidebar) don't pass them and are unchanged.
+- `news_tag_list_cache_key` now takes the item tags and includes their versions, so renaming a tag shown under an item refreshes the cached list.
+- New CSS: `.post-item .post-tags` (small wrapping chips) and `.tag-chip.active`.
+- Tests: 1 new controller test, and the helper test is extended. Full suite: 848 runs, 0 failures. Rubocop clean. No migration.
+
 ### Changed — Tag pages fragment-cached
 
 - User prompt: "can we also cache tag listing pages".
